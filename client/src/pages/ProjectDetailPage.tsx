@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
+import HistoryPanel from '../components/HistoryPanel';
 import ProjectForm from '../components/ProjectForm';
 import TaskForm from '../components/TaskForm';
 import TaskRow from '../components/TaskRow';
@@ -160,6 +161,8 @@ export default function ProjectDetailPage() {
       </div>
 
       <TaskForm compact submitLabel="+ Add task" pending={createTaskMutation.isPending} onSubmit={(values) => createTaskMutation.mutate(values)} />
+
+      <HistoryPanel path={`projects/${slug}.md`} onReverted={invalidateProject} />
     </div>
   );
 }

@@ -24,6 +24,15 @@ export interface AddWorkspaceInput {
   name?: string;
 }
 
+/** PLAN.md "Daily reminder": "default '20:00' on a newly-added workspace". */
+const DEFAULT_REMINDER_TIME = '20:00';
+
+export interface ReminderSettings {
+  enabled: boolean;
+  /** 24h "HH:MM" local time, or null when disabled. */
+  time: string | null;
+}
+
 export function listWorkspaces(homeDir: string = os.homedir()): WorkspaceEntry[] {
   return readRegistry(homeDir).workspaces;
 }
@@ -73,6 +82,8 @@ export function addWorkspace(input: AddWorkspaceInput, homeDir: string = os.home
     path: resolvedPath,
     name: input.name?.trim() || path.basename(resolvedPath),
     lastOpenedAt: new Date().toISOString(),
+    reminderTime: DEFAULT_REMINDER_TIME,
+    lastReminderFiredDate: null,
   };
   registry.workspaces.push(entry);
   registry.activeWorkspaceId = entry.id;
@@ -112,6 +123,74 @@ export function removeWorkspace(id: string, homeDir: string = os.homedir()): voi
   registry.workspaces.splice(index, 1);
   if (registry.activeWorkspaceId === id) registry.activeWorkspaceId = null;
   writeRegistry(registry, homeDir);
+}
+
+function reminderSettingsOf(entry: WorkspaceEntry): ReminderSettings {
+  const time = entry.reminderTime === undefined ? DEFAULT_REMINDER_TIME : entry.reminderTime;
+  return { enabled: time !== null, time };
+}
+
+function findEntryOrThrow(id: string, registry: ReturnType<typeof readRegistry>): WorkspaceEntry {
+  const entry = registry.workspaces.find((w) => w.id === id);
+  if (!entry) throw new WorkspaceServiceError(`no workspace with id ${id}`, 404);
+  return entry;
+}
+
+/** `window.pivot.getReminderSettings()` (via `electron/src/main.ts`'s IPC
+ * handler, over HTTP) — the active workspace's daily-reminder time, PLAN.md
+ * "Daily reminder". */
+export function getReminderSettings(homeDir: string = os.homedir()): ReminderSettings {
+  return reminderSettingsOf(getActiveWorkspaceOrThrow(homeDir));
+}
+
+/** `window.pivot.setReminderSettings(...)`. `enabled: false` persists as
+ * `reminderTime: null`; `enabled: true` with no `time` falls back to the
+ * same default a newly-added workspace gets. */
+export function setReminderSettings(settings: ReminderSettings, homeDir: string = os.homedir()): ReminderSettings {
+  const active = getActiveWorkspaceOrThrow(homeDir);
+  const registry = readRegistry(homeDir);
+  const entry = findEntryOrThrow(active.id, registry);
+  entry.reminderTime = settings.enabled ? (settings.time ?? DEFAULT_REMINDER_TIME) : null;
+  writeRegistry(registry, homeDir);
+  return reminderSettingsOf(entry);
+}
+
+/**
+ * Records that the daily reminder actually fired for the active workspace
+ * today — called once by `electron/src/reminder.ts` right after it shows
+ * the notification (never on a skip), so a later tick the same day doesn't
+ * refire (PLAN.md "Daily reminder"). `date` is supplied by the caller
+ * (local YYYY-MM-DD) rather than computed here — all wall-clock/local-date
+ * logic for the reminder lives in the Electron scheduler; the server only
+ * ever stores what it's told.
+ */
+export function markReminderFired(date: string, homeDir: string = os.homedir()): string {
+  const active = getActiveWorkspaceOrThrow(homeDir);
+  const registry = readRegistry(homeDir);
+  const entry = findEntryOrThrow(active.id, registry);
+  entry.lastReminderFiredDate = date;
+  writeRegistry(registry, homeDir);
+  return date;
+}
+
+/**
+ * The app-wide launch-at-login *preference record* — not the live OS
+ * truth (that's `electron/src/loginItem.ts`, which reads/writes it
+ * directly via `app.getLoginItemSettings`/`setLoginItemSettings`, the only
+ * process with access to that API). This is purely the breadcrumb
+ * `electron/src/main.ts` uses to know whether the one-time "on by default
+ * for a new install" logic (PLAN.md "Daily reminder") has already run —
+ * `null` means it hasn't.
+ */
+export function getLaunchAtLoginPreference(homeDir: string = os.homedir()): boolean | null {
+  return readRegistry(homeDir).launchAtLogin ?? null;
+}
+
+export function setLaunchAtLoginPreference(enabled: boolean, homeDir: string = os.homedir()): boolean {
+  const registry = readRegistry(homeDir);
+  registry.launchAtLogin = enabled;
+  writeRegistry(registry, homeDir);
+  return enabled;
 }
 
 export type { WorkspaceEntry };

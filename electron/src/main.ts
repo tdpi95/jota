@@ -16,6 +16,7 @@ import treeKill from 'tree-kill';
 
 import { getFreePort } from './freePort';
 import { getLaunchAtLogin, setLaunchAtLogin } from './loginItem';
+import { startReminderScheduler } from './reminder';
 import { createTray } from './tray';
 
 const isDev = !app.isPackaged;
@@ -27,6 +28,7 @@ let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
 let isQuitting = false;
+let stopReminderScheduler: (() => void) | null = null;
 
 // Deliberately NOT `detached: true`: leaving the server in Electron's own
 // process group means a raw Ctrl+C in the terminal running `npm run dev`
@@ -118,6 +120,20 @@ function showMainWindow(): void {
   mainWindow.focus();
 }
 
+/** Shows/focuses the window and navigates it to `path` — used by the tray's
+ * "Settings" item and by the reminder notification's click handler
+ * (PLAN.md: "clicking the notification shows/focuses the window and
+ * navigates to /journal"). A full `loadURL` rather than an IPC
+ * "navigate client-side" message: simpler, and `window.pivot` has no
+ * navigation bridge in PLAN.md's own preload contract, so this reuses the
+ * same URL-loading `createWindow` already does rather than inventing one. */
+function navigateMainWindow(path: string): void {
+  showMainWindow();
+  if (!mainWindow || serverPort === null) return;
+  const base = isDev ? DEV_CLIENT_URL : `http://127.0.0.1:${serverPort}`;
+  void mainWindow.loadURL(`${base}${path}`);
+}
+
 ipcMain.handle('pivot:pick-folder', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
@@ -126,7 +142,69 @@ ipcMain.handle('pivot:pick-folder', async () => {
 });
 
 ipcMain.handle('pivot:get-launch-at-login', () => getLaunchAtLogin());
-ipcMain.handle('pivot:set-launch-at-login', (_event, enabled: boolean) => setLaunchAtLogin(enabled));
+ipcMain.handle('pivot:set-launch-at-login', async (_event, enabled: boolean) => {
+  setLaunchAtLogin(enabled);
+  // Best-effort: also record the user's explicit choice in the registry, so
+  // a later app start knows this was already decided and doesn't re-apply
+  // the one-time "on by default" logic over it (see
+  // `applyLaunchAtLoginDefaultIfUndecided` below). The OS-level toggle above
+  // is what actually matters and has already happened regardless of whether
+  // this succeeds.
+  if (serverPort !== null) {
+    try {
+      await fetch(`http://127.0.0.1:${serverPort}/api/preferences/launch-at-login`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+    } catch (err) {
+      console.error('[main] failed to persist launch-at-login preference:', err);
+    }
+  }
+});
+
+/**
+ * PLAN.md "Daily reminder": "Start-at-login is on by default". Applied
+ * exactly once — if the registry's `launchAtLogin` preference has never
+ * been explicitly set (a fresh install, or a registry written before this
+ * field existed), turn it on and record that we did, so a later explicit
+ * opt-out by the user is never silently re-forced back on at the next
+ * app start.
+ */
+async function applyLaunchAtLoginDefaultIfUndecided(port: number): Promise<void> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/preferences/launch-at-login`);
+    if (!res.ok) return;
+    const { enabled } = (await res.json()) as { enabled: boolean | null };
+    if (enabled !== null) return; // already decided, one way or the other — leave it alone
+
+    setLaunchAtLogin(true);
+    await fetch(`http://127.0.0.1:${port}/api/preferences/launch-at-login`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true }),
+    });
+  } catch (err) {
+    console.error('[main] failed to apply launch-at-login default:', err);
+  }
+}
+
+ipcMain.handle('pivot:get-reminder-settings', async () => {
+  if (serverPort === null) throw new Error('embedded server is not ready yet');
+  const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active/reminder`);
+  if (!res.ok) throw new Error(`failed to load reminder settings (${res.status})`);
+  return res.json();
+});
+
+ipcMain.handle('pivot:set-reminder-settings', async (_event, settings: { enabled: boolean; time: string | null }) => {
+  if (serverPort === null) throw new Error('embedded server is not ready yet');
+  const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active/reminder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) throw new Error(`failed to save reminder settings (${res.status})`);
+});
 
 app.on('before-quit', () => {
   isQuitting = true;
@@ -137,8 +215,15 @@ app.whenReady().then(async () => {
   serverProcess = spawnServer(serverPort);
   await waitForServer(serverPort);
 
+  await applyLaunchAtLoginDefaultIfUndecided(serverPort);
+
   await createWindow(serverPort);
-  createTray({ onOpen: showMainWindow, onQuit: () => app.quit() });
+  createTray({ onOpen: showMainWindow, onSettings: () => navigateMainWindow('/settings'), onQuit: () => app.quit() });
+
+  stopReminderScheduler = startReminderScheduler({
+    getServerPort: () => serverPort,
+    onNotificationClick: () => navigateMainWindow('/journal'),
+  });
 });
 
 app.on('window-all-closed', () => {
@@ -155,6 +240,7 @@ app.on('activate', () => {
 });
 
 app.on('will-quit', () => {
+  stopReminderScheduler?.();
   stopServer();
 });
 

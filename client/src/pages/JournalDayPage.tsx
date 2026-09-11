@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
+import HistoryPanel from '../components/HistoryPanel';
 import MarkdownTextarea from '../components/MarkdownTextarea';
 import TagInput from '../components/TagInput';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
@@ -146,6 +147,15 @@ function JournalDayPageInner({ date }: { date: string }) {
     },
   });
 
+  function invalidateEntry() {
+    // Unlike saveMutation/linkMutation/unlinkMutation above, a revert
+    // changes the file out from under us without handing back the new
+    // entry shape — refetch rather than `setQueryData`.
+    queryClient.invalidateQueries({ queryKey: ['journalEntry', date] });
+    queryClient.invalidateQueries({ queryKey: ['journalYear', year] });
+    queryClient.invalidateQueries({ queryKey: ['calendar'] });
+  }
+
   const linkedTaskIds = entryQuery.data?.entry.frontmatter.linkedTasks ?? [];
 
   const tasksById = useMemo(() => {
@@ -229,6 +239,8 @@ function JournalDayPageInner({ date }: { date: string }) {
           </div>
         </div>
       </div>
+
+      <HistoryPanel path={`journal/${year}/${date}.md`} onReverted={invalidateEntry} />
     </div>
   );
 }

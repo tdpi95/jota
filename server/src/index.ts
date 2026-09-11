@@ -11,6 +11,7 @@ import { HttpError } from './lib/httpError.js';
 import calendarRouter from './routes/calendar.js';
 import indexRouter from './routes/index.js';
 import journalRouter from './routes/journal.js';
+import preferencesRouter from './routes/preferences.js';
 import projectsRouter from './routes/projects.js';
 import reportsRouter from './routes/reports.js';
 import syncRouter from './routes/sync.js';
@@ -42,6 +43,7 @@ export function createApp() {
   app.use('/api/journal', journalRouter);
   app.use('/api/calendar', calendarRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/preferences', preferencesRouter);
 
   app.use(handleServiceError);
   return app;

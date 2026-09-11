@@ -4,7 +4,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { addWorkspace, getActiveWorkspace, listWorkspaces, openWorkspace, removeWorkspace } from './workspaces.js';
+import { readRegistry, writeRegistry } from '../lib/workspaces.js';
+import {
+  addWorkspace,
+  getActiveWorkspace,
+  getLaunchAtLoginPreference,
+  getReminderSettings,
+  listWorkspaces,
+  markReminderFired,
+  openWorkspace,
+  removeWorkspace,
+  setLaunchAtLoginPreference,
+  setReminderSettings,
+} from './workspaces.js';
 
 // Every test gets its own scratch $HOME so ~/.pivot/config.json never touches
 // the real one, mirroring PLAN.md milestone 2's verify step: register two
@@ -89,4 +101,65 @@ test('opening a workspace whose .pivot dir was deleted self-heals it', () => {
 test('opening an unknown id throws a structured 404 error', () => {
   const homeDir = scratchDir('pivot-home-');
   assert.throws(() => openWorkspace('does-not-exist', homeDir), /no workspace with id/);
+});
+
+test('a newly-added workspace defaults its reminder to 20:00 enabled', () => {
+  const homeDir = scratchDir('pivot-home-');
+  const vaultA = scratchDir('pivot-vault-a-');
+  addWorkspace({ path: vaultA }, homeDir);
+
+  assert.deepEqual(getReminderSettings(homeDir), { enabled: true, time: '20:00' });
+});
+
+test('an entry written before the reminder field existed still defaults to 20:00, not disabled', () => {
+  const homeDir = scratchDir('pivot-home-');
+  const vaultA = scratchDir('pivot-vault-a-');
+  const entry = addWorkspace({ path: vaultA }, homeDir);
+
+  // Simulate a pre-milestone-17 registry entry: strip the field entirely
+  // rather than just setting it to the default, so this actually exercises
+  // the `undefined` branch and not a coincidentally-equal value.
+  const registry = readRegistry(homeDir);
+  const found = registry.workspaces.find((w) => w.id === entry.id)!;
+  delete found.reminderTime;
+  writeRegistry(registry, homeDir);
+
+  assert.deepEqual(getReminderSettings(homeDir), { enabled: true, time: '20:00' });
+});
+
+test('setReminderSettings persists a custom time and disabling clears it to null, not just enabled:false', () => {
+  const homeDir = scratchDir('pivot-home-');
+  const vaultA = scratchDir('pivot-vault-a-');
+  addWorkspace({ path: vaultA }, homeDir);
+
+  assert.deepEqual(setReminderSettings({ enabled: true, time: '07:30' }, homeDir), { enabled: true, time: '07:30' });
+  assert.deepEqual(getReminderSettings(homeDir), { enabled: true, time: '07:30' });
+
+  assert.deepEqual(setReminderSettings({ enabled: false, time: null }, homeDir), { enabled: false, time: null });
+  assert.deepEqual(getReminderSettings(homeDir), { enabled: false, time: null });
+});
+
+test('markReminderFired records the given local date on the active workspace only', () => {
+  const homeDir = scratchDir('pivot-home-');
+  const vaultA = scratchDir('pivot-vault-a-');
+  const vaultB = scratchDir('pivot-vault-b-');
+  const a = addWorkspace({ path: vaultA }, homeDir);
+  addWorkspace({ path: vaultB }, homeDir); // B is now active
+
+  markReminderFired('2026-09-11', homeDir);
+
+  const registry = readRegistry(homeDir);
+  assert.equal(registry.workspaces.find((w) => w.id === a.id)?.lastReminderFiredDate, null);
+  assert.equal(getActiveWorkspace(homeDir)?.lastReminderFiredDate, '2026-09-11');
+});
+
+test('launch-at-login preference is null until explicitly set, then persists the exact value', () => {
+  const homeDir = scratchDir('pivot-home-');
+  assert.equal(getLaunchAtLoginPreference(homeDir), null);
+
+  setLaunchAtLoginPreference(true, homeDir);
+  assert.equal(getLaunchAtLoginPreference(homeDir), true);
+
+  setLaunchAtLoginPreference(false, homeDir);
+  assert.equal(getLaunchAtLoginPreference(homeDir), false);
 });

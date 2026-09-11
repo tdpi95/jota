@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { NavLink, Outlet } from 'react-router-dom';
 
-import { getActiveWorkspace } from '../api/client';
 import CalendarSidebar from './CalendarSidebar';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 const NAV_ICONS: Record<string, React.ReactNode> = {
   dashboard: (
@@ -42,23 +41,15 @@ function NavItem({ to, label, icon, end }: { to: string; label: string; icon: st
 }
 
 /**
- * App-wide layout: sidebar nav + routed page content + `CalendarSidebar`
- * (month grid, milestone 13). The sidebar's `WorkspaceSwitcher`
- * (multi-workspace open/switch) is still milestone 16 — for now this shows
- * the single active workspace read-only, matching what milestone 3's
- * placeholder `App.tsx` already proved works end to end over HTTP.
+ * App-wide layout: sidebar nav + routed page content + `WorkspaceSwitcher`
+ * (multi-workspace open/switch, milestone 16) + `CalendarSidebar` (month
+ * grid, milestone 13).
  */
 export default function AppShell() {
-  const { data } = useQuery({ queryKey: ['workspace', 'active'], queryFn: getActiveWorkspace });
-  const workspace = data?.workspace ?? null;
-
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="sidebar-workspace">
-          <div className="name">{workspace ? workspace.name : 'No workspace open'}</div>
-          {workspace && <div className="path">{workspace.path}</div>}
-        </div>
+        <WorkspaceSwitcher />
         <nav className="nav">
           <NavItem to="/" end label="Dashboard" icon="dashboard" />
           <NavItem to="/projects" label="Projects" icon="projects" />

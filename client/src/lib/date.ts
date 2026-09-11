@@ -64,6 +64,19 @@ function toLocalDate(date: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** Full ISO8601 timestamp (a git commit date, or a `lastSyncedAt`) -> a
+ * short local date+time string, e.g. "Sep 10, 2:14 PM" — used by
+ * `HistoryPanel` and the Settings page's sync status, neither of which
+ * needs the full date-only string handling the rest of this file is built
+ * around (these values are real instants, not bare YYYY-MM-DD strings). */
+export function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const datePart = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const timePart = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${datePart}, ${timePart}`;
+}
+
 /** Whole days from `a` to `b` (both YYYY-MM-DD), in local calendar days —
  * same local-`Date` convention as the rest of this file, not a UTC parse.
  * Used by the Dashboard to bucket open tasks into today/overdue/this-week. */

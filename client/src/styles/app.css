@@ -1,8 +1,7 @@
 /* Design tokens + component classes, adapted from design/Main.dc.html (the
-   UI prototype canvas — see design/README.md) down to what milestones 11-14
-   (Projects/Tasks UI, Journal UI, Calendar sidebar, Dashboard v2) actually
-   need. History panel (15) and workspace switcher/settings (16) styling
-   lands with those milestones. */
+   UI prototype canvas — see design/README.md) down to what milestones 11-16
+   (Projects/Tasks UI, Journal UI, Calendar sidebar, Dashboard v2, History
+   panel, Workspace switcher + Settings/Sync panel) actually need. */
 
 :root {
   --paper: oklch(97.3% 0.012 75);
@@ -50,7 +49,7 @@ textarea {
   background: var(--paper);
 }
 
-/* Sidebar (nav only for now — WorkspaceSwitcher is milestone 16, CalendarSidebar is milestone 13) */
+/* Sidebar */
 .sidebar {
   width: 220px;
   flex-shrink: 0;
@@ -61,29 +60,120 @@ textarea {
   gap: 18px;
   overflow-y: auto;
 }
-.sidebar-workspace {
+
+/* WorkspaceSwitcher (milestone 16) */
+.ws-switcher {
+  position: relative;
+}
+.ws-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   padding: 9px 10px;
   border-radius: 10px;
   border: 1px solid var(--hairline);
   background: var(--paper-card);
+  cursor: pointer;
+  color: var(--ink);
 }
-.sidebar-workspace .name {
+.ws-button:hover {
+  border-color: var(--accent);
+}
+.ws-button .name {
+  flex: 1;
+  text-align: left;
   font-weight: 700;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: 'Newsreader', Georgia, serif;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.sidebar-workspace .path {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+.ws-button svg {
+  flex-shrink: 0;
   color: var(--ink-muted);
-  margin-top: 2px;
+}
+.ws-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px oklch(20% 0.02 75 / 0.14);
+  padding: 6px;
+  z-index: 30;
+}
+.ws-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+}
+.ws-item:hover {
+  background: var(--accent-soft);
+}
+.ws-item .path {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ws-check {
+  margin-left: 6px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.ws-open-new {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hairline);
+}
+.ws-path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--hairline);
+  font-size: 11.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--paper);
+  color: var(--ink);
+}
+.ws-add-btn {
+  padding: 0 10px;
+  border-radius: 7px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ws-add-btn:hover {
+  background: var(--accent-hover);
+}
+.ws-add-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
@@ -995,4 +1085,170 @@ textarea {
   color: var(--ink-muted);
   font-size: 13.5px;
   line-height: 1.6;
+}
+
+/* Settings (milestone 16) */
+.settings-section {
+  margin-bottom: 28px;
+  max-width: 560px;
+}
+.section-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted);
+  margin-bottom: 12px;
+}
+.ws-rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ws-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+}
+.ws-row .name {
+  font-weight: 700;
+  font-size: 13.5px;
+  font-family: 'Newsreader', Georgia, serif;
+}
+.ws-row .path {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+.ws-row-btn {
+  margin-left: auto;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.ws-row-btn:disabled {
+  cursor: default;
+}
+.ws-row-btn.is-active {
+  background: var(--good-soft);
+  color: var(--good);
+  border-color: transparent;
+}
+.sync-panel {
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  padding: 20px;
+}
+.sync-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.sync-field label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sync-field input {
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+}
+.sync-counts {
+  display: flex;
+  gap: 14px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  margin-bottom: 14px;
+}
+.sync-counts b {
+  color: var(--ink);
+}
+.sync-actions {
+  display: flex;
+  gap: 8px;
+}
+.sync-status {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* History panel (milestone 15) */
+.history-panel {
+  margin-top: 32px;
+  max-width: 640px;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.history-row {
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+}
+.history-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.history-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.history-message {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-date {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  margin-top: 2px;
+}
+.history-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.history-diff {
+  margin: 10px 0 2px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 320px;
+  overflow-y: auto;
 }

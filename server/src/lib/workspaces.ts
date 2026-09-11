@@ -27,11 +27,32 @@ export interface WorkspaceEntry {
   /** ISO8601 UTC, updated every time this workspace is opened/switched to. */
   lastOpenedAt: string;
   sync?: WorkspaceSyncConfig;
+  /** 24h "HH:MM" local time to fire the daily reminder for this workspace,
+   * or `null` when disabled (PLAN.md "Daily reminder"). `undefined` on an
+   * entry written before this field existed is treated by
+   * `services/workspaces.ts`'s readers the same as PLAN.md's stated default
+   * for a newly-added workspace ("20:00") — never normalized here, same
+   * pattern as `sync` above. */
+  reminderTime?: string | null;
+  /** YYYY-MM-DD, local, the last day the daily reminder actually fired for
+   * this workspace (set only when it fires, never on a skip) — `undefined`
+   * means "never fired yet". Supplied by `electron/src/reminder.ts`, which
+   * owns all the wall-clock/local-date logic; the server never computes
+   * "today" itself for this field, only stores what it's told. */
+  lastReminderFiredDate?: string | null;
 }
 
 export interface WorkspaceRegistry {
   workspaces: WorkspaceEntry[];
   activeWorkspaceId: string | null;
+  /** Whether the app should launch at OS login — app-wide, not
+   * per-workspace (PLAN.md "Daily reminder": "on by default but user-
+   * toggleable"). `undefined` means the one-time "on by default for a new
+   * install" logic hasn't run yet; `electron/src/main.ts` applies it once at
+   * startup and then always writes an explicit value afterward (including
+   * when the user later opts out), so this stays `undefined` only until the
+   * very first app start ever sees this registry. */
+  launchAtLogin?: boolean;
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

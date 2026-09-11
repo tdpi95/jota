@@ -7,13 +7,17 @@
 
 import type {
   CalendarDay,
+  HistoryCommit,
   IndexedTask,
   JournalEntry,
   JournalEntrySummary,
   ProjectSummary,
+  PullResult,
+  SyncStatus,
   Task,
   TaskStatus,
   Workspace,
+  WorkspaceSyncConfig,
 } from '../types';
 
 class ApiError extends Error {
@@ -39,10 +43,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// --- Workspace (read-only here — management UI is milestone 16) ---
+// --- Workspace ---
 
 export function getActiveWorkspace(): Promise<{ workspace: Workspace | null }> {
   return request('/workspaces/active');
+}
+
+/** Every registered workspace — backs `WorkspaceSwitcher` and the Settings
+ * page's workspace list (milestone 16). */
+export function listWorkspaces(): Promise<{ workspaces: Workspace[] }> {
+  return request('/workspaces');
+}
+
+/** Registers (or, if already registered, just re-activates) a folder as a
+ * workspace — `path` comes from `window.pivot.pickFolder()` in the Electron
+ * shell. */
+export function addWorkspace(input: { path: string; name?: string }): Promise<{ workspace: Workspace }> {
+  return request('/workspaces', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function openWorkspace(id: string): Promise<{ workspace: Workspace }> {
+  return request(`/workspaces/${encodeURIComponent(id)}/open`, { method: 'POST' });
+}
+
+/** Un-registers a workspace only — never touches its folder (PLAN.md). */
+export function removeWorkspace(id: string): Promise<void> {
+  return request(`/workspaces/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 // --- Projects ---
@@ -165,6 +191,51 @@ export function unlinkTaskFromJournal(year: string, date: string, taskId: string
   return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}/links/${encodeURIComponent(taskId)}`, {
     method: 'DELETE',
   });
+}
+
+// --- Vault history/backup (`HistoryPanel`, milestone 15) ---
+
+/** Recent commits touching the workspace, or (when `path` is given, relative
+ * to the workspace root, e.g. `projects/website-redesign.md`) just that
+ * file — most recent first. */
+export function getVaultHistory(opts: { path?: string; limit?: number } = {}): Promise<{ history: HistoryCommit[] }> {
+  const params = new URLSearchParams();
+  if (opts.path) params.set('path', opts.path);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  return request(`/vault/history${qs ? `?${qs}` : ''}`);
+}
+
+export function getVaultDiff(commit: string): Promise<{ diff: string }> {
+  return request(`/vault/diff/${encodeURIComponent(commit)}`);
+}
+
+/** `git revert --no-edit <commit>` — a new undo commit, not a rewrite of
+ * history, so it's safe even with later commits already on top. */
+export function revertVaultCommit(commit: string): Promise<{ commit: HistoryCommit }> {
+  return request(`/vault/revert/${encodeURIComponent(commit)}`, { method: 'POST' });
+}
+
+// --- Remote sync (Settings page's Sync panel, milestone 16) ---
+
+export function getSyncRemote(): Promise<{ sync: WorkspaceSyncConfig }> {
+  return request('/vault/git/remote');
+}
+
+export function setSyncRemote(url: string): Promise<{ sync: WorkspaceSyncConfig }> {
+  return request('/vault/git/remote', { method: 'PUT', body: JSON.stringify({ url }) });
+}
+
+export function pushVault(): Promise<{ ok: true }> {
+  return request('/vault/git/push', { method: 'POST' });
+}
+
+export function pullVault(): Promise<PullResult> {
+  return request('/vault/git/pull', { method: 'POST' });
+}
+
+export function getSyncStatus(): Promise<SyncStatus> {
+  return request('/vault/git/status');
 }
 
 export { ApiError };

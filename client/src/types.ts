@@ -81,11 +81,37 @@ export interface IndexedTask {
   description: string | null;
 }
 
+/** `lib/workspaces.ts`'s `WorkspaceSyncConfig` — absent/undefined on a
+ * `Workspace` means the same thing as `{provider: 'none'}` (an entry written
+ * before remote sync existed never gains the field until a remote is set). */
+export type WorkspaceSyncConfig = { provider: 'none' } | { provider: 'git-remote'; remoteUrl: string; lastSyncedAt: string | null };
+
 export interface Workspace {
   id: string;
   path: string;
   name: string;
   lastOpenedAt: string;
+  sync?: WorkspaceSyncConfig;
+}
+
+/** `lib/sync/types.ts`'s `SyncStatus`/`PullResult` — back the Settings page's
+ * Sync panel (milestone 16). */
+export interface SyncStatus {
+  remoteUrl: string | null;
+  ahead: number | null;
+  behind: number | null;
+  dirty: boolean;
+  lastSyncedAt: string | null;
+}
+
+export type PullResult = { conflict: false } | { conflict: true; files: string[] };
+
+/** `lib/vaultGit.ts`'s `CommitInfo` — backs `HistoryPanel` (milestone 15). */
+export interface HistoryCommit {
+  hash: string;
+  /** ISO8601, commit date. */
+  date: string;
+  message: string;
 }
 
 /** `lib/index/queries.ts`'s `CalendarTaskMark`/`CalendarDay` — the sparse
