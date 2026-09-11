@@ -81,18 +81,25 @@ export function queryOpenTasks(workspacePath: string): IndexedTask[] {
   }
 }
 
-/** Case-insensitive substring match over task text/description, newest
- * first, capped at 50 — backs `GET /api/tasks/search?q=`. */
+/** Case-insensitive substring match over task text/description/tags, newest
+ * first, capped at 50 — backs `GET /api/tasks/search?q=` and the Dashboard's
+ * task-search popup (milestone 18: "search by text or tags" as one input).
+ * `tags` is stored as a JSON-array string (e.g. `["polish","backend"]`), so
+ * matching it with the same LIKE is a plain substring match against that
+ * serialized form — same fuzzy-match trade-off text/description already
+ * have (a query could straddle two tag names at the `","` boundary), judged
+ * acceptable for a quick-find search rather than worth a separate exact-tag
+ * query path. */
 export function querySearchTasks(workspacePath: string, q: string): IndexedTask[] {
   const db = openIndexDb(workspacePath);
   try {
     const like = `%${q}%`;
     const rows = db
       .prepare(
-        `${TASK_JOIN_SELECT} WHERE t.text LIKE ? COLLATE NOCASE OR t.description LIKE ? COLLATE NOCASE
+        `${TASK_JOIN_SELECT} WHERE t.text LIKE ? COLLATE NOCASE OR t.description LIKE ? COLLATE NOCASE OR t.tags LIKE ? COLLATE NOCASE
          ORDER BY t.created_at DESC LIMIT 50`,
       )
-      .all(like, like) as unknown as TaskJoinRow[];
+      .all(like, like, like) as unknown as TaskJoinRow[];
     return rows.map(mapTaskRow);
   } finally {
     db.close();

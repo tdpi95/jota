@@ -250,6 +250,18 @@ test('searchTasks matches text/description case-insensitively and ignores a blan
   assert.deepEqual(searchTasks(ws, '   '), []);
 });
 
+test('searchTasks also matches by tag, not just text/description', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const match = createTask(ws, 'website-redesign', { text: 'Ship the release', tags: ['polish'] });
+  createTask(ws, 'website-redesign', { text: 'Something else', tags: ['backend'] });
+
+  assert.deepEqual(
+    searchTasks(ws, 'polish').map((t) => t.id),
+    [match.id],
+  );
+});
+
 test('getJournalLinksForTask returns linked dates and 404s for an unknown task', () => {
   const ws = scratchWorkspace();
   createProject(ws, { name: 'Website Redesign' });

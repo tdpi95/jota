@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import type { UpdateTaskInput } from '../api/client';
 import type { Task, TaskStatus } from '../types';
@@ -29,7 +30,10 @@ function StatusIcon({ status }: { status: TaskStatus }) {
  * optional `project` badge (name + color dot) is shown first in the meta
  * row when the caller spans multiple projects (the Dashboard) — omitted on
  * a single project's own task list (ProjectDetailPage), where it would be
- * redundant.
+ * redundant. When `project` is given, a "Go to project" action also appears
+ * (milestone 18: Dashboard buckets and the task-search popup both list
+ * tasks across every project, so jumping to the owning project is useful
+ * there in a way it isn't on ProjectDetailPage's own list).
  */
 export default function TaskRow({
   task,
@@ -40,7 +44,7 @@ export default function TaskRow({
   onLogToday,
 }: {
   task: Task;
-  project?: { name: string; color: string };
+  project?: { name: string; color: string; slug: string };
   onStatusChange: (status: TaskStatus) => void;
   onSave: (input: UpdateTaskInput) => void;
   onDelete: () => void;
@@ -99,6 +103,13 @@ export default function TaskRow({
         {expanded && task.description && <div className="task-desc">{task.description}</div>}
       </div>
       <div className="task-actions">
+        {project && (
+          <Link className="icon-btn" title="Go to project" aria-label="Go to project" to={`/projects/${project.slug}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+            </svg>
+          </Link>
+        )}
         {onLogToday && (
           <button
             className="icon-btn"

@@ -37,6 +37,7 @@ a:hover {
 }
 button,
 input,
+select,
 textarea {
   font-family: inherit;
 }
@@ -395,6 +396,12 @@ textarea {
   border-color: var(--accent);
   color: var(--accent);
 }
+.icon-only-btn {
+  padding: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .btn-danger {
   padding: 9px 16px;
   border-radius: 9px;
@@ -438,6 +445,34 @@ textarea {
   border-color: var(--accent);
   color: var(--accent);
 }
+.dashboard-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.quick-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.quick-add-select {
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: var(--paper-card);
+  color: var(--ink);
+  font-size: 12.5px;
+  max-width: 220px;
+  flex-shrink: 0;
+}
+.search-results {
+  margin-top: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.search-tag-row {
+  margin: 10px 0 0;
+}
 .bucket {
   margin-bottom: 26px;
 }
@@ -451,6 +486,28 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.bucket-title-toggle {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.disclosure-caret {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+.disclosure-caret.open {
+  transform: rotate(90deg);
+}
+.tasks-section-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
 }
 .bucket-title .count {
   background: oklch(93% 0.012 75);
@@ -718,6 +775,43 @@ textarea {
 }
 .project-counts b {
   color: var(--ink);
+}
+
+/* Dashboard's "Recent projects" — a 3-column grid of compact cards
+ * (variant="grid" on ProjectCard), deliberately unlike the .projects-list
+ * row layout above so it doesn't read as just another task list. */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.project-card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.project-card-grid:hover {
+  border-color: var(--accent);
+}
+.project-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.project-desc-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow: hidden;
 }
 
 /* Project detail */
