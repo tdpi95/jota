@@ -146,5 +146,9 @@ pivot/
 
 ## License
 
-Personal project, not yet licensed for reuse — no license file has been
-added. Ask before reusing any of this code elsewhere.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — free to use, fork, modify,
+and self-host for any noncommercial purpose (personal use, including using it
+for your own work tasks, is explicitly fine). Selling it, offering it as a
+paid product or service, or otherwise using it for commercial advantage is
+not permitted. This is "source-available," not OSI-approved open source,
+since it restricts commercial use.
