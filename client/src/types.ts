@@ -87,3 +87,19 @@ export interface Workspace {
   name: string;
   lastOpenedAt: string;
 }
+
+/** `lib/index/queries.ts`'s `CalendarTaskMark`/`CalendarDay` — the sparse
+ * per-day marks `GET /api/calendar/:year/:month` returns, backing
+ * `CalendarSidebar`'s dots. */
+export interface CalendarTaskMark {
+  taskId: string;
+  projectSlug: string;
+  projectColor: string;
+  reason: 'due' | 'linked';
+}
+
+export interface CalendarDay {
+  date: string;
+  hasJournalEntry: boolean;
+  tasks: CalendarTaskMark[];
+}

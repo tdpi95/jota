@@ -16,7 +16,7 @@ export function dueUrgency(due: string, today: string = todayStr()): DueUrgency 
   return 'later';
 }
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January',
   'February',
   'March',
@@ -57,4 +57,16 @@ export function addDays(date: string, delta: number): string {
 
 export function yearOf(date: string): string {
   return date.slice(0, 4);
+}
+
+function toLocalDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Whole days from `a` to `b` (both YYYY-MM-DD), in local calendar days —
+ * same local-`Date` convention as the rest of this file, not a UTC parse.
+ * Used by the Dashboard to bucket open tasks into today/overdue/this-week. */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((toLocalDate(b).getTime() - toLocalDate(a).getTime()) / 86_400_000);
 }

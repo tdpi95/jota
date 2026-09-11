@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { getActiveWorkspace } from '../api/client';
+import CalendarSidebar from './CalendarSidebar';
 
 const NAV_ICONS: Record<string, React.ReactNode> = {
   dashboard: (
@@ -41,9 +42,9 @@ function NavItem({ to, label, icon, end }: { to: string; label: string; icon: st
 }
 
 /**
- * App-wide layout: sidebar nav + routed page content. The sidebar's
- * `WorkspaceSwitcher` (multi-workspace open/switch) and `CalendarSidebar`
- * (month grid) are milestones 16 and 13 respectively — for now this shows
+ * App-wide layout: sidebar nav + routed page content + `CalendarSidebar`
+ * (month grid, milestone 13). The sidebar's `WorkspaceSwitcher`
+ * (multi-workspace open/switch) is still milestone 16 — for now this shows
  * the single active workspace read-only, matching what milestone 3's
  * placeholder `App.tsx` already proved works end to end over HTTP.
  */
@@ -64,6 +65,7 @@ export default function AppShell() {
           <NavItem to="/journal" label="Journal" icon="journal" />
           <NavItem to="/settings" label="Settings" icon="settings" />
         </nav>
+        <CalendarSidebar />
       </aside>
       <main className="main">
         <Outlet />

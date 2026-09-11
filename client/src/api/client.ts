@@ -6,6 +6,7 @@
 // backend's own write-path contract.
 
 import type {
+  CalendarDay,
   IndexedTask,
   JournalEntry,
   JournalEntrySummary,
@@ -115,6 +116,20 @@ export function deleteTask(slug: string, taskId: string): Promise<void> {
 
 export function searchTasks(q: string): Promise<{ tasks: IndexedTask[] }> {
   return request(`/tasks/search?q=${encodeURIComponent(q)}`);
+}
+
+/** Not-done tasks across every project, due-soonest-first — backs the
+ * Dashboard's Today/Overdue/This-week buckets. */
+export function getOpenTasks(): Promise<{ tasks: IndexedTask[] }> {
+  return request('/tasks/open');
+}
+
+// --- Calendar ---
+
+/** Sparse per-day marks for one month (`month` zero-padded "01"-"12") —
+ * backs `CalendarSidebar`. */
+export function getCalendarMonth(year: string, month: string): Promise<{ days: CalendarDay[] }> {
+  return request(`/calendar/${encodeURIComponent(year)}/${encodeURIComponent(month)}`);
 }
 
 // --- Journal ---

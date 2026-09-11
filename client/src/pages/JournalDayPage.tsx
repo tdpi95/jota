@@ -73,6 +73,9 @@ function JournalDayPageInner({ date }: { date: string }) {
       setSaveState('saved');
       queryClient.setQueryData(['journalEntry', date], result);
       queryClient.invalidateQueries({ queryKey: ['journalYear', year] });
+      // A body going empty<->non-empty flips the calendar sidebar's
+      // journal-entry dot for this day.
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 
@@ -129,6 +132,7 @@ function JournalDayPageInner({ date }: { date: string }) {
     mutationFn: (taskId: string) => api.linkTaskToJournal(year, date, taskId),
     onSuccess: (result) => {
       queryClient.setQueryData(['journalEntry', date], result);
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
       setPickerOpen(false);
       setPickerQuery('');
     },
@@ -136,7 +140,10 @@ function JournalDayPageInner({ date }: { date: string }) {
 
   const unlinkMutation = useMutation({
     mutationFn: (taskId: string) => api.unlinkTaskFromJournal(year, date, taskId),
-    onSuccess: (result) => queryClient.setQueryData(['journalEntry', date], result),
+    onSuccess: (result) => {
+      queryClient.setQueryData(['journalEntry', date], result);
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+    },
   });
 
   const linkedTaskIds = entryQuery.data?.entry.frontmatter.linkedTasks ?? [];

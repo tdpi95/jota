@@ -29,6 +29,10 @@ export default function ProjectDetailPage() {
   function invalidateProject() {
     queryClient.invalidateQueries({ queryKey: ['project', slug] });
     queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'open'] });
+    // Task due dates feed the calendar sidebar's dots — keep it in sync
+    // with create/edit/delete here too, not just Dashboard's own mutations.
+    queryClient.invalidateQueries({ queryKey: ['calendar'] });
   }
 
   const updateProjectMutation = useMutation({
@@ -63,6 +67,7 @@ export default function ProjectDetailPage() {
       const today = todayStr();
       queryClient.invalidateQueries({ queryKey: ['journalEntry', today] });
       queryClient.invalidateQueries({ queryKey: ['journalYear', yearOf(today)] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 

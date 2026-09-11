@@ -25,16 +25,22 @@ function StatusIcon({ status }: { status: TaskStatus }) {
  * — edit (opens `TaskForm` inline in place of the row), delete, and
  * "+ log to today" (links this task onto today's journal entry, PLAN.md's
  * "+ log to today" quick action — built here on the shared row so Dashboard
- * (milestone 14) gets it for free once it reuses this component).
+ * (milestone 14) gets it for free once it reuses this component). An
+ * optional `project` badge (name + color dot) is shown first in the meta
+ * row when the caller spans multiple projects (the Dashboard) — omitted on
+ * a single project's own task list (ProjectDetailPage), where it would be
+ * redundant.
  */
 export default function TaskRow({
   task,
+  project,
   onStatusChange,
   onSave,
   onDelete,
   onLogToday,
 }: {
   task: Task;
+  project?: { name: string; color: string };
   onStatusChange: (status: TaskStatus) => void;
   onSave: (input: UpdateTaskInput) => void;
   onDelete: () => void;
@@ -76,6 +82,12 @@ export default function TaskRow({
           <span className={`task-title ${task.status === 'done' ? 'st-done' : ''}`}>{task.text}</span>
         </div>
         <div className="task-meta-row">
+          {project && (
+            <span className="project-badge">
+              <span className="project-dot" style={{ background: project.color }} />
+              {project.name}
+            </span>
+          )}
           <DueDateBadge due={task.due} />
           {task.tags.map((tag) => (
             <span className="tag-pill" key={tag}>
