@@ -7,13 +7,16 @@ import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import type { Server } from 'node:http';
 
+import { HttpError } from './lib/httpError.js';
 import indexRouter from './routes/index.js';
+import projectsRouter from './routes/projects.js';
+import syncRouter from './routes/sync.js';
+import tasksRouter from './routes/tasks.js';
 import vaultRouter from './routes/vault.js';
 import workspacesRouter from './routes/workspaces.js';
-import { WorkspaceServiceError } from './services/workspaces.js';
 
 const handleServiceError: ErrorRequestHandler = (err, _req, res, _next) => {
-  const statusCode = err instanceof WorkspaceServiceError ? err.statusCode : 500;
+  const statusCode = err instanceof HttpError ? err.statusCode : 500;
   const message = err instanceof Error ? err.message : 'internal error';
   if (statusCode === 500) console.error(err);
   res.status(statusCode).json({ error: message });
@@ -27,7 +30,10 @@ export function createApp() {
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api/workspaces', workspacesRouter);
   app.use('/api/index', indexRouter);
+  app.use('/api/vault/git', syncRouter);
   app.use('/api/vault', vaultRouter);
+  app.use('/api/projects', projectsRouter);
+  app.use('/api/projects/:slug/tasks', tasksRouter);
 
   app.use(handleServiceError);
   return app;

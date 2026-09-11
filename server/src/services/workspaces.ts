@@ -7,16 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { HttpError } from '../lib/httpError.js';
 import { ensureGitHistory } from '../lib/vaultGit.js';
 import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WorkspaceEntry } from '../lib/workspaces.js';
 
 /** Structured error for the routes layer to translate into an HTTP status. */
-export class WorkspaceServiceError extends Error {
-  constructor(
-    message: string,
-    public readonly statusCode: number,
-  ) {
-    super(message);
+export class WorkspaceServiceError extends HttpError {
+  constructor(message: string, statusCode: number) {
+    super(message, statusCode);
     this.name = 'WorkspaceServiceError';
   }
 }

@@ -12,12 +12,21 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+/** A workspace's remote-sync configuration (PLAN.md "Remote & cloud sync").
+ * Absent/undefined on an entry is equivalent to `{ provider: 'none' }` — old
+ * registry entries written before milestone 6 never gain the field until
+ * they're explicitly given a remote. */
+export type WorkspaceSyncConfig =
+  | { provider: 'none' }
+  | { provider: 'git-remote'; remoteUrl: string; lastSyncedAt: string | null };
+
 export interface WorkspaceEntry {
   id: string;
   path: string;
   name: string;
   /** ISO8601 UTC, updated every time this workspace is opened/switched to. */
   lastOpenedAt: string;
+  sync?: WorkspaceSyncConfig;
 }
 
 export interface WorkspaceRegistry {
