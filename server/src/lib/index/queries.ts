@@ -203,9 +203,22 @@ export function queryCalendarMonth(workspacePath: string, year: string, month: s
   }
 }
 
-/** Every task with its project, unfiltered — services/reports.ts does the
- * date-range filtering/grouping/live-elapsed math in JS (a personal vault's
- * task count is small; a SQL rewrite isn't worth the complexity). */
+/**
+ * A single representative date for a task, used by anything that needs to
+ * bucket/filter tasks by "when" despite the file format only storing
+ * point-in-time fields and no per-session log (PLAN.md "Time tracking ...
+ * no separate start/stop control"): `doneAt` if finished, else `due` if
+ * set, else the day it was created. Shared by services/reports.ts's
+ * time-spent grouping and services/tasks.ts's `getTaskSummary`.
+ */
+export function relevantDateOf(task: IndexedTask): string {
+  return task.doneAt ?? task.due ?? task.createdAt.slice(0, 10);
+}
+
+/** Every task with its project, unfiltered — callers (services/reports.ts,
+ * services/tasks.ts's getTaskSummary) do their own filtering/grouping in JS
+ * (a personal vault's task count is small; a SQL rewrite isn't worth the
+ * complexity). */
 export function queryAllTasksForReport(workspacePath: string): IndexedTask[] {
   const db = openIndexDb(workspacePath);
   try {

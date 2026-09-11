@@ -4,7 +4,7 @@
 import { differenceInMinutes } from 'date-fns';
 
 import { HttpError } from '../lib/httpError.js';
-import { queryAllTasksForReport } from '../lib/index/queries.js';
+import { queryAllTasksForReport, relevantDateOf } from '../lib/index/queries.js';
 
 export class ReportServiceError extends HttpError {
   constructor(message: string, statusCode: number) {
@@ -54,7 +54,7 @@ export function getTimeSpentReport(workspacePath: string, input: TimeSpentReport
   const groups = new Map<string, TimeSpentGroup>();
 
   for (const task of queryAllTasksForReport(workspacePath)) {
-    const relevantDate = task.doneAt ?? task.due ?? task.createdAt.slice(0, 10);
+    const relevantDate = relevantDateOf(task);
     if (input.from && relevantDate < input.from) continue;
     if (input.to && relevantDate > input.to) continue;
 

@@ -7,10 +7,18 @@ import { differenceInMinutes } from 'date-fns';
 
 import { HttpError } from '../lib/httpError.js';
 import { generateTaskId } from '../lib/ids.js';
-import { queryJournalLinksForTask, queryOpenTasks, querySearchTasks, queryTaskById, type IndexedTask } from '../lib/index/queries.js';
+import {
+  queryAllTasksForReport,
+  queryJournalLinksForTask,
+  queryOpenTasks,
+  querySearchTasks,
+  queryTaskById,
+  relevantDateOf,
+  type IndexedTask,
+} from '../lib/index/queries.js';
 import type { ProjectBodyBlock } from '../lib/markdown/taskLine.js';
 import type { Task, TaskStatus } from '../types.js';
-import { loadProjectFile, saveProjectFile } from './projects.js';
+import { getProject, loadProjectFile, saveProjectFile } from './projects.js';
 
 export class TaskServiceError extends HttpError {
   constructor(message: string, statusCode: number) {
@@ -142,4 +150,62 @@ export function searchTasks(workspacePath: string, q: string): IndexedTask[] {
 export function getJournalLinksForTask(workspacePath: string, taskId: string): string[] {
   if (!queryTaskById(workspacePath, taskId)) throw new TaskServiceError(`no task with id "${taskId}"`, 404);
   return queryJournalLinksForTask(workspacePath, taskId);
+}
+
+export interface TaskSummaryInput {
+  projectSlug?: string;
+  status?: TaskStatus;
+  /** YYYY-MM-DD, inclusive; filters on each task's `relevantDateOf` (see
+   * lib/index/queries.ts) the same way services/reports.ts does. */
+  from?: string;
+  to?: string;
+}
+
+export interface TaskSummary {
+  totalCount: number;
+  byStatus: Record<TaskStatus, number>;
+  byProject: { projectSlug: string; projectName: string; count: number }[];
+  /** Not-done tasks whose due date is in the past, within the filtered set. */
+  overdueCount: number;
+  tasks: IndexedTask[];
+}
+
+/**
+ * `get_task_summary` MCP tool (PLAN.md: "returning structured aggregates —
+ * the calling agent narrates the summary itself, no summarization logic
+ * needed server-side"). `projectSlug`, if given, is validated the same way
+ * `get_project` is (404 with a "did you mean" hint via services/projects.ts)
+ * rather than silently returning an empty summary for a typo'd slug.
+ */
+export function getTaskSummary(workspacePath: string, input: TaskSummaryInput = {}): TaskSummary {
+  if (input.projectSlug) getProject(workspacePath, input.projectSlug); // throws 404 if unknown
+
+  const today = new Date().toISOString().slice(0, 10);
+  const tasks = queryAllTasksForReport(workspacePath).filter((t) => {
+    if (input.projectSlug && t.projectSlug !== input.projectSlug) return false;
+    if (input.status && t.status !== input.status) return false;
+    const date = relevantDateOf(t);
+    if (input.from && date < input.from) return false;
+    if (input.to && date > input.to) return false;
+    return true;
+  });
+
+  const byStatus: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+  const byProjectMap = new Map<string, { projectSlug: string; projectName: string; count: number }>();
+  let overdueCount = 0;
+  for (const t of tasks) {
+    byStatus[t.status]++;
+    const entry = byProjectMap.get(t.projectSlug) ?? { projectSlug: t.projectSlug, projectName: t.projectName, count: 0 };
+    entry.count++;
+    byProjectMap.set(t.projectSlug, entry);
+    if (t.status !== 'done' && t.due && t.due < today) overdueCount++;
+  }
+
+  return {
+    totalCount: tasks.length,
+    byStatus,
+    byProject: [...byProjectMap.values()].sort((a, b) => b.count - a.count),
+    overdueCount,
+    tasks,
+  };
 }

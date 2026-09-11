@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { didYouMean } from '../lib/didYouMean.js';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import { parseProjectFile, serializeProjectFile, tasksOfProject, type ParsedProjectFile } from '../lib/markdown/project.js';
@@ -86,6 +87,15 @@ function toSummary(slug: string, parsed: ParsedProjectFile): ProjectSummary {
   return { slug, frontmatter: parsed.frontmatter, tasks: tasksOfProject(parsed) };
 }
 
+/** A structured 404 with a "did you mean: ..." hint when a close-enough slug
+ * exists (PLAN.md's MCP error example, verbatim) — equally useful from the
+ * REST API, so it lives here rather than only in the MCP tool layer. */
+function projectNotFoundError(workspacePath: string, slug: string): ProjectServiceError {
+  const suggestions = didYouMean(slug, listSlugs(workspacePath));
+  const hint = suggestions.length > 0 ? ` — did you mean: ${suggestions.join(', ')}?` : '';
+  return new ProjectServiceError(`no project with slug "${slug}"${hint}`, 404);
+}
+
 /** Reads and parses a project file directly from disk — never from the
  * index, per PLAN.md's "which reads go where" (single-project reads are
  * never stale). Exported so services/tasks.ts (a task always lives inside
@@ -93,7 +103,7 @@ function toSummary(slug: string, parsed: ParsedProjectFile): ProjectSummary {
  * duplicating it. */
 export function loadProjectFile(workspacePath: string, slug: string): ParsedProjectFile {
   const filePath = projectFilePath(workspacePath, slug);
-  if (!fs.existsSync(filePath)) throw new ProjectServiceError(`no project with slug "${slug}"`, 404);
+  if (!fs.existsSync(filePath)) throw projectNotFoundError(workspacePath, slug);
   return parseProjectFile(fs.readFileSync(filePath, 'utf8'));
 }
 
@@ -165,7 +175,7 @@ export function updateProject(workspacePath: string, slug: string, input: Update
 
 export function deleteProject(workspacePath: string, slug: string, origin = 'api'): void {
   const filePath = projectFilePath(workspacePath, slug);
-  if (!fs.existsSync(filePath)) throw new ProjectServiceError(`no project with slug "${slug}"`, 404);
+  if (!fs.existsSync(filePath)) throw projectNotFoundError(workspacePath, slug);
 
   fs.rmSync(filePath);
   try {
