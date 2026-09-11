@@ -12,6 +12,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { type ChildProcess, spawn } from 'node:child_process';
 import path from 'node:path';
+import treeKill from 'tree-kill';
 
 import { getFreePort } from './freePort';
 import { getLaunchAtLogin, setLaunchAtLogin } from './loginItem';
@@ -27,10 +28,18 @@ let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
 let isQuitting = false;
 
-// `detached: true` makes the child its own process-group leader on POSIX, so
-// stopServer() below can kill the *whole* tree in one shot — tsx itself
-// spawns a grandchild loader process, and killing only the immediate child
-// would otherwise leak that grandchild as an orphaned server on quit.
+// Deliberately NOT `detached: true`: leaving the server in Electron's own
+// process group means a raw Ctrl+C in the terminal running `npm run dev`
+// (which sends SIGINT to the *whole foreground process group*) reaches it
+// directly and it dies on its own — no orchestration required. A first
+// attempt detached it so stopServer() could group-kill tsx's grandchild
+// loader process, but that also removed it from the group a terminal
+// Ctrl+C signals, so cleanup then depended on Electron's own JS-level
+// app.quit() racing against its own Chromium helper processes receiving
+// that same raw signal — unreliable, and it's exactly what caused `npm run
+// dev` to hang on Ctrl+C instead of exiting. tree-kill (below) covers the
+// *explicit* graceful-quit path (tray Quit, app.quit()) instead, by walking
+// the process tree by PID rather than relying on process-group membership.
 function spawnServer(port: number): ChildProcess {
   if (isDev) {
     // Same server, run straight from TS source via the hoisted tsx binary —
@@ -41,7 +50,6 @@ function spawnServer(port: number): ChildProcess {
       cwd: path.join(repoRoot, 'server'),
       env: { ...process.env, PORT: String(port) },
       stdio: 'inherit',
-      detached: true,
     });
   }
 
@@ -53,19 +61,16 @@ function spawnServer(port: number): ChildProcess {
   return spawn(process.execPath, [serverEntry], {
     env: { ...process.env, PORT: String(port), ELECTRON_RUN_AS_NODE: '1' },
     stdio: 'inherit',
-    detached: true,
   });
 }
 
 function stopServer(): void {
   if (!serverProcess?.pid) return;
-  try {
-    // Negative pid = kill the whole process group (POSIX only; Windows
-    // packaging in milestone 18 will need `taskkill /pid <pid> /t /f` instead).
-    process.kill(-serverProcess.pid, 'SIGTERM');
-  } catch {
-    serverProcess.kill();
-  }
+  // tsx spawns its own grandchild loader process — killing only the
+  // immediate child would leak that grandchild as an orphaned server, so
+  // walk the whole tree by PID (works regardless of process-group
+  // membership, unlike a plain `.kill()`).
+  treeKill(serverProcess.pid, 'SIGTERM');
 }
 
 async function waitForServer(port: number, timeoutMs = 15000): Promise<void> {
@@ -152,3 +157,14 @@ app.on('activate', () => {
 app.on('will-quit', () => {
   stopServer();
 });
+
+// Best-effort: try to go through the normal quit lifecycle (hide window,
+// stopServer()) if something sends SIGINT/SIGTERM to this process alone.
+// Not load-bearing for the common case, though — a real terminal's Ctrl+C
+// sends SIGINT to the *whole foreground process group*, which reaches the
+// (non-detached) server subprocess directly regardless of whether this
+// handler runs, and Electron's own JS-level signal handling isn't reliable
+// enough to depend on here (its Chromium helper processes receive the same
+// raw group signal independently, which can race ahead of this).
+process.on('SIGINT', () => app.quit());
+process.on('SIGTERM', () => app.quit());

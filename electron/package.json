@@ -7,6 +7,9 @@
     "dev": "npm run build && electron .",
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/assets','dist/assets',{recursive:true})\""
   },
+  "dependencies": {
+    "tree-kill": "^1.2.2"
+  },
   "devDependencies": {
     "@types/node": "^22.13.0",
     "electron": "^44.3.0",
