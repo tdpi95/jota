@@ -146,9 +146,9 @@ pivot/
 
 ## License
 
-[PolyForm Noncommercial License 1.0.0](LICENSE) — free to use, fork, modify,
-and self-host for any noncommercial purpose (personal use, including using it
-for your own work tasks, is explicitly fine). Selling it, offering it as a
-paid product or service, or otherwise using it for commercial advantage is
-not permitted. This is "source-available," not OSI-approved open source,
-since it restricts commercial use.
+[GNU AGPLv3](LICENSE) — free to use, fork, modify, and even sell or host
+commercially, with one condition: if you run a modified version and let
+others interact with it over a network (e.g. as a hosted service), you must
+offer them the corresponding source code. Closes the "SaaS loophole" that
+plain GPL leaves open, so improvements — commercial or not — stay available
+to everyone rather than disappearing into a closed-source fork.
