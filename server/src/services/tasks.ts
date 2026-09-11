@@ -7,6 +7,7 @@ import { differenceInMinutes } from 'date-fns';
 
 import { HttpError } from '../lib/httpError.js';
 import { generateTaskId } from '../lib/ids.js';
+import { queryJournalLinksForTask, queryOpenTasks, querySearchTasks, queryTaskById, type IndexedTask } from '../lib/index/queries.js';
 import type { ProjectBodyBlock } from '../lib/markdown/taskLine.js';
 import type { Task, TaskStatus } from '../types.js';
 import { loadProjectFile, saveProjectFile } from './projects.js';
@@ -116,4 +117,29 @@ export function deleteTask(workspacePath: string, slug: string, taskId: string, 
   parsed.blocks.splice(index, 1);
 
   saveProjectFile(workspacePath, slug, parsed, origin, `delete_task ${taskId} (${slug})`);
+}
+
+// --- Aggregate/query reads (PLAN.md "Which reads go where" — these go
+// through the index, not the source files, and can show stale data until
+// the next reconciliation). ---
+
+/** `GET /api/tasks/open` — every not-done task across all projects. */
+export function listOpenTasks(workspacePath: string): IndexedTask[] {
+  return queryOpenTasks(workspacePath);
+}
+
+/** `GET /api/tasks/search?q=` — empty/whitespace-only query returns no
+ * results rather than the whole vault. */
+export function searchTasks(workspacePath: string, q: string): IndexedTask[] {
+  const query = q?.trim();
+  if (!query) return [];
+  return querySearchTasks(workspacePath, query);
+}
+
+/** `GET /api/tasks/:taskId/journal-links` — dates of every journal entry
+ * linking to this task; 404s if the task id doesn't exist at all (not just
+ * an empty link list) so the caller can tell "no links" from "no such task". */
+export function getJournalLinksForTask(workspacePath: string, taskId: string): string[] {
+  if (!queryTaskById(workspacePath, taskId)) throw new TaskServiceError(`no task with id "${taskId}"`, 404);
+  return queryJournalLinksForTask(workspacePath, taskId);
 }

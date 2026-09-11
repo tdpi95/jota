@@ -6,8 +6,9 @@ import { test } from 'node:test';
 
 import { getHistory } from '../lib/vaultGit.js';
 import { ensureGitRepo } from '../lib/workspaces.js';
+import { linkTask } from './journal.js';
 import { createProject } from './projects.js';
-import { createTask, deleteTask, updateTask } from './tasks.js';
+import { createTask, deleteTask, getJournalLinksForTask, listOpenTasks, searchTasks, updateTask } from './tasks.js';
 
 // Mirrors PLAN.md milestone 7's verify step (the tasks half): create
 // project, add task, PATCH todo->doing->(wait)->todo, confirm @spent in the
@@ -147,4 +148,52 @@ test('deleteTask removes the task line and commits', () => {
   const onDisk = fs.readFileSync(projectFile(ws, 'website-redesign'), 'utf8');
   assert.doesNotMatch(onDisk, new RegExp(`id:${task.id}`));
   assert.equal(getHistory(ws)[0].message, `[api] delete_task ${task.id} (website-redesign)`);
+});
+
+// --- Aggregate/query reads (milestone 9) ---
+
+test('listOpenTasks returns not-done tasks across projects, due-soonest first, with project info attached', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  createProject(ws, { name: 'Ops' });
+  const undated = createTask(ws, 'website-redesign', { text: 'No due date' });
+  const soon = createTask(ws, 'website-redesign', { text: 'Due soon', due: '2026-09-12' });
+  const later = createTask(ws, 'ops', { text: 'Due later', due: '2026-10-01' });
+  const done = createTask(ws, 'ops', { text: 'Already done' });
+  updateTask(ws, 'ops', done.id, { status: 'done' });
+
+  const open = listOpenTasks(ws);
+  assert.deepEqual(
+    open.map((t) => t.id),
+    [soon.id, later.id, undated.id],
+  );
+  assert.equal(open[0].projectSlug, 'website-redesign');
+  assert.equal(open[1].projectName, 'Ops');
+});
+
+test('searchTasks matches text/description case-insensitively and ignores a blank query', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const match = createTask(ws, 'website-redesign', { text: 'Draft HOMEPAGE copy' });
+  createTask(ws, 'website-redesign', { text: 'Unrelated task' });
+
+  assert.deepEqual(
+    searchTasks(ws, 'homepage').map((t) => t.id),
+    [match.id],
+  );
+  assert.deepEqual(searchTasks(ws, '   '), []);
+});
+
+test('getJournalLinksForTask returns linked dates and 404s for an unknown task', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const task = createTask(ws, 'website-redesign', { text: 'Draft homepage copy' });
+
+  assert.deepEqual(getJournalLinksForTask(ws, task.id), []);
+
+  linkTask(ws, '2026', '2026-09-10', task.id);
+  linkTask(ws, '2026', '2026-09-11', task.id);
+  assert.deepEqual(getJournalLinksForTask(ws, task.id), ['2026-09-10', '2026-09-11']);
+
+  assert.throws(() => getJournalLinksForTask(ws, 't_ffffff'), /no task with id/);
 });
