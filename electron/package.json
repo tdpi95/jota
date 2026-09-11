@@ -1,0 +1,16 @@
+{
+  "name": "pivot-electron",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "npm run build && electron .",
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/assets','dist/assets',{recursive:true})\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.6.3"
+  }
+}
