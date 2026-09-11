@@ -1,37 +1,30 @@
-import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-// Deliberately unstyled placeholder — just enough to prove the Electron
-// window is talking to the embedded server over HTTP (milestone 3's own
-// verify step). The real AppShell/WorkspaceSwitcher/etc. land in
-// milestones 11-16.
-
-interface Workspace {
-  id: string;
-  path: string;
-  name: string;
-  lastOpenedAt: string;
-}
+import AppShell from './components/AppShell';
+import DashboardPage from './pages/DashboardPage';
+import JournalDayPage from './pages/JournalDayPage';
+import JournalYearPage from './pages/JournalYearPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
+import ProjectsListPage from './pages/ProjectsListPage';
+import SettingsPage from './pages/SettingsPage';
+import { todayStr, yearOf } from './lib/date';
 
 export default function App() {
-  const [health, setHealth] = useState<'checking' | 'ok' | 'error'>('checking');
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => setHealth(res.ok ? 'ok' : 'error'))
-      .catch(() => setHealth('error'));
-
-    fetch('/api/workspaces/active')
-      .then((res) => res.json())
-      .then((data) => setWorkspace(data.workspace))
-      .catch(() => setWorkspace(null));
-  }, []);
+  const today = todayStr();
 
   return (
-    <div>
-      <h1>pivot</h1>
-      <p>Embedded server: {health}</p>
-      <p>Active workspace: {workspace ? `${workspace.name} (${workspace.path})` : 'none'}</p>
-    </div>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="projects" element={<ProjectsListPage />} />
+        <Route path="projects/:slug" element={<ProjectDetailPage />} />
+        {/* PLAN.md: "/journal -> redirect to /journal/<year>/<today>" */}
+        <Route path="journal" element={<Navigate to={`/journal/${yearOf(today)}/${today}`} replace />} />
+        <Route path="journal/:year" element={<JournalYearPage />} />
+        <Route path="journal/:year/:date" element={<JournalDayPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
   );
 }
