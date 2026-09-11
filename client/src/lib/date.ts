@@ -31,18 +31,59 @@ export const MONTH_NAMES = [
   'December',
 ];
 
-/** "2026-09-10" -> "Sep 10" (badges) */
-export function formatDueShort(due: string): string {
-  const [, m, d] = due.split('-').map(Number);
-  return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}`;
+// Vietnamese has no distinct abbreviated month-name convention comparable to
+// "Jan"/"Feb" — "Tháng 1" ("Month 1") is both the full and the short form in
+// everyday use, so the same array covers both `formatDateLong` and
+// `formatDueShort`/`monthShortLabel` below.
+const MONTH_NAMES_VI = [
+  'Tháng 1',
+  'Tháng 2',
+  'Tháng 3',
+  'Tháng 4',
+  'Tháng 5',
+  'Tháng 6',
+  'Tháng 7',
+  'Tháng 8',
+  'Tháng 9',
+  'Tháng 10',
+  'Tháng 11',
+  'Tháng 12',
+];
+
+export type UiLanguage = 'en' | 'vi';
+
+/** Month label for UI language, e.g. `monthLabel(8, 'en', true) === 'Sep'`,
+ * `monthLabel(8, 'vi', true) === 'Tháng 9'`. `short` only shortens English
+ * (see MONTH_NAMES_VI comment above for why Vietnamese doesn't abbreviate). */
+function monthLabel(month: number, language: UiLanguage, short: boolean): string {
+  if (language === 'vi') return MONTH_NAMES_VI[month];
+  return short ? MONTH_NAMES[month].slice(0, 3) : MONTH_NAMES[month];
 }
 
-/** "2026-09-10" -> "Thursday, September 10, 2026" (journal day header) */
-export function formatDateLong(date: string): string {
+/** "Sep 2026" / "Tháng 9 2026" — used directly by CalendarSidebar's month
+ * header (it doesn't go through formatDueShort/formatDateLong). */
+export function monthShortLabel(month: number, language: UiLanguage = 'en'): string {
+  return monthLabel(month, language, true);
+}
+
+/** "2026-09-10" -> "Sep 10" (badges) / "10 Tháng 9" in Vietnamese, matching
+ * each language's natural day/month order. */
+export function formatDueShort(due: string, language: UiLanguage = 'en'): string {
+  const [, m, d] = due.split('-').map(Number);
+  const label = monthLabel(m - 1, language, true);
+  return language === 'vi' ? `${d} ${label}` : `${label} ${d}`;
+}
+
+/** "2026-09-10" -> "Thursday, September 10, 2026" (journal day header), or
+ * "Thứ Năm, 10 Tháng 9, 2026" in Vietnamese. Weekday name comes from
+ * `Intl`/`toLocaleDateString` (which already knows Vietnamese weekday names)
+ * rather than a hand-rolled list. */
+export function formatDateLong(date: string, language: UiLanguage = 'en'): string {
   const [y, m, d] = date.split('-').map(Number);
   const asDate = new Date(y, m - 1, d);
-  const weekday = asDate.toLocaleDateString(undefined, { weekday: 'long' });
-  return `${weekday}, ${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+  const weekday = asDate.toLocaleDateString(language === 'vi' ? 'vi' : undefined, { weekday: 'long' });
+  const label = monthLabel(m - 1, language, false);
+  return language === 'vi' ? `${weekday}, ${d} ${label}, ${y}` : `${weekday}, ${label} ${d}, ${y}`;
 }
 
 /** Adds `delta` days to a YYYY-MM-DD string, staying in local calendar days

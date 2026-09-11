@@ -1,5 +1,7 @@
 import { Notification } from 'electron';
 
+import { asLang, type Lang, reminderStrings } from './i18n';
+
 // The daily-reminder scheduler (PLAN.md "Daily reminder"): a main-process
 // interval, checked once a minute, comparing local wall-clock time against
 // the active workspace's `reminderTime`. All wall-clock/local-date logic
@@ -40,6 +42,12 @@ export interface ReminderSchedulerOptions {
    * notification's click handler (PLAN.md: "clicking the notification
    * shows/focuses the window and navigates to /journal"). */
   onNotificationClick: () => void;
+  /** Called whenever a tick observes the app-wide language preference
+   * (PLAN.md "Localization") differing from what the previous tick saw —
+   * lets `main.ts` rebuild the tray menu without polling for that
+   * separately. Not called on the very first tick's initial read, only on
+   * an actual change thereafter. */
+  onLanguageChange?: (lang: Lang) => void;
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
@@ -55,7 +63,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> 
   }
 }
 
-async function checkOnce(port: number, onNotificationClick: () => void): Promise<void> {
+async function checkOnce(port: number, onNotificationClick: () => void, language: Lang): Promise<void> {
   const base = `http://127.0.0.1:${port}/api`;
 
   const workspaceRes = await fetchJson<{ workspace: ActiveWorkspaceReminderFields | null }>(`${base}/workspaces/active`);
@@ -87,9 +95,8 @@ async function checkOnce(port: number, onNotificationClick: () => void): Promise
   if (!entryRes) return; // couldn't check — try again next tick rather than fire blind
   if (entryRes.entry.body.trim() !== '') return; // already journaled today — a smart no-op, not a nag
 
-  new Notification({ title: 'Time to journal', body: "You haven't written today's entry yet" })
-    .on('click', onNotificationClick)
-    .show();
+  const strings = reminderStrings(language);
+  new Notification({ title: strings.title, body: strings.body }).on('click', onNotificationClick).show();
 
   // Recorded only on an actual fire (never on a skip above) so a plain
   // "haven't checked yet today" state keeps re-checking every tick until
@@ -103,10 +110,27 @@ async function checkOnce(port: number, onNotificationClick: () => void): Promise
 
 /** Starts the once-a-minute check; returns a function that stops it. */
 export function startReminderScheduler(opts: ReminderSchedulerOptions): () => void {
+  // `undefined` until the first tick's read — deliberately distinct from
+  // any real Lang value, so that first read never itself counts as a
+  // "change" (see `onLanguageChange`'s own doc comment above).
+  let lastLanguage: Lang | undefined;
+
   const timer = setInterval(() => {
     const port = opts.getServerPort();
     if (port === null) return;
-    checkOnce(port, opts.onNotificationClick).catch((err) => {
+    (async () => {
+      // Polled every tick regardless of the reminder logic's own early
+      // returns below (no active workspace, already journaled today, etc.)
+      // — the language preference is app-wide, not tied to having an
+      // active workspace, and the tray menu (via onLanguageChange) should
+      // stay in sync even on a tick that fires no notification at all.
+      const prefRes = await fetchJson<{ language: string }>(`http://127.0.0.1:${port}/api/preferences/language`);
+      const language = asLang(prefRes?.language);
+      if (lastLanguage !== undefined && language !== lastLanguage) opts.onLanguageChange?.(language);
+      lastLanguage = language;
+
+      await checkOnce(port, opts.onNotificationClick, language);
+    })().catch((err) => {
       console.error('[reminder] check failed:', err);
     });
   }, CHECK_INTERVAL_MS);

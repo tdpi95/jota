@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Generic popup overlay — the first modal in the app (PLAN.md milestone 18:
@@ -8,6 +9,7 @@ import { createPortal } from 'react-dom';
  * button; a click inside the card itself does not bubble to the backdrop.
  */
 export default function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useTranslation();
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -21,7 +23,7 @@ export default function Modal({ title, onClose, children }: { title: string; onC
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+          <button type="button" className="modal-close" aria-label={t('modal.close')} onClick={onClose}>
             ×
           </button>
         </div>

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
@@ -11,13 +12,13 @@ import TaskRow from '../components/TaskRow';
 import { todayStr, yearOf } from '../lib/date';
 import type { Task, TaskStatus } from '../types';
 
-const COLUMNS: { status: TaskStatus; title: string }[] = [
-  { status: 'todo', title: 'Todo' },
-  { status: 'doing', title: 'Doing' },
-  { status: 'done', title: 'Done' },
-];
-
 export default function ProjectDetailPage() {
+  const { t } = useTranslation();
+  const COLUMNS: { status: TaskStatus; title: string }[] = [
+    { status: 'todo', title: t('projectDetail.columns.todo') },
+    { status: 'doing', title: t('projectDetail.columns.doing') },
+    { status: 'done', title: t('projectDetail.columns.done') },
+  ];
   const { slug = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -76,14 +77,14 @@ export default function ProjectDetailPage() {
     },
   });
 
-  if (isLoading) return <p className="page-sub">Loading project…</p>;
+  if (isLoading) return <p className="page-sub">{t('projectDetail.loading')}</p>;
   if (isError) {
-    const message = error instanceof api.ApiError ? error.message : 'Failed to load project.';
+    const message = error instanceof api.ApiError ? error.message : t('projectDetail.failedToLoad');
     return (
       <div>
         <p className="field-error">{message}</p>
         <button className="btn-secondary" onClick={() => navigate('/projects')}>
-          Back to projects
+          {t('projectDetail.backToProjects')}
         </button>
       </div>
     );
@@ -93,7 +94,7 @@ export default function ProjectDetailPage() {
   // that matters, but don't let a gap in that reasoning (or a future change
   // to the query's options) crash the page — fall back to the same "not
   // found" affordance rather than reading `.project` off `undefined`.
-  if (!data) return <p className="page-sub">Loading project…</p>;
+  if (!data) return <p className="page-sub">{t('projectDetail.loading')}</p>;
 
   const project = data.project;
   const { frontmatter, tasks } = project;
@@ -139,7 +140,7 @@ export default function ProjectDetailPage() {
   return (
     <div>
       <Link to="/projects" className="back-link">
-        ← All projects
+        {t('projectDetail.allProjects')}
       </Link>
 
       <div className="page-header">
@@ -149,7 +150,7 @@ export default function ProjectDetailPage() {
             <div>
               <h1 className="page-title">
                 {frontmatter.name}
-                {frontmatter.archived ? ' (archived)' : ''}
+                {frontmatter.archived ? t('projectDetail.archivedSuffix') : ''}
               </h1>
               <div className="pd-tags">
                 {frontmatter.tags.map((tag) => (
@@ -162,19 +163,19 @@ export default function ProjectDetailPage() {
           </div>
         </div>
         <button className="btn-secondary" onClick={() => setEditing(true)}>
-          Edit project
+          {t('projectDetail.editProject')}
         </button>
       </div>
 
       {frontmatter.description && <div className="pd-desc">{frontmatter.description}</div>}
 
       {editing && (
-        <Modal title="Edit project" onClose={() => setEditing(false)}>
+        <Modal title={t('projectDetail.editProjectModalTitle')} onClose={() => setEditing(false)}>
           <ProjectForm
             bare
             initial={{ name: frontmatter.name, description: frontmatter.description, tags: frontmatter.tags, color: frontmatter.color, archived: frontmatter.archived }}
             showArchived
-            submitLabel="Save changes"
+            submitLabel={t('projectDetail.saveChanges')}
             pending={updateProjectMutation.isPending}
             onSubmit={(values) => updateProjectMutation.mutate(values)}
             onCancel={() => setEditing(false)}
@@ -182,7 +183,7 @@ export default function ProjectDetailPage() {
         </Modal>
       )}
 
-      <TaskForm compact submitLabel="+ Add task" pending={createTaskMutation.isPending} onSubmit={(values) => createTaskMutation.mutate(values)} />
+      <TaskForm compact submitLabel={t('projectDetail.addTask')} pending={createTaskMutation.isPending} onSubmit={(values) => createTaskMutation.mutate(values)} />
 
       <div className="pd-columns">
         {COLUMNS.map((col) => {
@@ -223,7 +224,7 @@ export default function ProjectDetailPage() {
                     {isDragOverColumn && dragOverInfo?.afterId === task.id && <div className="drop-indicator" />}
                   </div>
                 ))}
-                {colTasks.length === 0 && <div className="empty-note">Nothing here.</div>}
+                {colTasks.length === 0 && <div className="empty-note">{t('projectDetail.nothingHere')}</div>}
               </div>
             </div>
           );

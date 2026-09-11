@@ -242,4 +242,18 @@ export function getSyncStatus(): Promise<SyncStatus> {
   return request('/vault/git/status');
 }
 
+// --- Preferences ---
+
+// App-wide UI language (PLAN.md "Localization") — a plain preference, not
+// an OS-level API, so (unlike launch-at-login/reminder settings) this goes
+// straight over HTTP rather than through the Electron preload bridge; it
+// works identically in a plain browser tab.
+export function getLanguagePreference(): Promise<{ language: 'en' | 'vi' }> {
+  return request('/preferences/language');
+}
+
+export function setLanguagePreference(language: 'en' | 'vi'): Promise<{ language: 'en' | 'vi' }> {
+  return request('/preferences/language', { method: 'PUT', body: JSON.stringify({ language }) });
+}
+
 export { ApiError };

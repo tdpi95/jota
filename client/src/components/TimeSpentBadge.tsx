@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { formatDuration, liveSpentMinutes } from '../lib/duration';
 
@@ -11,6 +12,7 @@ import { formatDuration, liveSpentMinutes } from '../lib/duration';
  * Renders nothing if there's nothing to show (not doing, and zero spent).
  */
 export default function TimeSpentBadge({ spentMinutes, doingSince }: { spentMinutes: number; doingSince: string | null }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function TimeSpentBadge({ spentMinutes, doingSince }: { spentMinu
   return (
     <span className="spent-badge">
       {formatDuration(live)}
-      {doingSince ? ' · tracking…' : ''}
+      {doingSince ? t('timeSpentBadge.tracking') : ''}
     </span>
   );
 }

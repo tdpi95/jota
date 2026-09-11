@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** Pill-style tag editor: type + Enter/comma to add, backspace on an empty
  * field to drop the last tag, × to remove any one. Also backs priority tags
@@ -8,13 +9,15 @@ import type { KeyboardEvent } from 'react';
 export default function TagInput({
   value,
   onChange,
-  placeholder = 'Add tag…',
+  placeholder,
 }: {
   value: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState('');
+  const effectivePlaceholder = placeholder ?? t('tagInput.placeholder');
 
   function commitDraft() {
     const tag = draft.trim().replace(/^#/, '');
@@ -36,7 +39,7 @@ export default function TagInput({
       {value.map((tag) => (
         <span className="tag-pill" key={tag}>
           {tag}
-          <button type="button" onClick={() => onChange(value.filter((t) => t !== tag))} aria-label={`Remove tag ${tag}`}>
+          <button type="button" onClick={() => onChange(value.filter((existing) => existing !== tag))} aria-label={t('tagInput.removeTag', { tag })}>
             ×
           </button>
         </span>
@@ -46,7 +49,7 @@ export default function TagInput({
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={commitDraft}
-        placeholder={value.length === 0 ? placeholder : ''}
+        placeholder={value.length === 0 ? effectivePlaceholder : ''}
       />
     </div>
   );

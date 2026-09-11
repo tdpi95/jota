@@ -8,12 +8,14 @@ import { readRegistry, writeRegistry } from '../lib/workspaces.js';
 import {
   addWorkspace,
   getActiveWorkspace,
+  getLanguagePreference,
   getLaunchAtLoginPreference,
   getReminderSettings,
   listWorkspaces,
   markReminderFired,
   openWorkspace,
   removeWorkspace,
+  setLanguagePreference,
   setLaunchAtLoginPreference,
   setReminderSettings,
 } from './workspaces.js';
@@ -162,4 +164,15 @@ test('launch-at-login preference is null until explicitly set, then persists the
 
   setLaunchAtLoginPreference(false, homeDir);
   assert.equal(getLaunchAtLoginPreference(homeDir), false);
+});
+
+test('language preference defaults to en and persists an explicit choice', () => {
+  const homeDir = scratchDir('pivot-home-');
+  assert.equal(getLanguagePreference(homeDir), 'en');
+
+  setLanguagePreference('vi', homeDir);
+  assert.equal(getLanguagePreference(homeDir), 'vi');
+
+  setLanguagePreference('en', homeDir);
+  assert.equal(getLanguagePreference(homeDir), 'en');
 });

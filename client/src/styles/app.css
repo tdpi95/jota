@@ -1220,6 +1220,13 @@ textarea {
   color: var(--ink-muted);
   margin-bottom: 12px;
 }
+.lang-picker {
+  display: flex;
+  gap: 8px;
+}
+.lang-picker .ws-row-btn {
+  margin-left: 0;
+}
 .ws-rows-list {
   display: flex;
   flex-direction: column;

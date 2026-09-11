@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import CalendarSidebar from './CalendarSidebar';
@@ -46,15 +47,16 @@ function NavItem({ to, label, icon, end }: { to: string; label: string; icon: st
  * grid, milestone 13).
  */
 export default function AppShell() {
+  const { t } = useTranslation();
   return (
     <div className="app">
       <aside className="sidebar">
         <WorkspaceSwitcher />
         <nav className="nav">
-          <NavItem to="/" end label="Dashboard" icon="dashboard" />
-          <NavItem to="/projects" label="Projects" icon="projects" />
-          <NavItem to="/journal" label="Journal" icon="journal" />
-          <NavItem to="/settings" label="Settings" icon="settings" />
+          <NavItem to="/" end label={t('appShell.nav.dashboard')} icon="dashboard" />
+          <NavItem to="/projects" label={t('appShell.nav.projects')} icon="projects" />
+          <NavItem to="/journal" label={t('appShell.nav.journal')} icon="journal" />
+          <NavItem to="/settings" label={t('appShell.nav.settings')} icon="settings" />
         </nav>
         <CalendarSidebar />
       </aside>

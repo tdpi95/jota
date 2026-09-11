@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
@@ -28,6 +29,8 @@ export default function JournalDayPage() {
 }
 
 function JournalDayPageInner({ date }: { date: string }) {
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === 'vi' ? 'vi' : 'en';
   const year = yearOf(date);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -168,39 +171,39 @@ function JournalDayPageInner({ date }: { date: string }) {
     return map;
   }, [projectsQuery.data]);
 
-  const searchResults: IndexedTask[] = (searchQuery.data?.tasks ?? []).filter((t) => !linkedTaskIds.includes(t.id));
+  const searchResults: IndexedTask[] = (searchQuery.data?.tasks ?? []).filter((task) => !linkedTaskIds.includes(task.id));
 
   return (
     <div>
       <div className="journal-head">
-        <button className="journal-nav-btn" onClick={() => navigate(`/journal/${yearOf(addDays(date, -1))}/${addDays(date, -1)}`)} title="Previous day">
+        <button className="journal-nav-btn" onClick={() => navigate(`/journal/${yearOf(addDays(date, -1))}/${addDays(date, -1)}`)} title={t('journalDay.previousDay')}>
           ‹
         </button>
-        <h1 className="journal-date">{formatDateLong(date)}</h1>
-        <button className="journal-nav-btn" onClick={() => navigate(`/journal/${yearOf(addDays(date, 1))}/${addDays(date, 1)}`)} title="Next day">
+        <h1 className="journal-date">{formatDateLong(date, language)}</h1>
+        <button className="journal-nav-btn" onClick={() => navigate(`/journal/${yearOf(addDays(date, 1))}/${addDays(date, 1)}`)} title={t('journalDay.nextDay')}>
           ›
         </button>
       </div>
-      <div className="page-sub">{date === todayStr() ? 'Today' : ''}</div>
+      <div className="page-sub">{date === todayStr() ? t('journalDay.today') : ''}</div>
 
       <div className="journal-tags">
-        <TagInput value={tags} onChange={handleTagsChange} placeholder="Add tag…" />
+        <TagInput value={tags} onChange={handleTagsChange} placeholder={t('journalDay.tagPlaceholder')} />
       </div>
 
       <MarkdownTextarea
         className="journal-body"
-        placeholder="Write about today…"
+        placeholder={t('journalDay.bodyPlaceholder')}
         value={body}
         onChange={(e) => handleBodyChange(e.target.value)}
         disabled={entryQuery.isLoading}
       />
       <div className="journal-save-status">
-        {saveState === 'saving' && 'Saving…'}
-        {saveState === 'saved' && 'Saved'}
+        {saveState === 'saving' && t('journalDay.saving')}
+        {saveState === 'saved' && t('journalDay.saved')}
       </div>
 
       <div className="linked-section">
-        <div className="linked-title">Linked tasks</div>
+        <div className="linked-title">{t('journalDay.linkedTasks')}</div>
         <div className="linked-wrap">
           {linkedTaskIds.map((taskId) => {
             const info = tasksById.get(taskId);
@@ -208,7 +211,7 @@ function JournalDayPageInner({ date }: { date: string }) {
               <span className="linked-chip" key={taskId}>
                 <span className="project-dot" style={{ background: info?.projectColor ?? 'var(--hairline)' }} />
                 {info?.title ?? taskId}
-                <button className="linked-remove" onClick={() => unlinkMutation.mutate(taskId)} aria-label="Remove link">
+                <button className="linked-remove" onClick={() => unlinkMutation.mutate(taskId)} aria-label={t('journalDay.removeLink')}>
                   ×
                 </button>
               </span>
@@ -216,24 +219,24 @@ function JournalDayPageInner({ date }: { date: string }) {
           })}
           <div className="picker-wrap">
             <button className="add-link-btn" onClick={() => setPickerOpen((v) => !v)}>
-              + Add task
+              {t('journalDay.addTask')}
             </button>
             {pickerOpen && (
               <div className="picker-panel">
                 <input
                   className="picker-input"
-                  placeholder="Search tasks…"
+                  placeholder={t('journalDay.searchPlaceholder')}
                   value={pickerQuery}
                   onChange={(e) => setPickerQuery(e.target.value)}
                   autoFocus
                 />
-                {searchResults.map((t) => (
-                  <button className="picker-item" key={t.id} onClick={() => linkMutation.mutate(t.id)}>
-                    <span className="project-dot" style={{ background: t.projectColor }} />
-                    {t.text}
+                {searchResults.map((task) => (
+                  <button className="picker-item" key={task.id} onClick={() => linkMutation.mutate(task.id)}>
+                    <span className="project-dot" style={{ background: task.projectColor }} />
+                    {task.text}
                   </button>
                 ))}
-                {debouncedQuery.trim() && searchResults.length === 0 && <div className="picker-empty">No matching tasks.</div>}
+                {debouncedQuery.trim() && searchResults.length === 0 && <div className="picker-empty">{t('journalDay.noMatchingTasks')}</div>}
               </div>
             )}
           </div>

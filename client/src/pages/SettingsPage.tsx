@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
+import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
 import { getPivotBridge, type ReminderSettings } from '../lib/pivotBridge';
 import type { PullResult } from '../types';
@@ -18,6 +20,20 @@ const DEFAULT_REMINDER: ReminderSettings = { enabled: true, time: '20:00' };
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const bridge = getPivotBridge();
+  const { t, i18n } = useTranslation();
+
+  // --- Language (PLAN.md "Localization") ---
+  // A plain app-wide preference (persisted via the REST API, not the
+  // Electron bridge — it works identically in a browser tab), unlike the
+  // reminder/launch-at-login section below. `i18n.language` is already the
+  // correct value on first render (main.tsx resolves it before the app
+  // ever mounts), so there's no separate loading state to track here.
+  const setLanguageMutation = useMutation({
+    mutationFn: (language: SupportedLanguage) => api.setLanguagePreference(language),
+    onSuccess: (_data, language) => {
+      void i18n.changeLanguage(language);
+    },
+  });
 
   const activeQuery = useQuery({ queryKey: ['workspace', 'active'], queryFn: api.getActiveWorkspace });
   const workspacesQuery = useQuery({ queryKey: ['workspaces'], queryFn: api.listWorkspaces });
@@ -116,7 +132,7 @@ export default function SettingsPage() {
     if (!bridge) return;
     setReminder(next);
     setReminderError(null);
-    bridge.setReminderSettings(next).catch(() => setReminderError("Couldn't save reminder settings."));
+    bridge.setReminderSettings(next).catch(() => setReminderError(t('settings.reminder.saveFailed')));
   }
 
   function commitLaunchAtLogin(enabled: boolean) {
@@ -131,11 +147,30 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Settings</h1>
+        <h1 className="page-title">{t('settings.title')}</h1>
       </div>
 
       <div className="settings-section">
-        <div className="section-title">Workspaces</div>
+        <div className="section-title">{t('settings.language.sectionTitle')}</div>
+        <div className="lang-picker" role="radiogroup" aria-label={t('settings.language.sectionTitle') ?? undefined}>
+          {(['en', 'vi'] as const).map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              role="radio"
+              aria-checked={i18n.language === lang}
+              className={`ws-row-btn ${i18n.language === lang ? 'is-active' : ''}`}
+              disabled={setLanguageMutation.isPending}
+              onClick={() => setLanguageMutation.mutate(lang)}
+            >
+              {t(`settings.language.${lang}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="section-title">{t('settings.workspaces.sectionTitle')}</div>
         <div className="ws-rows-list">
           {workspaces.map((ws) => {
             const isActive = ws.id === active?.id;
@@ -150,12 +185,12 @@ export default function SettingsPage() {
                   disabled={isActive || openMutation.isPending}
                   onClick={() => openMutation.mutate(ws.id)}
                 >
-                  {isActive ? 'Active' : 'Open'}
+                  {isActive ? t('common.active') : t('common.open')}
                 </button>
                 <button
                   className="icon-btn"
-                  title="Remove from list (keeps the folder)"
-                  onClick={() => window.confirm(`Remove "${ws.name}" from the workspace list? The folder itself is untouched.`) && removeMutation.mutate(ws.id)}
+                  title={t('settings.workspaces.removeTooltip')}
+                  onClick={() => window.confirm(t('settings.workspaces.confirmRemove', { name: ws.name })) && removeMutation.mutate(ws.id)}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18" />
@@ -165,55 +200,57 @@ export default function SettingsPage() {
               </div>
             );
           })}
-          {workspaces.length === 0 && !workspacesQuery.isLoading && <p className="empty-note">No workspaces yet.</p>}
+          {workspaces.length === 0 && !workspacesQuery.isLoading && <p className="empty-note">{t('settings.workspaces.empty')}</p>}
         </div>
 
         {bridge ? (
           <button className="btn-secondary" style={{ marginTop: 10 }} onClick={handleOpenFolder} disabled={addMutation.isPending}>
-            + Open folder…
+            {t('settings.workspaces.openFolder')}
           </button>
         ) : (
           <div className="ws-open-new" style={{ marginTop: 10, maxWidth: 420 }}>
             <input
               className="ws-path-input"
-              placeholder="/path/to/folder"
+              placeholder={t('settings.workspaces.manualPathPlaceholder')}
               value={manualPath}
               onChange={(e) => setManualPath(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && manualPath.trim() && addMutation.mutate({ path: manualPath.trim() })}
             />
             <button className="ws-add-btn" disabled={addMutation.isPending || manualPath.trim() === ''} onClick={() => addMutation.mutate({ path: manualPath.trim() })}>
-              + Open
+              {t('settings.workspaces.manualOpen')}
             </button>
           </div>
         )}
-        {addMutation.isError && <div className="field-error">{addMutation.error instanceof api.ApiError ? addMutation.error.message : 'Failed to open workspace.'}</div>}
+        {addMutation.isError && (
+          <div className="field-error">{addMutation.error instanceof api.ApiError ? addMutation.error.message : t('settings.workspaces.failedToOpen')}</div>
+        )}
       </div>
 
       {active && (
         <div className="settings-section">
-          <div className="section-title">Remote sync — {active.name}</div>
+          <div className="section-title">{t('settings.sync.sectionTitle', { name: active.name })}</div>
           <div className="sync-panel">
             <div className="sync-field">
-              <label>Remote URL</label>
+              <label>{t('settings.sync.remoteUrlLabel')}</label>
               <input
                 value={remoteUrlDraft}
                 onChange={(e) => setRemoteUrlDraft(e.target.value)}
                 onBlur={commitRemoteUrl}
                 onKeyDown={(e) => e.key === 'Enter' && commitRemoteUrl()}
-                placeholder="git@example.com:you/notes.git"
+                placeholder={t('settings.sync.remoteUrlPlaceholder')}
               />
             </div>
             <div className="sync-counts">
               <span>
-                <b>{syncStatus?.ahead ?? '—'}</b> ahead
+                <b>{syncStatus?.ahead ?? '—'}</b> {t('settings.sync.ahead')}
               </span>
               <span>
-                <b>{syncStatus?.behind ?? '—'}</b> behind
+                <b>{syncStatus?.behind ?? '—'}</b> {t('settings.sync.behind')}
               </span>
             </div>
             <div className="sync-actions">
               <button className="btn-primary" disabled={!syncConfigured || pushMutation.isPending} onClick={() => pushMutation.mutate()}>
-                Push
+                {t('settings.sync.push')}
               </button>
               <button
                 className="btn-secondary"
@@ -223,17 +260,17 @@ export default function SettingsPage() {
                   pullMutation.mutate();
                 }}
               >
-                Pull
+                {t('settings.sync.pull')}
               </button>
             </div>
             <div className="sync-status">
-              {!syncConfigured && 'No remote configured yet.'}
-              {syncConfigured && syncStatus?.lastSyncedAt && `Last synced ${formatTimestamp(syncStatus.lastSyncedAt)}`}
-              {syncConfigured && !syncStatus?.lastSyncedAt && 'Never synced.'}
+              {!syncConfigured && t('settings.sync.noRemoteConfigured')}
+              {syncConfigured && syncStatus?.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(syncStatus.lastSyncedAt) })}
+              {syncConfigured && !syncStatus?.lastSyncedAt && t('settings.sync.neverSynced')}
             </div>
             {pullResult?.conflict && (
               <div className="field-error" style={{ marginTop: 10 }}>
-                Pull found conflicts and was aborted — nothing was changed. Conflicting files:
+                {t('settings.sync.conflictNotice')}
                 <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
                   {pullResult.files.map((f) => (
                     <li key={f}>{f}</li>
@@ -244,7 +281,11 @@ export default function SettingsPage() {
             {(() => {
               const err = setRemoteMutation.error ?? pushMutation.error ?? pullMutation.error;
               if (!err) return null;
-              return <div className="field-error" style={{ marginTop: 10 }}>{err instanceof api.ApiError ? err.message : 'Sync action failed.'}</div>;
+              return (
+                <div className="field-error" style={{ marginTop: 10 }}>
+                  {err instanceof api.ApiError ? err.message : t('settings.sync.actionFailed')}
+                </div>
+              );
             })()}
           </div>
         </div>
@@ -252,7 +293,7 @@ export default function SettingsPage() {
 
       {bridge && (
         <div className="settings-section">
-          <div className="section-title">Daily reminder</div>
+          <div className="section-title">{t('settings.reminder.sectionTitle')}</div>
           <div className="sync-panel" style={{ maxWidth: 340 }}>
             <div className="form-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <input
@@ -263,11 +304,11 @@ export default function SettingsPage() {
                 style={{ width: 'auto' }}
               />
               <label htmlFor="reminder-enabled" style={{ textTransform: 'none', fontSize: 12.5, letterSpacing: 0 }}>
-                Remind me if I haven't journaled today
+                {t('settings.reminder.enabledLabel')}
               </label>
             </div>
             <div className="sync-field">
-              <label>Time</label>
+              <label>{t('settings.reminder.timeLabel')}</label>
               <input
                 type="time"
                 value={reminder?.time ?? DEFAULT_REMINDER.time ?? ''}
@@ -282,7 +323,7 @@ export default function SettingsPage() {
 
       {bridge && (
         <div className="settings-section">
-          <div className="section-title">Desktop app</div>
+          <div className="section-title">{t('settings.launchAtLogin.sectionTitle')}</div>
           <div className="form-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <input
               type="checkbox"
@@ -292,13 +333,13 @@ export default function SettingsPage() {
               style={{ width: 'auto' }}
             />
             <label htmlFor="launch-at-login" style={{ textTransform: 'none', fontSize: 12.5, letterSpacing: 0 }}>
-              Launch at login
+              {t('settings.launchAtLogin.label')}
             </label>
           </div>
         </div>
       )}
 
-      {!bridge && <p className="placeholder-page">The daily reminder and launch-at-login toggle are only available in the desktop app.</p>}
+      {!bridge && <p className="placeholder-page">{t('settings.desktopOnlyNotice')}</p>}
     </div>
   );
 }

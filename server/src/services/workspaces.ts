@@ -193,4 +193,25 @@ export function setLaunchAtLoginPreference(enabled: boolean, homeDir: string = o
   return enabled;
 }
 
+/**
+ * The app-wide UI language (PLAN.md "Localization") — one value for the
+ * whole app, independent of which workspace is open, read by both the
+ * client (via `GET/PUT /api/preferences/language`) and the Electron main
+ * process (tray menu + daily-reminder notification text). `undefined` on
+ * the registry (never set, or a registry written before this field
+ * existed) normalizes to `'en'` here rather than staying unset — unlike
+ * `launchAtLogin`, there's no OS-level default-application step that needs
+ * to distinguish "never decided" from "explicitly en".
+ */
+export function getLanguagePreference(homeDir: string = os.homedir()): 'en' | 'vi' {
+  return readRegistry(homeDir).language ?? 'en';
+}
+
+export function setLanguagePreference(language: 'en' | 'vi', homeDir: string = os.homedir()): 'en' | 'vi' {
+  const registry = readRegistry(homeDir);
+  registry.language = language;
+  writeRegistry(registry, homeDir);
+  return language;
+}
+
 export type { WorkspaceEntry };

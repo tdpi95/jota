@@ -9,15 +9,16 @@
 // of which Node version a given Electron release bundles, and so this
 // package's own TS project never needs to reach across into server/src.
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, type Tray } from 'electron';
 import { type ChildProcess, spawn } from 'node:child_process';
 import path from 'node:path';
 import treeKill from 'tree-kill';
 
 import { getFreePort } from './freePort';
+import { asLang, type Lang } from './i18n';
 import { getLaunchAtLogin, setLaunchAtLogin } from './loginItem';
 import { startReminderScheduler } from './reminder';
-import { createTray } from './tray';
+import { applyTrayLanguage, createTray, type TrayCallbacks } from './tray';
 
 const isDev = !app.isPackaged;
 const DEV_SERVER_PORT = 4174;
@@ -29,6 +30,8 @@ let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
 let isQuitting = false;
 let stopReminderScheduler: (() => void) | null = null;
+let tray: Tray | null = null;
+let trayCallbacks: TrayCallbacks | null = null;
 
 // Deliberately NOT `detached: true`: leaving the server in Electron's own
 // process group means a raw Ctrl+C in the terminal running `npm run dev`
@@ -134,6 +137,22 @@ function navigateMainWindow(path: string): void {
   void mainWindow.loadURL(`${base}${path}`);
 }
 
+/** PLAN.md "Localization": the app-wide language preference the client
+ * sets directly via `PUT /api/preferences/language` (no IPC bridge needed
+ * for that side — it's a plain preference, not an OS-level API). Read here
+ * only for the native strings this process itself renders (tray, daily
+ * reminder). Defaults to 'en' on any failure (server not up yet, etc.). */
+async function fetchLanguage(port: number): Promise<Lang> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/preferences/language`);
+    if (!res.ok) return 'en';
+    const { language } = (await res.json()) as { language: unknown };
+    return asLang(language);
+  } catch {
+    return 'en';
+  }
+}
+
 ipcMain.handle('pivot:pick-folder', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
@@ -218,11 +237,18 @@ app.whenReady().then(async () => {
   await applyLaunchAtLoginDefaultIfUndecided(serverPort);
 
   await createWindow(serverPort);
-  createTray({ onOpen: showMainWindow, onSettings: () => navigateMainWindow('/settings'), onQuit: () => app.quit() });
+  trayCallbacks = { onOpen: showMainWindow, onSettings: () => navigateMainWindow('/settings'), onQuit: () => app.quit() };
+  tray = createTray(trayCallbacks, await fetchLanguage(serverPort));
 
   stopReminderScheduler = startReminderScheduler({
     getServerPort: () => serverPort,
     onNotificationClick: () => navigateMainWindow('/journal'),
+    // The reminder scheduler already polls the language preference once a
+    // minute for its own notification text — reuse that poll to keep the
+    // tray in sync too, rather than a second independent poller.
+    onLanguageChange: (lang) => {
+      if (tray && trayCallbacks) applyTrayLanguage(tray, trayCallbacks, lang);
+    },
   });
 });
 

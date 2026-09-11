@@ -1,0 +1,224 @@
+{
+  "common": {
+    "loading": "Đang tải…",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Sửa",
+    "close": "Đóng",
+    "clear": "Xóa bộ lọc",
+    "open": "Mở",
+    "active": "Đang dùng",
+    "settings": "Cài đặt",
+    "confirm": "Xác nhận",
+    "remove": "Gỡ bỏ"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "language": {
+      "sectionTitle": "Ngôn ngữ",
+      "en": "English",
+      "vi": "Tiếng Việt"
+    },
+    "workspaces": {
+      "sectionTitle": "Không gian làm việc",
+      "empty": "Chưa có không gian làm việc nào.",
+      "openFolder": "+ Mở thư mục…",
+      "manualPathPlaceholder": "/đường/dẫn/thư-mục",
+      "manualOpen": "+ Mở",
+      "removeTooltip": "Gỡ khỏi danh sách (giữ nguyên thư mục)",
+      "confirmRemove": "Gỡ \"{{name}}\" khỏi danh sách không gian làm việc? Thư mục vẫn được giữ nguyên.",
+      "failedToOpen": "Không thể mở không gian làm việc."
+    },
+    "sync": {
+      "sectionTitle": "Đồng bộ từ xa — {{name}}",
+      "remoteUrlLabel": "URL từ xa",
+      "remoteUrlPlaceholder": "git@example.com:you/notes.git",
+      "ahead": "trước",
+      "behind": "sau",
+      "push": "Push",
+      "pull": "Pull",
+      "noRemoteConfigured": "Chưa cấu hình remote.",
+      "lastSynced": "Đồng bộ lần cuối {{time}}",
+      "neverSynced": "Chưa từng đồng bộ.",
+      "conflictNotice": "Pull phát hiện xung đột nên đã bị hủy — không có gì thay đổi. Các file xung đột:",
+      "actionFailed": "Thao tác đồng bộ thất bại."
+    },
+    "reminder": {
+      "sectionTitle": "Nhắc nhở hằng ngày",
+      "enabledLabel": "Nhắc tôi nếu hôm nay chưa viết nhật ký",
+      "timeLabel": "Giờ",
+      "saveFailed": "Không thể lưu cài đặt nhắc nhở."
+    },
+    "launchAtLogin": {
+      "sectionTitle": "Ứng dụng desktop",
+      "label": "Khởi động cùng hệ thống"
+    },
+    "desktopOnlyNotice": "Nhắc nhở hằng ngày và tùy chọn khởi động cùng hệ thống chỉ khả dụng trên ứng dụng desktop."
+  },
+  "appShell": {
+    "nav": {
+      "dashboard": "Tổng quan",
+      "projects": "Dự án",
+      "journal": "Nhật ký",
+      "settings": "Cài đặt"
+    }
+  },
+  "calendarSidebar": {
+    "previousMonth": "Tháng trước",
+    "nextMonth": "Tháng sau",
+    "weekdayLabels": ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+  },
+  "dueDateBadge": {
+    "overdue": "Quá hạn · {{date}}",
+    "today": "Hôm nay"
+  },
+  "historyPanel": {
+    "title": "Lịch sử",
+    "loading": "Đang tải lịch sử…",
+    "empty": "Chưa có lịch sử.",
+    "hideDiff": "Ẩn diff",
+    "viewDiff": "Xem diff",
+    "undoTooltip": "Hoàn tác thay đổi này",
+    "confirmUndo": "Hoàn tác \"{{message}}\"?",
+    "loadingDiff": "Đang tải diff…",
+    "undoFailed": "Hoàn tác thất bại."
+  },
+  "modal": {
+    "close": "Đóng"
+  },
+  "projectCard": {
+    "archivedSuffix": " (đã lưu trữ)",
+    "todo": "cần làm",
+    "doing": "đang làm",
+    "done": "đã xong"
+  },
+  "projectForm": {
+    "nameLabel": "Tên",
+    "nameRequired": "Vui lòng nhập tên.",
+    "descriptionLabel": "Mô tả",
+    "descriptionPlaceholder": "Dự án này nói về điều gì?",
+    "tagsLabel": "Thẻ",
+    "colorLabel": "Màu",
+    "chooseColor": "Chọn màu {{color}}",
+    "customColorTooltip": "Màu tùy chỉnh",
+    "chooseCustomColor": "Chọn màu tùy chỉnh",
+    "archivedLabel": "Đã lưu trữ"
+  },
+  "tagInput": {
+    "placeholder": "Thêm thẻ…",
+    "removeTag": "Xóa thẻ {{tag}}"
+  },
+  "taskForm": {
+    "titleLabel": "Tiêu đề",
+    "titlePlaceholder": "Tên công việc mới…",
+    "fewerFields": "Thu gọn",
+    "moreFields": "Thêm trường",
+    "addTask": "+ Thêm việc",
+    "dueDateLabel": "Hạn chót",
+    "tagsLabel": "Thẻ",
+    "descriptionLabel": "Mô tả",
+    "descriptionPlaceholder": "Ghi chú về việc này…",
+    "save": "Lưu"
+  },
+  "taskRow": {
+    "markAs": "Đánh dấu là {{status}}",
+    "goToProject": "Đến dự án",
+    "logToTodaysJournal": "Ghi vào nhật ký hôm nay",
+    "editTask": "Sửa việc",
+    "deleteTask": "Xóa việc",
+    "confirmDelete": "Xóa \"{{text}}\"?",
+    "status": {
+      "todo": "cần làm",
+      "doing": "đang làm",
+      "done": "đã xong"
+    }
+  },
+  "timeSpentBadge": {
+    "tracking": " · đang tính giờ…"
+  },
+  "workspaceSwitcher": {
+    "noWorkspaceOpen": "Chưa mở không gian làm việc nào",
+    "loading": "Đang tải không gian làm việc…",
+    "empty": "Chưa có không gian làm việc nào.",
+    "openFolder": "+ Mở thư mục…",
+    "manualPathPlaceholder": "/đường/dẫn/thư-mục",
+    "manualOpen": "+ Mở",
+    "failedToOpen": "Không thể mở không gian làm việc."
+  },
+  "dashboard": {
+    "title": "Tổng quan",
+    "openTodaysJournal": "Mở nhật ký hôm nay",
+    "addTask": "+ Thêm việc",
+    "searchTasks": "Tìm việc",
+    "searchPlaceholder": "Tìm theo tên hoặc thẻ…",
+    "noMatchingTasks": "Không có việc nào khớp.",
+    "searchHint": "Gõ, hoặc chọn một thẻ ở trên, để tìm theo tên, mô tả và thẻ của mọi công việc.",
+    "quickAddTaskTitle": "Thêm nhanh việc",
+    "taskTitlePlaceholder": "Tên công việc…",
+    "addTaskSubmit": "Thêm việc",
+    "cancel": "Hủy",
+    "recentProjects": "Dự án gần đây",
+    "seeAllProjects": "Xem tất cả dự án →",
+    "loadingOpenTasks": "Đang tải công việc đang mở…",
+    "failedToLoad": "Không thể tải công việc đang mở.",
+    "buckets": {
+      "today": "Hôm nay",
+      "overdue": "Quá hạn",
+      "thisWeek": "Tuần này"
+    },
+    "nothingDueToday": "Không có việc nào đến hạn hôm nay."
+  },
+  "projectsList": {
+    "title": "Dự án",
+    "projectCount": "{{count}} dự án",
+    "newProject": "+ Dự án mới",
+    "newProjectModalTitle": "Dự án mới",
+    "createProject": "Tạo dự án",
+    "showArchived": "Hiện đã lưu trữ",
+    "clear": "Xóa bộ lọc",
+    "loading": "Đang tải dự án…",
+    "empty": "Chưa có dự án nào — tạo một dự án để bắt đầu."
+  },
+  "projectDetail": {
+    "allProjects": "← Tất cả dự án",
+    "archivedSuffix": " (đã lưu trữ)",
+    "editProject": "Sửa dự án",
+    "editProjectModalTitle": "Sửa dự án",
+    "saveChanges": "Lưu thay đổi",
+    "addTask": "+ Thêm việc",
+    "columns": {
+      "todo": "Cần làm",
+      "doing": "Đang làm",
+      "done": "Đã xong"
+    },
+    "nothingHere": "Chưa có gì ở đây.",
+    "loading": "Đang tải dự án…",
+    "failedToLoad": "Không thể tải dự án.",
+    "backToProjects": "Về danh sách dự án"
+  },
+  "journalYear": {
+    "title": "Nhật ký",
+    "previousYear": "Năm trước",
+    "nextYear": "Năm sau",
+    "todaysEntry": "Nhật ký hôm nay",
+    "loading": "Đang tải…",
+    "hasEntry": "Có nội dung",
+    "empty": "Trống",
+    "noEntries": "Chưa có nhật ký nào trong năm {{year}}."
+  },
+  "journalDay": {
+    "previousDay": "Ngày trước",
+    "nextDay": "Ngày sau",
+    "today": "Hôm nay",
+    "tagPlaceholder": "Thêm thẻ…",
+    "bodyPlaceholder": "Viết về hôm nay…",
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu",
+    "linkedTasks": "Việc hôm nay",
+    "removeLink": "Bỏ liên kết",
+    "addTask": "+ Thêm việc",
+    "searchPlaceholder": "Tìm việc…",
+    "noMatchingTasks": "Không có việc nào khớp."
+  }
+}

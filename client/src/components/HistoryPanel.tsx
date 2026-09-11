@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
 import { formatTimestamp } from '../lib/date';
@@ -20,6 +21,7 @@ import { formatTimestamp } from '../lib/date';
  * component has no way to know which those are.
  */
 export default function HistoryPanel({ path, onReverted }: { path: string; onReverted?: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
 
@@ -47,9 +49,9 @@ export default function HistoryPanel({ path, onReverted }: { path: string; onRev
 
   return (
     <div className="history-panel">
-      <div className="section-title">History</div>
-      {historyQuery.isLoading && <p className="page-sub">Loading history…</p>}
-      {!historyQuery.isLoading && history.length === 0 && <p className="empty-note">No history yet.</p>}
+      <div className="section-title">{t('historyPanel.title')}</div>
+      {historyQuery.isLoading && <p className="page-sub">{t('historyPanel.loading')}</p>}
+      {!historyQuery.isLoading && history.length === 0 && <p className="empty-note">{t('historyPanel.empty')}</p>}
       <div className="history-list">
         {history.map((commit) => {
           const isExpanded = expandedHash === commit.hash;
@@ -63,7 +65,7 @@ export default function HistoryPanel({ path, onReverted }: { path: string; onRev
                 <div className="history-actions">
                   <button
                     className="icon-btn"
-                    title={isExpanded ? 'Hide diff' : 'View diff'}
+                    title={isExpanded ? t('historyPanel.hideDiff') : t('historyPanel.viewDiff')}
                     onClick={() => setExpandedHash(isExpanded ? null : commit.hash)}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -73,9 +75,9 @@ export default function HistoryPanel({ path, onReverted }: { path: string; onRev
                   </button>
                   <button
                     className="icon-btn"
-                    title="Undo this change"
+                    title={t('historyPanel.undoTooltip')}
                     disabled={revertMutation.isPending}
-                    onClick={() => window.confirm(`Undo "${commit.message}"?`) && revertMutation.mutate(commit.hash)}
+                    onClick={() => window.confirm(t('historyPanel.confirmUndo', { message: commit.message })) && revertMutation.mutate(commit.hash)}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 7v6h6" />
@@ -84,13 +86,13 @@ export default function HistoryPanel({ path, onReverted }: { path: string; onRev
                   </button>
                 </div>
               </div>
-              {isExpanded && <pre className="history-diff">{diffQuery.isLoading ? 'Loading diff…' : (diffQuery.data?.diff ?? '')}</pre>}
+              {isExpanded && <pre className="history-diff">{diffQuery.isLoading ? t('historyPanel.loadingDiff') : (diffQuery.data?.diff ?? '')}</pre>}
             </div>
           );
         })}
       </div>
       {revertMutation.isError && (
-        <p className="field-error">{revertMutation.error instanceof api.ApiError ? revertMutation.error.message : 'Undo failed.'}</p>
+        <p className="field-error">{revertMutation.error instanceof api.ApiError ? revertMutation.error.message : t('historyPanel.undoFailed')}</p>
       )}
     </div>
   );

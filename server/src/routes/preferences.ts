@@ -29,4 +29,25 @@ router.put('/launch-at-login', (req, res, next) => {
   }
 });
 
+// App-wide UI language (PLAN.md "Localization") — read by the client
+// directly (no Electron bridge needed, unlike launch-at-login/reminder:
+// there's no OS-level API involved) and polled by the Electron main
+// process for the tray menu and daily-reminder notification text.
+router.get('/language', (_req, res) => {
+  res.json({ language: workspaceService.getLanguagePreference() });
+});
+
+router.put('/language', (req, res, next) => {
+  try {
+    const { language } = req.body ?? {};
+    if (language !== 'en' && language !== 'vi') {
+      res.status(400).json({ error: "language must be 'en' or 'vi'" });
+      return;
+    }
+    res.json({ language: workspaceService.setLanguagePreference(language) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

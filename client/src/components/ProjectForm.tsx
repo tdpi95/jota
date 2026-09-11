@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { CreateProjectInput, UpdateProjectInput } from '../api/client';
 import { COLOR_PALETTE } from '../lib/colors';
@@ -37,6 +38,7 @@ export default function ProjectForm({
   onSubmit: (values: CreateProjectInput & UpdateProjectInput) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
@@ -47,7 +49,7 @@ export default function ProjectForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Name is required.');
+      setError(t('projectForm.nameRequired'));
       return;
     }
     setError(null);
@@ -57,20 +59,20 @@ export default function ProjectForm({
   return (
     <form className={bare ? 'form-panel form-panel--bare' : 'form-panel'} onSubmit={handleSubmit}>
       <div className="form-field">
-        <label>Name</label>
+        <label>{t('projectForm.nameLabel')}</label>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </div>
       {error && <div className="field-error">{error}</div>}
       <div className="form-field">
-        <label>Description</label>
-        <MarkdownTextarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this project about?" />
+        <label>{t('projectForm.descriptionLabel')}</label>
+        <MarkdownTextarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('projectForm.descriptionPlaceholder')} />
       </div>
       <div className="form-field">
-        <label>Tags</label>
+        <label>{t('projectForm.tagsLabel')}</label>
         <TagInput value={tags} onChange={setTags} />
       </div>
       <div className="form-field">
-        <label>Color</label>
+        <label>{t('projectForm.colorLabel')}</label>
         <div className="color-swatches">
           {COLOR_PALETTE.map((c) => (
             <button
@@ -79,7 +81,7 @@ export default function ProjectForm({
               className={`color-swatch ${c === color ? 'selected' : ''}`}
               style={{ background: c }}
               onClick={() => setColor(c)}
-              aria-label={`Choose color ${c}`}
+              aria-label={t('projectForm.chooseColor', { color: c })}
             />
           ))}
           <input
@@ -87,8 +89,8 @@ export default function ProjectForm({
             className={`color-swatch color-swatch-custom ${!COLOR_PALETTE.includes(color) ? 'selected' : ''}`}
             value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000'}
             onChange={(e) => setColor(e.target.value)}
-            title="Custom color"
-            aria-label="Choose a custom color"
+            title={t('projectForm.customColorTooltip')}
+            aria-label={t('projectForm.chooseCustomColor')}
           />
         </div>
       </div>
@@ -96,7 +98,7 @@ export default function ProjectForm({
         <div className="form-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" id="archived-toggle" checked={archived} onChange={(e) => setArchived(e.target.checked)} style={{ width: 'auto' }} />
           <label htmlFor="archived-toggle" style={{ textTransform: 'none', fontSize: 12.5, letterSpacing: 0 }}>
-            Archived
+            {t('projectForm.archivedLabel')}
           </label>
         </div>
       )}
@@ -105,7 +107,7 @@ export default function ProjectForm({
           {submitLabel}
         </button>
         <button type="button" className="btn-secondary" onClick={onCancel}>
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </form>

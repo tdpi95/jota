@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { UpdateTaskInput } from '../api/client';
@@ -50,6 +51,7 @@ export default function TaskRow({
   onDelete: () => void;
   onLogToday?: () => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [logged, setLogged] = useState(false);
@@ -60,7 +62,7 @@ export default function TaskRow({
         <div style={{ flex: 1 }}>
           <TaskForm
             task={task}
-            submitLabel="Save"
+            submitLabel={t('common.save')}
             onSubmit={(values) => {
               onSave(values);
               setEditing(false);
@@ -72,12 +74,14 @@ export default function TaskRow({
     );
   }
 
+  const nextStatus = NEXT_STATUS[task.status];
+
   return (
     <div className="task-row">
       <button
         className={`status-btn st-${task.status}`}
-        onClick={() => onStatusChange(NEXT_STATUS[task.status])}
-        title={`Mark as ${NEXT_STATUS[task.status]}`}
+        onClick={() => onStatusChange(nextStatus)}
+        title={t('taskRow.markAs', { status: t(`taskRow.status.${nextStatus}`) })}
       >
         <StatusIcon status={task.status} />
       </button>
@@ -104,7 +108,7 @@ export default function TaskRow({
       </div>
       <div className="task-actions">
         {project && (
-          <Link className="icon-btn" title="Go to project" aria-label="Go to project" to={`/projects/${project.slug}`}>
+          <Link className="icon-btn" title={t('taskRow.goToProject')} aria-label={t('taskRow.goToProject')} to={`/projects/${project.slug}`}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
             </svg>
@@ -113,7 +117,7 @@ export default function TaskRow({
         {onLogToday && (
           <button
             className="icon-btn"
-            title="Log to today's journal"
+            title={t('taskRow.logToTodaysJournal')}
             onClick={() => {
               onLogToday();
               setLogged(true);
@@ -133,13 +137,17 @@ export default function TaskRow({
             )}
           </button>
         )}
-        <button className="icon-btn" title="Edit task" onClick={() => setEditing(true)}>
+        <button className="icon-btn" title={t('taskRow.editTask')} onClick={() => setEditing(true)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
         </button>
-        <button className="icon-btn" title="Delete task" onClick={() => window.confirm(`Delete "${task.text}"?`) && onDelete()}>
+        <button
+          className="icon-btn"
+          title={t('taskRow.deleteTask')}
+          onClick={() => window.confirm(t('taskRow.confirmDelete', { text: task.text })) && onDelete()}
+        >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6h18" />
             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z" />

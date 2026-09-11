@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { CreateTaskInput, UpdateTaskInput } from '../api/client';
 import type { Task } from '../types';
@@ -44,6 +45,7 @@ export default function TaskForm({
   onSubmit: (values: CreateTaskInput & UpdateTaskInput) => void;
   onCancel?: () => void;
 }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState<TaskFormValues>(() => initialValues(task));
   const [expanded, setExpanded] = useState(!compact);
 
@@ -66,20 +68,20 @@ export default function TaskForm({
         <div className="add-task-row">
           <input
             className="add-task-input"
-            placeholder="New task title…"
+            placeholder={t('taskForm.titlePlaceholder')}
             value={values.text}
             onChange={(e) => setValues({ ...values, text: e.target.value })}
           />
           <button type="button" className="btn-secondary" onClick={() => setExpanded((v) => !v)}>
-            {expanded ? 'Fewer fields' : 'More fields'}
+            {expanded ? t('taskForm.fewerFields') : t('taskForm.moreFields')}
           </button>
           <button type="submit" className="add-task-btn" disabled={!values.text.trim() || pending}>
-            + Add task
+            {t('taskForm.addTask')}
           </button>
         </div>
       ) : (
         <div className="form-field">
-          <label>Title</label>
+          <label>{t('taskForm.titleLabel')}</label>
           <input type="text" value={values.text} onChange={(e) => setValues({ ...values, text: e.target.value })} autoFocus />
         </div>
       )}
@@ -87,7 +89,7 @@ export default function TaskForm({
       {expanded && (
         <>
           <div className="form-field" style={{ marginTop: compact ? 12 : 0 }}>
-            <label>Due date</label>
+            <label>{t('taskForm.dueDateLabel')}</label>
             <input
               type="date"
               value={values.due ?? ''}
@@ -95,14 +97,14 @@ export default function TaskForm({
             />
           </div>
           <div className="form-field">
-            <label>Tags</label>
+            <label>{t('taskForm.tagsLabel')}</label>
             <TagInput value={values.tags} onChange={(tags) => setValues({ ...values, tags })} />
           </div>
           <div className="form-field">
-            <label>Description</label>
+            <label>{t('taskForm.descriptionLabel')}</label>
             <MarkdownTextarea
               rows={4}
-              placeholder="Notes about this task…"
+              placeholder={t('taskForm.descriptionPlaceholder')}
               value={values.description ?? ''}
               onChange={(e) => setValues({ ...values, description: e.target.value })}
             />
@@ -114,7 +116,7 @@ export default function TaskForm({
               </button>
               {onCancel && (
                 <button type="button" className="btn-secondary" onClick={onCancel}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               )}
             </div>

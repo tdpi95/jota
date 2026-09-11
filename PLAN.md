@@ -202,9 +202,19 @@ Instead of a custom in-app chat feature backed by an OpenAI-compatible API, the 
 - `/journal` → redirect to `/journal/<year>/<today>` (auto-creates if missing).
 - `/journal/:year` — entries list (date + preview), year nav.
 - `/journal/:year/:date` — tag input, autosaving body textarea, **linked-tasks section** (picker backed by `GET /api/tasks/search`), **History panel**.
-- `/settings` — workspace list/management, a **Sync panel** per workspace (remote URL field, Push/Pull buttons, last-synced status, conflict list if any), a **Daily reminder** field per workspace (time picker or "Off", via `window.pivot.setReminderSettings`), and a **Launch at login** toggle (via `window.pivot.setLaunchAtLogin`).
+- `/settings` — a **Language** picker (EN/VI, see Localization below), workspace list/management, a **Sync panel** per workspace (remote URL field, Push/Pull buttons, last-synced status, conflict list if any), a **Daily reminder** field per workspace (time picker or "Off", via `window.pivot.setReminderSettings`), and a **Launch at login** toggle (via `window.pivot.setLaunchAtLogin`).
 
 Shared components: `AppShell`, `WorkspaceSwitcher`, `TaskRow`, `TaskForm`, `TimeSpentBadge`, `ProjectCard`, `ProjectForm`, `DueDateBadge`, `TagInput`, `CalendarSidebar`, `MarkdownTextarea`, `HistoryPanel`.
+
+## Localization (i18n)
+
+The UI language is a personal display preference, not vault content — it never touches the markdown files, and isn't scoped per-workspace (a user has one language for the whole app, the same way they have one launch-at-login setting). English and Vietnamese ship first; the mechanism doesn't hardcode either, so a third language is just another resource file.
+
+- **Storage**: one `language: 'en' | 'vi'` field on `~/.pivot/config.json`'s app-wide registry, alongside `launchAtLogin` — `undefined` (never set) normalizes to `'en'`. Exposed as `GET/PUT /api/preferences/language` (`server/src/routes/preferences.ts`, `services/workspaces.ts`'s `getLanguagePreference`/`setLanguagePreference`), the same pattern already established for `launch-at-login`.
+- **No Electron bridge for the client's own use** — unlike launch-at-login/reminder settings, a language switch touches no OS-level API, so the React client reads/writes the preference directly over HTTP (`api/client.ts`'s `getLanguagePreference`/`setLanguagePreference`) and works identically in a plain browser tab, not just inside Electron.
+- **Client**: `react-i18next` + `i18next`, resources bundled statically as `client/src/i18n/{en,vi}.json` (`client/src/i18n/index.ts` does the `i18next.init`). `main.tsx` fetches the stored preference once and calls `i18n.changeLanguage` before the first render, so the app never flashes in the wrong language. `/settings` gains a **Language** picker (EN/VI) that persists via the API and calls `i18n.changeLanguage` directly for an instant switch, no reload needed.
+- **Electron native strings**: the tray menu (Open/Settings/Quit + tooltip) and the daily-reminder OS notification's title/body are also translated — these are rendered by the main process, outside the React bundle, so they use a small hand-rolled dictionary (`electron/src/i18n.ts`) rather than pulling `react-i18next` into a non-React process. `main.ts` reads the preference once at startup (for the tray's initial language) and the daily-reminder scheduler (`reminder.ts`, already polling once a minute) re-reads it on every tick, calling back into `main.ts` to rebuild the tray menu whenever it changes — so a language switch made in Settings takes effect on the tray within a minute without an app restart.
+- **Convention for new UI text going forward**: every user-facing string in `client/src/{pages,components}` goes through `useTranslation()`'s `t()`, keyed by a per-page/component namespace in `en.json`/`vi.json` (e.g. `settings.language.sectionTitle`) — a new hardcoded string in a component is a regression here, the same way an unhandled inline-token variant would be in `taskLine.ts`.
 
 ## Project scaffold
 
@@ -224,6 +234,7 @@ pivot/
     mcp/{index,tools}.ts
   client/src/
     main.tsx  App.tsx  api/client.ts  types.ts
+    i18n/{index,en.json,vi.json}.ts           # react-i18next setup + locale resources (Localization)
     pages/{DashboardPage,ProjectsListPage,ProjectDetailPage,JournalYearPage,JournalDayPage,SettingsPage}.tsx
     components/{AppShell,WorkspaceSwitcher,CalendarSidebar,TaskRow,TaskForm,TimeSpentBadge,ProjectCard,ProjectForm,DueDateBadge,TagInput,MarkdownTextarea,HistoryPanel}.tsx
   electron/
@@ -231,12 +242,13 @@ pivot/
     src/
       main.ts        # app lifecycle, launches embedded server, BrowserWindow, window-hide-not-close
       preload.ts      # contextBridge: pickFolder, launch-at-login getters/setters, reminder settings
-      tray.ts         # tray icon + menu (Open, Settings, Quit)
-      reminder.ts      # per-minute scheduler, native Notification
+      tray.ts         # tray icon + menu (Open, Settings, Quit), rebuildable in the current language
+      reminder.ts      # per-minute scheduler, native Notification, polls the language preference too
       loginItem.ts     # app.setLoginItemSettings wrapper
+      i18n.ts          # tray/notification string dictionary (Localization) — not react-i18next, plain process
 ```
 
-`~/.pivot/config.json` (app-level workspace registry, plus `launchAtLogin` and each workspace's `reminderTime`/`lastReminderFiredDate`) lives outside the repo entirely, in the user's home directory.
+`~/.pivot/config.json` (app-level workspace registry, plus `launchAtLogin`, `language`, and each workspace's `reminderTime`/`lastReminderFiredDate`) lives outside the repo entirely, in the user's home directory.
 
 ## Critical files to build first
 - [server/src/lib/markdown/taskLine.ts](server/src/lib/markdown/taskLine.ts) — the task-line grammar parser/serializer; everything else depends on getting this right.
@@ -267,6 +279,7 @@ pivot/
 16. **Frontend Workspace switcher + Settings/Sync panel** — open/switch/remove workspaces via the milestone-3 native picker; per-workspace remote URL + push/pull/status; Settings gains the Daily reminder time field and Launch-at-login toggle.
 17. **Daily reminder** — tray icon + menu, `loginItem.ts`, `reminder.ts` scheduler. Verify: set a workspace's `reminderTime` to a minute in the near future with no body yet in today's journal entry, confirm a native notification fires at that time and not again after; add a body to today's entry first and confirm no notification fires; confirm clicking the notification focuses the window on `/journal`.
 18. **Polish** — task drag-and-drop on the Kanban columns (reorder within a column, change status by dropping into another), project create/edit moved into a `Modal` popup instead of an inline form, a custom-color swatch (native `<input type="color">`) alongside the 12-preset palette, a tag filter on `/projects`, and a round of Dashboard additions (quick-add-task popup, a collapsible "Recent projects" card grid, a text-or-tag task-search popup, "go to project" on task rows) (all done — see PROGRESS.md's "Milestone 18 notes"); still outstanding: empty-vault/first-run state, loading/error states, due-date coloring, index-rebuild button, periodic zip snapshot job, README documenting the `.pivot/` layout, the portability guarantee, how to register the MCP server, how to inspect/revert history from a plain terminal, and basic `electron-builder` packaging config (installers themselves are a later distribution step, not required here).
+19. **Localization (i18n)** — see "Localization" above: `language` preference (`~/.pivot/config.json` + `GET/PUT /api/preferences/language`), `react-i18next` client setup with `en`/`vi` resources, every existing page/component converted to `t()`, a Language picker on `/settings`, and the Electron tray menu + daily-reminder notification translated via `electron/src/i18n.ts`. Verify: switch languages in Settings and confirm every page's visible text (nav, buttons, empty/error states, forms) changes immediately with no reload, in both directions; confirm the choice persists across an app restart; confirm the Electron tray's menu/tooltip and a fired daily-reminder notification are in the currently-selected language (tray updates within a minute of a live switch, per the reminder scheduler's poll); confirm a plain browser tab (no Electron) can still switch languages via the same Settings control.
 
 ## Verification
 - Milestones 4, 7–9: `curl` against the running server; cross-check the on-disk `.md` files, SQLite rows, and `git log`/`git diff` inside the workspace after each write; explicitly test index deletion + reindex reproducing identical state, and that a no-op reopen triggers no reparsing.

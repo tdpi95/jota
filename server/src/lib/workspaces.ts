@@ -53,6 +53,15 @@ export interface WorkspaceRegistry {
    * when the user later opts out), so this stays `undefined` only until the
    * very first app start ever sees this registry. */
   launchAtLogin?: boolean;
+  /** UI language — app-wide, not per-workspace (PLAN.md "Localization":
+   * a personal display preference, not vault content, so it lives beside
+   * `launchAtLogin` rather than on a workspace entry). `undefined` (a
+   * registry written before this field existed, or a fresh install) is
+   * read by `services/workspaces.ts`'s `getLanguagePreference` as `'en'` —
+   * unlike `launchAtLogin`, there's no "hasn't been decided yet" one-time
+   * default to apply, so this always normalizes to a concrete value rather
+   * than staying `null`. */
+  language?: 'en' | 'vi';
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

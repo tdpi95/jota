@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
 import { getPivotBridge } from '../lib/pivotBridge';
@@ -22,6 +23,7 @@ import { getPivotBridge } from '../lib/pivotBridge';
  * other mutation in this app.
  */
 export default function WorkspaceSwitcher() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [manualPath, setManualPath] = useState('');
@@ -73,15 +75,15 @@ export default function WorkspaceSwitcher() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
         </svg>
-        <span className="name">{active ? active.name : 'No workspace open'}</span>
+        <span className="name">{active ? active.name : t('workspaceSwitcher.noWorkspaceOpen')}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
       {open && (
         <div className="ws-dropdown">
-          {listQuery.isLoading && <div className="picker-empty">Loading workspaces…</div>}
-          {!listQuery.isLoading && workspaces.length === 0 && <div className="picker-empty">No workspaces yet.</div>}
+          {listQuery.isLoading && <div className="picker-empty">{t('workspaceSwitcher.loading')}</div>}
+          {!listQuery.isLoading && workspaces.length === 0 && <div className="picker-empty">{t('workspaceSwitcher.empty')}</div>}
           {workspaces.map((ws) => (
             <button className="ws-item" key={ws.id} onClick={() => ws.id !== active?.id && openMutation.mutate(ws.id)}>
               <span>{ws.name}</span>
@@ -96,26 +98,26 @@ export default function WorkspaceSwitcher() {
           {hasBridge ? (
             <div className="ws-open-new">
               <button className="ws-add-btn" style={{ width: '100%' }} onClick={handleOpenFolder} disabled={addMutation.isPending}>
-                + Open folder…
+                {t('workspaceSwitcher.openFolder')}
               </button>
             </div>
           ) : (
             <div className="ws-open-new">
               <input
                 className="ws-path-input"
-                placeholder="/path/to/folder"
+                placeholder={t('workspaceSwitcher.manualPathPlaceholder')}
                 value={manualPath}
                 onChange={(e) => setManualPath(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleManualAdd()}
               />
               <button className="ws-add-btn" onClick={handleManualAdd} disabled={addMutation.isPending || manualPath.trim() === ''}>
-                + Open
+                {t('workspaceSwitcher.manualOpen')}
               </button>
             </div>
           )}
           {addMutation.isError && (
             <div className="field-error" style={{ margin: '6px 4px 0' }}>
-              {addMutation.error instanceof api.ApiError ? addMutation.error.message : 'Failed to open workspace.'}
+              {addMutation.error instanceof api.ApiError ? addMutation.error.message : t('workspaceSwitcher.failedToOpen')}
             </div>
           )}
         </div>

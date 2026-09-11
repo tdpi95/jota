@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import * as api from '../api/client';
@@ -65,6 +66,8 @@ const RECENT_PROJECTS_LIMIT = 3;
  */
 const SEARCH_DEBOUNCE_MS = 300;
 export default function DashboardPage() {
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === 'vi' ? 'vi' : 'en';
   const queryClient = useQueryClient();
   const today = todayStr();
   const year = yearOf(today);
@@ -191,22 +194,22 @@ export default function DashboardPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <div className="page-sub">{formatDateLong(today)}</div>
+          <h1 className="page-title">{t('dashboard.title')}</h1>
+          <div className="page-sub">{formatDateLong(today, language)}</div>
         </div>
         <div className="dashboard-header-actions">
           <Link className="journal-cta" to={`/journal/${year}/${today}`}>
-            Open today's journal
+            {t('dashboard.openTodaysJournal')}
           </Link>
           <button type="button" className="journal-cta" onClick={() => setAddingTask(true)}>
-            + Add task
+            {t('dashboard.addTask')}
           </button>
         </div>
       </div>
 
       {searching && (
         <Modal
-          title="Search tasks"
+          title={t('dashboard.searchTasks')}
           onClose={() => {
             setSearching(false);
             setSearchQuery('');
@@ -214,7 +217,7 @@ export default function DashboardPage() {
         >
           <input
             className="picker-input"
-            placeholder="Search by text or tag…"
+            placeholder={t('dashboard.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus
@@ -236,20 +239,20 @@ export default function DashboardPage() {
           <div className="task-list search-results">
             {(searchResultsQuery.data?.tasks ?? []).map(renderTaskRow)}
             {debouncedSearchQuery.trim() && !searchResultsQuery.isFetching && searchResultsQuery.data?.tasks.length === 0 && (
-              <div className="empty-note">No matching tasks.</div>
+              <div className="empty-note">{t('dashboard.noMatchingTasks')}</div>
             )}
-            {!debouncedSearchQuery.trim() && <div className="empty-note">Type, or pick a tag above, to search every task's title, description, and tags.</div>}
+            {!debouncedSearchQuery.trim() && <div className="empty-note">{t('dashboard.searchHint')}</div>}
           </div>
         </Modal>
       )}
 
       {addingTask && (
-        <Modal title="Quick add task" onClose={() => setAddingTask(false)}>
+        <Modal title={t('dashboard.quickAddTaskTitle')} onClose={() => setAddingTask(false)}>
           <form onSubmit={handleQuickAddTask}>
             <div className="quick-add-row">
               <input
                 className="add-task-input"
-                placeholder="Task title…"
+                placeholder={t('dashboard.taskTitlePlaceholder')}
                 value={quickTaskText}
                 onChange={(e) => setQuickTaskText(e.target.value)}
                 autoFocus
@@ -264,10 +267,10 @@ export default function DashboardPage() {
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-primary" disabled={!quickTaskText.trim() || !selectedSlug || quickAddTaskMutation.isPending}>
-                Add task
+                {t('dashboard.addTaskSubmit')}
               </button>
               <button type="button" className="btn-secondary" onClick={() => setAddingTask(false)}>
-                Cancel
+                {t('dashboard.cancel')}
               </button>
             </div>
           </form>
@@ -278,7 +281,7 @@ export default function DashboardPage() {
         <div className="bucket">
           <button type="button" className="bucket-title bucket-title-toggle" onClick={() => setRecentProjectsOpen((v) => !v)}>
             <span className={`disclosure-caret ${recentProjectsOpen ? 'open' : ''}`}>▸</span>
-            Recent projects
+            {t('dashboard.recentProjects')}
           </button>
           {recentProjectsOpen && (
             <>
@@ -289,7 +292,7 @@ export default function DashboardPage() {
               </div>
               {selectableProjects.length > recentProjects.length && (
                 <Link to="/projects" className="back-link">
-                  See all projects →
+                  {t('dashboard.seeAllProjects')}
                 </Link>
               )}
             </>
@@ -298,7 +301,13 @@ export default function DashboardPage() {
       )}
 
       <div className="tasks-section-header">
-        <button type="button" className="btn-secondary icon-only-btn" title="Search tasks" aria-label="Search tasks" onClick={() => setSearching(true)}>
+        <button
+          type="button"
+          className="btn-secondary icon-only-btn"
+          title={t('dashboard.searchTasks')}
+          aria-label={t('dashboard.searchTasks')}
+          onClick={() => setSearching(true)}
+        >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.35-4.35" />
@@ -306,14 +315,14 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {isLoading && <p className="page-sub">Loading open tasks…</p>}
-      {isError && <p className="field-error">{error instanceof api.ApiError ? error.message : 'Failed to load open tasks.'}</p>}
+      {isLoading && <p className="page-sub">{t('dashboard.loadingOpenTasks')}</p>}
+      {isError && <p className="field-error">{error instanceof api.ApiError ? error.message : t('dashboard.failedToLoad')}</p>}
 
       {!isLoading && !isError && (
         <>
-          {renderBucket('Today', dueToday, { emptyLabel: 'Nothing due today.' })}
-          {renderBucket('Overdue', overdue, { hideIfEmpty: true })}
-          {renderBucket('This week', week)}
+          {renderBucket(t('dashboard.buckets.today'), dueToday, { emptyLabel: t('dashboard.nothingDueToday') })}
+          {renderBucket(t('dashboard.buckets.overdue'), overdue, { hideIfEmpty: true })}
+          {renderBucket(t('dashboard.buckets.thisWeek'), week)}
         </>
       )}
     </div>

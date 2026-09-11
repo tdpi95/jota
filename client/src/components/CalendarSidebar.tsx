@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 
 import * as api from '../api/client';
-import { MONTH_NAMES, todayStr } from '../lib/date';
+import { monthShortLabel, todayStr } from '../lib/date';
 
 interface Cell {
   key: string;
@@ -28,6 +29,9 @@ interface Cell {
  * instead of tracked separately, so the two stay in sync automatically.
  */
 export default function CalendarSidebar() {
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === 'vi' ? 'vi' : 'en';
+  const weekdayLabels = t('calendarSidebar.weekdayLabels', { returnObjects: true }) as string[];
   const navigate = useNavigate();
   const location = useLocation();
   const today = todayStr();
@@ -90,28 +94,24 @@ export default function CalendarSidebar() {
   return (
     <div className="calendar">
       <div className="cal-header">
-        <button onClick={() => shiftMonth(-1)} title="Previous month">
+        <button onClick={() => shiftMonth(-1)} title={t('calendarSidebar.previousMonth')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
         <span className="cal-label">
-          {MONTH_NAMES[view.month].slice(0, 3)} {view.year}
+          {monthShortLabel(view.month, language)} {view.year}
         </span>
-        <button onClick={() => shiftMonth(1)} title="Next month">
+        <button onClick={() => shiftMonth(1)} title={t('calendarSidebar.nextMonth')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
       </div>
       <div className="cal-weekdays">
-        <span>S</span>
-        <span>M</span>
-        <span>T</span>
-        <span>W</span>
-        <span>T</span>
-        <span>F</span>
-        <span>S</span>
+        {weekdayLabels.map((label, i) => (
+          <span key={i}>{label}</span>
+        ))}
       </div>
       <div className="cal-grid">
         {cells.map((cell) => (

@@ -1,0 +1,224 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "clear": "Clear",
+    "open": "Open",
+    "active": "Active",
+    "settings": "Settings",
+    "confirm": "Confirm",
+    "remove": "Remove"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": {
+      "sectionTitle": "Language",
+      "en": "English",
+      "vi": "Tiếng Việt"
+    },
+    "workspaces": {
+      "sectionTitle": "Workspaces",
+      "empty": "No workspaces yet.",
+      "openFolder": "+ Open folder…",
+      "manualPathPlaceholder": "/path/to/folder",
+      "manualOpen": "+ Open",
+      "removeTooltip": "Remove from list (keeps the folder)",
+      "confirmRemove": "Remove \"{{name}}\" from the workspace list? The folder itself is untouched.",
+      "failedToOpen": "Failed to open workspace."
+    },
+    "sync": {
+      "sectionTitle": "Remote sync — {{name}}",
+      "remoteUrlLabel": "Remote URL",
+      "remoteUrlPlaceholder": "git@example.com:you/notes.git",
+      "ahead": "ahead",
+      "behind": "behind",
+      "push": "Push",
+      "pull": "Pull",
+      "noRemoteConfigured": "No remote configured yet.",
+      "lastSynced": "Last synced {{time}}",
+      "neverSynced": "Never synced.",
+      "conflictNotice": "Pull found conflicts and was aborted — nothing was changed. Conflicting files:",
+      "actionFailed": "Sync action failed."
+    },
+    "reminder": {
+      "sectionTitle": "Daily reminder",
+      "enabledLabel": "Remind me if I haven't journaled today",
+      "timeLabel": "Time",
+      "saveFailed": "Couldn't save reminder settings."
+    },
+    "launchAtLogin": {
+      "sectionTitle": "Desktop app",
+      "label": "Launch at login"
+    },
+    "desktopOnlyNotice": "The daily reminder and launch-at-login toggle are only available in the desktop app."
+  },
+  "appShell": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "projects": "Projects",
+      "journal": "Journal",
+      "settings": "Settings"
+    }
+  },
+  "calendarSidebar": {
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "weekdayLabels": ["S", "M", "T", "W", "T", "F", "S"]
+  },
+  "dueDateBadge": {
+    "overdue": "Overdue · {{date}}",
+    "today": "Today"
+  },
+  "historyPanel": {
+    "title": "History",
+    "loading": "Loading history…",
+    "empty": "No history yet.",
+    "hideDiff": "Hide diff",
+    "viewDiff": "View diff",
+    "undoTooltip": "Undo this change",
+    "confirmUndo": "Undo \"{{message}}\"?",
+    "loadingDiff": "Loading diff…",
+    "undoFailed": "Undo failed."
+  },
+  "modal": {
+    "close": "Close"
+  },
+  "projectCard": {
+    "archivedSuffix": " (archived)",
+    "todo": "todo",
+    "doing": "doing",
+    "done": "done"
+  },
+  "projectForm": {
+    "nameLabel": "Name",
+    "nameRequired": "Name is required.",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "What is this project about?",
+    "tagsLabel": "Tags",
+    "colorLabel": "Color",
+    "chooseColor": "Choose color {{color}}",
+    "customColorTooltip": "Custom color",
+    "chooseCustomColor": "Choose a custom color",
+    "archivedLabel": "Archived"
+  },
+  "tagInput": {
+    "placeholder": "Add tag…",
+    "removeTag": "Remove tag {{tag}}"
+  },
+  "taskForm": {
+    "titleLabel": "Title",
+    "titlePlaceholder": "New task title…",
+    "fewerFields": "Fewer fields",
+    "moreFields": "More fields",
+    "addTask": "+ Add task",
+    "dueDateLabel": "Due date",
+    "tagsLabel": "Tags",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Notes about this task…",
+    "save": "Save"
+  },
+  "taskRow": {
+    "markAs": "Mark as {{status}}",
+    "goToProject": "Go to project",
+    "logToTodaysJournal": "Log to today's journal",
+    "editTask": "Edit task",
+    "deleteTask": "Delete task",
+    "confirmDelete": "Delete \"{{text}}\"?",
+    "status": {
+      "todo": "todo",
+      "doing": "doing",
+      "done": "done"
+    }
+  },
+  "timeSpentBadge": {
+    "tracking": " · tracking…"
+  },
+  "workspaceSwitcher": {
+    "noWorkspaceOpen": "No workspace open",
+    "loading": "Loading workspaces…",
+    "empty": "No workspaces yet.",
+    "openFolder": "+ Open folder…",
+    "manualPathPlaceholder": "/path/to/folder",
+    "manualOpen": "+ Open",
+    "failedToOpen": "Failed to open workspace."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "openTodaysJournal": "Open today's journal",
+    "addTask": "+ Add task",
+    "searchTasks": "Search tasks",
+    "searchPlaceholder": "Search by text or tag…",
+    "noMatchingTasks": "No matching tasks.",
+    "searchHint": "Type, or pick a tag above, to search every task's title, description, and tags.",
+    "quickAddTaskTitle": "Quick add task",
+    "taskTitlePlaceholder": "Task title…",
+    "addTaskSubmit": "Add task",
+    "cancel": "Cancel",
+    "recentProjects": "Recent projects",
+    "seeAllProjects": "See all projects →",
+    "loadingOpenTasks": "Loading open tasks…",
+    "failedToLoad": "Failed to load open tasks.",
+    "buckets": {
+      "today": "Today",
+      "overdue": "Overdue",
+      "thisWeek": "This week"
+    },
+    "nothingDueToday": "Nothing due today."
+  },
+  "projectsList": {
+    "title": "Projects",
+    "projectCount": "{{count}} projects",
+    "newProject": "+ New project",
+    "newProjectModalTitle": "New project",
+    "createProject": "Create project",
+    "showArchived": "Show archived",
+    "clear": "Clear",
+    "loading": "Loading projects…",
+    "empty": "No projects yet — create one to get started."
+  },
+  "projectDetail": {
+    "allProjects": "← All projects",
+    "archivedSuffix": " (archived)",
+    "editProject": "Edit project",
+    "editProjectModalTitle": "Edit project",
+    "saveChanges": "Save changes",
+    "addTask": "+ Add task",
+    "columns": {
+      "todo": "Todo",
+      "doing": "Doing",
+      "done": "Done"
+    },
+    "nothingHere": "Nothing here.",
+    "loading": "Loading project…",
+    "failedToLoad": "Failed to load project.",
+    "backToProjects": "Back to projects"
+  },
+  "journalYear": {
+    "title": "Journal",
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
+    "todaysEntry": "Today's entry",
+    "loading": "Loading…",
+    "hasEntry": "Has an entry",
+    "empty": "Empty",
+    "noEntries": "No journal entries yet in {{year}}."
+  },
+  "journalDay": {
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "today": "Today",
+    "tagPlaceholder": "Add tag…",
+    "bodyPlaceholder": "Write about today…",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "linkedTasks": "Linked tasks",
+    "removeLink": "Remove link",
+    "addTask": "+ Add task",
+    "searchPlaceholder": "Search tasks…",
+    "noMatchingTasks": "No matching tasks."
+  }
+}

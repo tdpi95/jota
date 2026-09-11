@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
 import Modal from '../components/Modal';
@@ -7,6 +8,7 @@ import ProjectCard from '../components/ProjectCard';
 import ProjectForm from '../components/ProjectForm';
 
 export default function ProjectsListPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
   const [creating, setCreating] = useState(false);
@@ -25,7 +27,7 @@ export default function ProjectsListPage() {
     },
   });
 
-  if (isLoading) return <p className="page-sub">Loading projects…</p>;
+  if (isLoading) return <p className="page-sub">{t('projectsList.loading')}</p>;
   if (isError) return <p className="field-error">{(error as Error).message}</p>;
 
   const projects = data?.projects ?? [];
@@ -42,19 +44,19 @@ export default function ProjectsListPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Projects</h1>
-          <div className="page-sub">{visible.length} projects</div>
+          <h1 className="page-title">{t('projectsList.title')}</h1>
+          <div className="page-sub">{t('projectsList.projectCount', { count: visible.length })}</div>
         </div>
         <button className="page-action" onClick={() => setCreating(true)}>
-          + New project
+          {t('projectsList.newProject')}
         </button>
       </div>
 
       {creating && (
-        <Modal title="New project" onClose={() => setCreating(false)}>
+        <Modal title={t('projectsList.newProjectModalTitle')} onClose={() => setCreating(false)}>
           <ProjectForm
             bare
-            submitLabel="Create project"
+            submitLabel={t('projectsList.createProject')}
             pending={createMutation.isPending}
             onSubmit={(values) => createMutation.mutate(values)}
             onCancel={() => setCreating(false)}
@@ -65,7 +67,7 @@ export default function ProjectsListPage() {
       <div className="projects-filters">
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-muted)' }}>
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ width: 'auto' }} />
-          Show archived
+          {t('projectsList.showArchived')}
         </label>
 
         {allTags.length > 0 && (
@@ -82,7 +84,7 @@ export default function ProjectsListPage() {
             ))}
             {tagFilters.length > 0 && (
               <button type="button" className="tag-filter-clear" onClick={() => setTagFilters([])}>
-                Clear
+                {t('projectsList.clear')}
               </button>
             )}
           </div>
@@ -93,7 +95,7 @@ export default function ProjectsListPage() {
         {visible.map((project) => (
           <ProjectCard key={project.slug} project={project} />
         ))}
-        {visible.length === 0 && <div className="empty-note">No projects yet — create one to get started.</div>}
+        {visible.length === 0 && <div className="empty-note">{t('projectsList.empty')}</div>}
       </div>
     </div>
   );
