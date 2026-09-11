@@ -68,16 +68,31 @@ function ensureGitignoreEntry(workspacePath: string, entry: string): void {
 }
 
 /**
- * `git init`s a workspace if it isn't already a repo. Best-effort — if git
- * isn't installed, logs and continues; the fuller commit/diff/revert wrapper
- * (init-if-missing again, plus commit-on-write) lands in `vaultGit.ts`
- * (PLAN.md milestone 5) and can reuse this same check.
+ * `git init`s a workspace if it isn't already a repo, and makes sure it has a
+ * commit identity (falling back to a local placeholder if the user has no
+ * global `user.name`/`user.email` configured — otherwise commits made by
+ * `vaultGit.ts`, milestone 5, would fail in a fresh environment). Best-effort
+ * — if git isn't installed, logs and continues; `vaultGit.ts` reuses this
+ * same check before its own commit-on-write/revert logic.
  */
 export function ensureGitRepo(workspacePath: string): void {
-  if (fs.existsSync(path.join(workspacePath, '.git'))) return;
   try {
-    execFileSync('git', ['init'], { cwd: workspacePath, stdio: 'ignore' });
+    if (!fs.existsSync(path.join(workspacePath, '.git'))) {
+      execFileSync('git', ['init'], { cwd: workspacePath, stdio: 'ignore' });
+    }
+    ensureGitIdentity(workspacePath);
   } catch (err) {
     console.error(`[workspaces] git init failed for ${workspacePath}:`, (err as Error).message);
+  }
+}
+
+/** Sets a local placeholder identity only if neither a local nor global one
+ * already resolves — never overrides a real one the user has configured. */
+function ensureGitIdentity(workspacePath: string): void {
+  try {
+    execFileSync('git', ['config', 'user.email'], { cwd: workspacePath, stdio: 'ignore' });
+  } catch {
+    execFileSync('git', ['config', 'user.name', 'pivot'], { cwd: workspacePath, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.email', 'pivot@localhost'], { cwd: workspacePath, stdio: 'ignore' });
   }
 }

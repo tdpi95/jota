@@ -7,6 +7,8 @@ import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import type { Server } from 'node:http';
 
+import indexRouter from './routes/index.js';
+import vaultRouter from './routes/vault.js';
 import workspacesRouter from './routes/workspaces.js';
 import { WorkspaceServiceError } from './services/workspaces.js';
 
@@ -24,6 +26,8 @@ export function createApp() {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api/workspaces', workspacesRouter);
+  app.use('/api/index', indexRouter);
+  app.use('/api/vault', vaultRouter);
 
   app.use(handleServiceError);
   return app;

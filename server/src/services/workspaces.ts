@@ -7,13 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import {
-  ensureGitRepo,
-  readRegistry,
-  scaffoldWorkspaceDirs,
-  writeRegistry,
-  type WorkspaceEntry,
-} from '../lib/workspaces.js';
+import { ensureGitHistory } from '../lib/vaultGit.js';
+import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WorkspaceEntry } from '../lib/workspaces.js';
 
 /** Structured error for the routes layer to translate into an HTTP status. */
 export class WorkspaceServiceError extends Error {
@@ -41,6 +36,15 @@ export function getActiveWorkspace(homeDir: string = os.homedir()): WorkspaceEnt
   return registry.workspaces.find((w) => w.id === registry.activeWorkspaceId) ?? null;
 }
 
+/** Same as getActiveWorkspace, but throws a structured 400 instead of
+ * returning null — used by routes (index/vault) that only make sense against
+ * a currently-open workspace. */
+export function getActiveWorkspaceOrThrow(homeDir: string = os.homedir()): WorkspaceEntry {
+  const workspace = getActiveWorkspace(homeDir);
+  if (!workspace) throw new WorkspaceServiceError('no active workspace', 400);
+  return workspace;
+}
+
 /**
  * Registers a folder as a workspace and makes it the active one — the
  * "+ Open folder" flow. Adopting an already-registered path (re-opening it
@@ -64,7 +68,7 @@ export function addWorkspace(input: AddWorkspaceInput, homeDir: string = os.home
   }
 
   scaffoldWorkspaceDirs(resolvedPath);
-  ensureGitRepo(resolvedPath);
+  ensureGitHistory(resolvedPath);
 
   const entry: WorkspaceEntry = {
     id: randomUUID(),
@@ -89,7 +93,7 @@ export function openWorkspace(id: string, homeDir: string = os.homedir()): Works
   if (!entry) throw new WorkspaceServiceError(`no workspace with id ${id}`, 404);
 
   scaffoldWorkspaceDirs(entry.path);
-  ensureGitRepo(entry.path);
+  ensureGitHistory(entry.path);
 
   entry.lastOpenedAt = new Date().toISOString();
   registry.activeWorkspaceId = entry.id;
