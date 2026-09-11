@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "electron-development": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "electron-development/SKILL.md",
+      "computedHash": "d0a77ba434d018e2e1b972ac67757382ff94022dacaaed6cc4eb84daa7f1cd99"
+    }
+  }
+}
