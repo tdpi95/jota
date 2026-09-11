@@ -308,6 +308,19 @@ textarea {
   overflow-y: auto;
   padding: 30px 40px 60px;
 }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-decoration: none;
+  margin-bottom: 14px;
+}
+.back-link:hover {
+  color: var(--accent);
+}
 .page-header {
   display: flex;
   align-items: flex-end;
@@ -452,6 +465,14 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  /* `flex: 1` only takes effect where the immediate parent is itself a flex
+     container (`.pd-column` on the project detail Kanban) — a no-op on
+     Dashboard's plain-block `.bucket` wrapper. On the Kanban board this
+     lets a short column's list fill the full (now stretched, see
+     `.pd-columns`) column height, so its drop zone isn't just as tall as
+     its own rows. */
+  flex: 1;
+  min-height: 0;
 }
 .task-row {
   display: flex;
@@ -730,7 +751,12 @@ textarea {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
-  align-items: start;
+  /* Stretch (the grid default) rather than `start`: every column matches
+     the height of the tallest one, so a short column's drop zone still
+     covers the full row — otherwise dragging a task down to where a much
+     longer sibling column's rows are has nothing under the pointer to drop
+     onto. */
+  align-items: stretch;
 }
 .pd-column {
   display: flex;
@@ -759,7 +785,7 @@ textarea {
 .add-task-row {
   display: flex;
   gap: 8px;
-  margin-top: 18px;
+  margin-bottom: 18px;
 }
 .add-task-input {
   flex: 1;
@@ -1251,4 +1277,129 @@ textarea {
   white-space: pre;
   max-height: 320px;
   overflow-y: auto;
+}
+
+/* Modal (milestone 18: create/edit project popup) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: oklch(20% 0.02 75 / 45%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+.modal {
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px oklch(20% 0.02 75 / 25%);
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 20px 22px;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modal-header h2 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0;
+}
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ink-muted);
+  padding: 2px 6px;
+}
+.modal-close:hover {
+  color: var(--ink);
+}
+.form-panel--bare {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 0;
+  max-width: none;
+}
+
+/* Custom color swatch (native OS color picker) */
+.color-swatch-custom {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+}
+.color-swatch-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color-swatch-custom::-webkit-color-swatch {
+  border: none;
+  border-radius: 5px;
+}
+
+/* Projects list filters */
+.projects-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.tag-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag-pill-filter {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tag-pill-filter:hover {
+  border-color: var(--accent);
+}
+.tag-pill-filter.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tag-filter-clear {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  padding: 2px 4px;
+}
+.tag-filter-clear:hover {
+  color: var(--accent);
+}
+
+/* Task drag-and-drop (milestone 18: Kanban reorder/status-change by drag) */
+.task-drag-wrap {
+  cursor: grab;
+}
+.task-drag-wrap.dragging {
+  opacity: 0.4;
+}
+.pd-column.drag-over .task-list {
+  background: oklch(93% 0.012 75 / 60%);
+  border-radius: 12px;
+}
+.drop-indicator {
+  height: 2px;
+  margin: -1px 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }

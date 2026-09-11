@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import HistoryPanel from '../components/HistoryPanel';
+import Modal from '../components/Modal';
 import ProjectForm from '../components/ProjectForm';
 import TaskForm from '../components/TaskForm';
 import TaskRow from '../components/TaskRow';
@@ -21,6 +22,9 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragOverInfo, setDragOverInfo] = useState<{ status: TaskStatus; afterId: string | null } | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['project', slug],
@@ -95,8 +99,49 @@ export default function ProjectDetailPage() {
   const { frontmatter, tasks } = project;
   const byStatus = (status: TaskStatus): Task[] => tasks.filter((t) => t.status === status);
 
+  /** Drag-and-drop within/between the Kanban columns (PLAN.md milestone 18).
+   * `afterId: null` means "drop at the top of this column". No optimistic
+   * local reordering — same invalidate-and-refetch pattern as every other
+   * mutation on this page. */
+  function computeAfterId(e: React.DragEvent, others: Task[]): string | null {
+    for (const t of others) {
+      const rect = rowRefs.current[t.id]?.getBoundingClientRect();
+      if (rect && e.clientY < rect.top + rect.height / 2) {
+        const idx = others.indexOf(t);
+        return idx === 0 ? null : others[idx - 1].id;
+      }
+    }
+    return others.length > 0 ? others[others.length - 1].id : null;
+  }
+
+  function handleColumnDragOver(e: React.DragEvent, status: TaskStatus) {
+    if (!draggingTaskId) return;
+    e.preventDefault();
+    const others = byStatus(status).filter((t) => t.id !== draggingTaskId);
+    setDragOverInfo({ status, afterId: computeAfterId(e, others) });
+  }
+
+  function handleColumnDrop(e: React.DragEvent, status: TaskStatus) {
+    e.preventDefault();
+    const taskId = draggingTaskId;
+    const info = dragOverInfo;
+    setDraggingTaskId(null);
+    setDragOverInfo(null);
+    if (!taskId || !info || info.status !== status) return;
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    updateTaskMutation.mutate({
+      taskId,
+      values: { afterTaskId: info.afterId, ...(task.status !== status ? { status } : {}) },
+    });
+  }
+
   return (
     <div>
+      <Link to="/projects" className="back-link">
+        ← All projects
+      </Link>
+
       <div className="page-header">
         <div>
           <div className="pd-head">
@@ -116,42 +161,67 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
-        <button className="btn-secondary" onClick={() => setEditing((v) => !v)}>
-          {editing ? 'Cancel' : 'Edit project'}
+        <button className="btn-secondary" onClick={() => setEditing(true)}>
+          Edit project
         </button>
       </div>
 
-      {editing ? (
-        <ProjectForm
-          initial={{ name: frontmatter.name, description: frontmatter.description, tags: frontmatter.tags, color: frontmatter.color, archived: frontmatter.archived }}
-          showArchived
-          submitLabel="Save changes"
-          pending={updateProjectMutation.isPending}
-          onSubmit={(values) => updateProjectMutation.mutate(values)}
-          onCancel={() => setEditing(false)}
-        />
-      ) : (
-        frontmatter.description && <div className="pd-desc">{frontmatter.description}</div>
+      {frontmatter.description && <div className="pd-desc">{frontmatter.description}</div>}
+
+      {editing && (
+        <Modal title="Edit project" onClose={() => setEditing(false)}>
+          <ProjectForm
+            bare
+            initial={{ name: frontmatter.name, description: frontmatter.description, tags: frontmatter.tags, color: frontmatter.color, archived: frontmatter.archived }}
+            showArchived
+            submitLabel="Save changes"
+            pending={updateProjectMutation.isPending}
+            onSubmit={(values) => updateProjectMutation.mutate(values)}
+            onCancel={() => setEditing(false)}
+          />
+        </Modal>
       )}
+
+      <TaskForm compact submitLabel="+ Add task" pending={createTaskMutation.isPending} onSubmit={(values) => createTaskMutation.mutate(values)} />
 
       <div className="pd-columns">
         {COLUMNS.map((col) => {
           const colTasks = byStatus(col.status);
+          const isDragOverColumn = dragOverInfo?.status === col.status;
           return (
-            <div className="pd-column" key={col.status}>
+            <div className={`pd-column ${isDragOverColumn ? 'drag-over' : ''}`} key={col.status}>
               <div className="pd-column-header">
                 {col.title} <span className="count">{colTasks.length}</span>
               </div>
-              <div className="task-list">
+              <div className="task-list" onDragOver={(e) => handleColumnDragOver(e, col.status)} onDrop={(e) => handleColumnDrop(e, col.status)}>
+                {isDragOverColumn && dragOverInfo?.afterId === null && <div className="drop-indicator" />}
                 {colTasks.map((task) => (
-                  <TaskRow
+                  <div
                     key={task.id}
-                    task={task}
-                    onStatusChange={(status) => updateTaskMutation.mutate({ taskId: task.id, values: { status } })}
-                    onSave={(values) => updateTaskMutation.mutate({ taskId: task.id, values })}
-                    onDelete={() => deleteTaskMutation.mutate(task.id)}
-                    onLogToday={() => logTodayMutation.mutate(task.id)}
-                  />
+                    ref={(el) => {
+                      rowRefs.current[task.id] = el;
+                    }}
+                    className={`task-drag-wrap ${draggingTaskId === task.id ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggingTaskId(task.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', task.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingTaskId(null);
+                      setDragOverInfo(null);
+                    }}
+                  >
+                    <TaskRow
+                      task={task}
+                      onStatusChange={(status) => updateTaskMutation.mutate({ taskId: task.id, values: { status } })}
+                      onSave={(values) => updateTaskMutation.mutate({ taskId: task.id, values })}
+                      onDelete={() => deleteTaskMutation.mutate(task.id)}
+                      onLogToday={() => logTodayMutation.mutate(task.id)}
+                    />
+                    {isDragOverColumn && dragOverInfo?.afterId === task.id && <div className="drop-indicator" />}
+                  </div>
                 ))}
                 {colTasks.length === 0 && <div className="empty-note">Nothing here.</div>}
               </div>
@@ -159,8 +229,6 @@ export default function ProjectDetailPage() {
           );
         })}
       </div>
-
-      <TaskForm compact submitLabel="+ Add task" pending={createTaskMutation.isPending} onSubmit={(values) => createTaskMutation.mutate(values)} />
 
       <HistoryPanel path={`projects/${slug}.md`} onReverted={invalidateProject} />
     </div>

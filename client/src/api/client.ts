@@ -127,6 +127,10 @@ export interface UpdateTaskInput {
   due?: string | null;
   tags?: string[];
   status?: TaskStatus;
+  /** Drag-and-drop reorder within the Kanban columns: `undefined` leaves
+   * position untouched, `null` moves to the front of the project file,
+   * a task id moves it to immediately after that task. */
+  afterTaskId?: string | null;
 }
 
 export function updateTask(slug: string, taskId: string, input: UpdateTaskInput): Promise<{ task: Task }> {

@@ -22,6 +22,7 @@ export default function ProjectForm({
   showArchived = false,
   submitLabel,
   pending = false,
+  bare = false,
   onSubmit,
   onCancel,
 }: {
@@ -29,6 +30,10 @@ export default function ProjectForm({
   showArchived?: boolean;
   submitLabel: string;
   pending?: boolean;
+  /** Skip the `.form-panel` card chrome (background/border/padding) — for
+   * when this form is nested inside `Modal`, which already supplies the
+   * card. */
+  bare?: boolean;
   onSubmit: (values: CreateProjectInput & UpdateProjectInput) => void;
   onCancel: () => void;
 }) {
@@ -50,7 +55,7 @@ export default function ProjectForm({
   }
 
   return (
-    <form className="form-panel" onSubmit={handleSubmit}>
+    <form className={bare ? 'form-panel form-panel--bare' : 'form-panel'} onSubmit={handleSubmit}>
       <div className="form-field">
         <label>Name</label>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
@@ -77,6 +82,14 @@ export default function ProjectForm({
               aria-label={`Choose color ${c}`}
             />
           ))}
+          <input
+            type="color"
+            className={`color-swatch color-swatch-custom ${!COLOR_PALETTE.includes(color) ? 'selected' : ''}`}
+            value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000'}
+            onChange={(e) => setColor(e.target.value)}
+            title="Custom color"
+            aria-label="Choose a custom color"
+          />
         </div>
       </div>
       {showArchived && (

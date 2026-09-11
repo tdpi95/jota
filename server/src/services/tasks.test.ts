@@ -138,6 +138,72 @@ test('updateTask on an unknown task id throws a structured 404', () => {
   assert.throws(() => updateTask(ws, 'website-redesign', 't_ffffff', { status: 'doing' }), /no task with id/);
 });
 
+test('updateTask reorders the task to the front of the file when afterTaskId is null', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const a = createTask(ws, 'website-redesign', { text: 'A' });
+  createTask(ws, 'website-redesign', { text: 'B' });
+  const c = createTask(ws, 'website-redesign', { text: 'C' });
+
+  updateTask(ws, 'website-redesign', c.id, { afterTaskId: null });
+
+  const onDisk = fs.readFileSync(projectFile(ws, 'website-redesign'), 'utf8');
+  const ids = [...onDisk.matchAll(/id:(t_[0-9a-f]{6})/g)].map((m) => m[1]);
+  assert.deepEqual(ids, [c.id, a.id, ids[2]]);
+  assert.equal(getHistory(ws)[0].message, `[api] update_task ${c.id} reordered (website-redesign)`);
+});
+
+test('updateTask reorders the task to immediately after a given task id', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const a = createTask(ws, 'website-redesign', { text: 'A' });
+  const b = createTask(ws, 'website-redesign', { text: 'B' });
+  const c = createTask(ws, 'website-redesign', { text: 'C' });
+
+  updateTask(ws, 'website-redesign', a.id, { afterTaskId: c.id });
+
+  const onDisk = fs.readFileSync(projectFile(ws, 'website-redesign'), 'utf8');
+  const ids = [...onDisk.matchAll(/id:(t_[0-9a-f]{6})/g)].map((m) => m[1]);
+  assert.deepEqual(ids, [b.id, c.id, a.id]);
+});
+
+test('updateTask reorder combined with a status change reports both in the commit message', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const a = createTask(ws, 'website-redesign', { text: 'A' });
+  createTask(ws, 'website-redesign', { text: 'B' });
+
+  updateTask(ws, 'website-redesign', a.id, { status: 'doing', afterTaskId: null });
+
+  assert.equal(getHistory(ws)[0].message, `[api] update_task ${a.id} status todo→doing, reordered (website-redesign)`);
+});
+
+test('updateTask reorder+status supports moving backward (done -> todo), same as any other direction', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const a = createTask(ws, 'website-redesign', { text: 'A' });
+  const b = createTask(ws, 'website-redesign', { text: 'B' });
+  updateTask(ws, 'website-redesign', a.id, { status: 'doing' });
+  updateTask(ws, 'website-redesign', a.id, { status: 'done' });
+
+  // Drag "A" (done) back into the Todo column, dropped after "B".
+  const backward = updateTask(ws, 'website-redesign', a.id, { status: 'todo', afterTaskId: b.id });
+
+  assert.equal(backward.status, 'todo');
+  assert.equal(backward.doneAt, null);
+  const onDisk = fs.readFileSync(projectFile(ws, 'website-redesign'), 'utf8');
+  const ids = [...onDisk.matchAll(/id:(t_[0-9a-f]{6})/g)].map((m) => m[1]);
+  assert.deepEqual(ids, [b.id, a.id]);
+  assert.equal(getHistory(ws)[0].message, `[api] update_task ${a.id} status done→todo, reordered (website-redesign)`);
+});
+
+test('updateTask reorder to an unknown afterTaskId throws a structured 404', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const a = createTask(ws, 'website-redesign', { text: 'A' });
+  assert.throws(() => updateTask(ws, 'website-redesign', a.id, { afterTaskId: 't_ffffff' }), /no task with id/);
+});
+
 test('deleteTask removes the task line and commits', () => {
   const ws = scratchWorkspace();
   createProject(ws, { name: 'Website Redesign' });

@@ -40,6 +40,17 @@ export interface UpdateTaskInput {
   due?: string | null;
   tags?: string[];
   status?: TaskStatus;
+  /**
+   * Reorders the task within the project file (drag-and-drop on the Kanban
+   * columns, PLAN.md's "task order" note under milestone 18) — `undefined`
+   * (the default for every other caller) leaves position untouched; `null`
+   * moves the task's block to the very front of the file; a task id moves it
+   * to immediately after that task's block. Order has no dedicated field —
+   * it's purely the position of the task's block in `ParsedProjectFile.blocks`
+   * (see lib/markdown/project.ts), so this is a real (small) file edit like
+   * any other update, not a separate concept the index needs to track.
+   */
+  afterTaskId?: string | null;
 }
 
 type TaskBlock = { type: 'task'; task: Task };
@@ -101,7 +112,8 @@ export function updateTask(
   origin = 'api',
 ): Task {
   const parsed = loadProjectFile(workspacePath, slug);
-  const task = findTaskBlock(parsed.blocks, taskId).task;
+  const block = findTaskBlock(parsed.blocks, taskId);
+  const task = block.task;
   const fromStatus = task.status;
 
   if (input.status !== undefined) applyStatusTransition(task, input.status, new Date());
@@ -110,10 +122,24 @@ export function updateTask(
   if (input.due !== undefined) task.due = input.due;
   if (input.tags !== undefined) task.tags = input.tags;
 
-  const message =
-    input.status !== undefined && input.status !== fromStatus
-      ? `update_task ${taskId} status ${fromStatus}→${task.status} (${slug})`
-      : `update_task ${taskId} (${slug})`;
+  let reordered = false;
+  if (input.afterTaskId !== undefined) {
+    reordered = true;
+    const fromIndex = parsed.blocks.indexOf(block);
+    parsed.blocks.splice(fromIndex, 1);
+    if (input.afterTaskId === null) {
+      parsed.blocks.unshift(block);
+    } else {
+      const afterIndex = parsed.blocks.findIndex((b) => b.type === 'task' && b.task.id === input.afterTaskId);
+      if (afterIndex === -1) throw new TaskServiceError(`no task with id "${input.afterTaskId}"`, 404);
+      parsed.blocks.splice(afterIndex + 1, 0, block);
+    }
+  }
+
+  const notes: string[] = [];
+  if (input.status !== undefined && input.status !== fromStatus) notes.push(`status ${fromStatus}→${task.status}`);
+  if (reordered) notes.push('reordered');
+  const message = notes.length > 0 ? `update_task ${taskId} ${notes.join(', ')} (${slug})` : `update_task ${taskId} (${slug})`;
   saveProjectFile(workspacePath, slug, parsed, origin, message);
   return task;
 }

@@ -23,12 +23,12 @@ router.post<{ slug: string }>('/', (req, res, next) => {
 router.patch<{ slug: string; taskId: string }>('/:taskId', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { text, description, due, tags, status } = req.body ?? {};
+    const { text, description, due, tags, status, afterTaskId } = req.body ?? {};
     const task = taskService.updateTask(
       workspace.path,
       req.params.slug,
       req.params.taskId,
-      { text, description, due, tags, status },
+      { text, description, due, tags, status, afterTaskId },
       'api',
     );
     res.json({ task });
