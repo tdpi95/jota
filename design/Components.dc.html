@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    :root{
+      --paper: oklch(97.3% 0.012 75);
+      --paper-card: oklch(99% 0.006 75);
+      --ink: oklch(24% 0.02 75);
+      --ink-muted: oklch(48% 0.02 75);
+      --hairline: oklch(87% 0.015 75);
+      --accent: oklch(58% 0.15 45);
+      --accent-soft: oklch(93% 0.03 45);
+      --good: oklch(55% 0.11 155);
+      --good-soft: oklch(93% 0.03 155);
+      --danger: oklch(55% 0.17 25);
+      --danger-soft: oklch(93% 0.04 25);
+      --today-fg: oklch(45% 0.14 80);
+      --today-bg: oklch(93% 0.05 85);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);background:var(--paper);}
+    .sheet{padding:36px;display:flex;flex-direction:column;gap:34px;}
+    h2{font-family:'Newsreader',Georgia,serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin:0 0 14px;border-bottom:1px solid var(--hairline);padding-bottom:8px;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .swatch{display:flex;flex-direction:column;align-items:center;gap:6px;width:78px;}
+    .swatch .chip{width:56px;height:56px;border-radius:12px;border:1px solid oklch(0% 0 0 / .06);}
+    .swatch span{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink-muted);text-align:center;}
+    .type-sample{margin-bottom:10px;}
+    .type-sample .label{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink-muted);margin-bottom:2px;}
+    .h1{font-family:'Newsreader',Georgia,serif;font-size:30px;font-weight:600;}
+    .h2s{font-family:'Newsreader',Georgia,serif;font-size:19px;font-weight:600;}
+    .body-copy{font-size:14px;line-height:1.6;max-width:420px;}
+    .mono{font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+    .tag-pill{font-size:10px;padding:2px 8px;border-radius:20px;background:oklch(93% 0.01 75);color:var(--ink-muted);}
+    .due-badge{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+    .due-badge.overdue{background:var(--danger-soft);color:var(--danger);}
+    .due-badge.today{background:var(--today-bg);color:var(--today-fg);}
+    .due-badge.later{background:oklch(93% 0.01 75);color:var(--ink-muted);}
+    .status-btn{width:21px;height:21px;border-radius:50%;border:2px solid var(--hairline);background:transparent;display:flex;align-items:center;justify-content:center;color:white;}
+    .status-btn.st-doing{border-color:var(--accent);}
+    .status-btn.st-doing .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.4s ease-in-out infinite;}
+    .status-btn.st-done{border-color:var(--good);background:var(--good);}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(.65);}}
+    .task-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--paper-card);border:1px solid var(--hairline);width:320px;}
+    .task-title{font-size:13.5px;font-weight:600;}
+    .task-title.done{text-decoration:line-through;color:var(--ink-muted);font-weight:500;}
+    .btn-primary{padding:9px 16px;border-radius:9px;border:none;background:var(--accent);color:white;font-weight:700;font-size:12.5px;}
+    .btn-secondary{padding:9px 16px;border-radius:9px;border:1px solid var(--hairline);background:transparent;color:var(--ink);font-weight:700;font-size:12.5px;}
+    .icon-row{display:flex;gap:16px;color:var(--ink-muted);}
+  </style>
+</helmet>
+<div class="sheet">
+  <section>
+    <h2>Type</h2>
+    <div class="type-sample"><div class="label">Newsreader 30 / 600 &mdash; page titles</div><div class="h1">Dashboard</div></div>
+    <div class="type-sample"><div class="label">Newsreader 19 / 600 &mdash; project &amp; card names</div><div class="h2s">Website Redesign</div></div>
+    <div class="type-sample"><div class="label">Manrope 14 / 400 &mdash; body copy</div><div class="body-copy">Shipped the auth-flow investigation notes and talked to the team about the homepage tone.</div></div>
+    <div class="type-sample"><div class="label">IBM Plex Mono 12.5 &mdash; dates, ids, paths</div><div class="mono">@due(2026-09-15) &middot; t_9f0e21 &middot; ~/Notes</div></div>
+  </section>
+
+  <section>
+    <h2>Color</h2>
+    <div class="row">
+      <div class="swatch"><div class="chip" style="background:var(--paper)"></div><span>paper</span></div>
+      <div class="swatch"><div class="chip" style="background:var(--paper-card)"></div><span>card</span></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><span>ink</span></div>
+      <div class="swatch"><div class="chip" style="background:var(--accent)"></div><span>accent</span></div>
+      <div class="swatch"><div class="chip" style="background:var(--good)"></div><span>good</span></div>
+      <div class="swatch"><div class="chip" style="background:var(--danger)"></div><span>danger</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Project colors (rotating hue, fixed chroma/lightness)</h2>
+    <div class="row">
+      <div class="swatch"><div class="chip" style="background:oklch(65% 0.15 40)"></div><span>website</span></div>
+      <div class="swatch"><div class="chip" style="background:oklch(62% 0.13 235)"></div><span>backend</span></div>
+      <div class="swatch"><div class="chip" style="background:oklch(62% 0.11 155)"></div><span>planning</span></div>
+      <div class="swatch"><div class="chip" style="background:oklch(62% 0.12 295)"></div><span>home</span></div>
+      <div class="swatch"><div class="chip" style="background:oklch(62% 0.15 20)"></div><span>rust</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Task states</h2>
+    <div class="row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+      <div class="task-row"><span class="status-btn"></span><span class="task-title">Todo task</span></div>
+      <div class="task-row"><span class="status-btn st-doing"><span class="pulse"></span></span><span class="task-title">Doing task &mdash; tracking</span></div>
+      <div class="task-row"><span class="status-btn st-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span><span class="task-title done">Done task</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Badges &amp; pills</h2>
+    <div class="row">
+      <span class="due-badge overdue">Overdue</span>
+      <span class="due-badge today">Today</span>
+      <span class="due-badge later">Sep 20</span>
+      <span class="tag-pill">high</span>
+      <span class="tag-pill">backend</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Buttons</h2>
+    <div class="row">
+      <button class="btn-primary">Push</button>
+      <button class="btn-secondary">Pull</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Icons (stroke, 1.75, round caps)</h2>
+    <div class="icon-row">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </div>
+  </section>
+</div>
+</x-dc>
+</body>
+</html>

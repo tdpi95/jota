@@ -1,0 +1,1031 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    :root{
+      --paper: oklch(97.3% 0.012 75);
+      --paper-card: oklch(99% 0.006 75);
+      --ink: oklch(24% 0.02 75);
+      --ink-muted: oklch(48% 0.02 75);
+      --hairline: oklch(87% 0.015 75);
+      --accent: oklch(58% 0.15 45);
+      --accent-hover: oklch(52% 0.15 45);
+      --accent-soft: oklch(93% 0.03 45);
+      --good: oklch(55% 0.11 155);
+      --good-soft: oklch(93% 0.03 155);
+      --danger: oklch(55% 0.17 25);
+      --danger-soft: oklch(93% 0.04 25);
+      --today-fg: oklch(45% 0.14 80);
+      --today-bg: oklch(93% 0.05 85);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);background:var(--paper);}
+    a{color:var(--accent);} a:hover{color:var(--accent-hover);}
+    button{font-family:inherit;}
+    ::-webkit-scrollbar{width:9px;height:9px;}
+    ::-webkit-scrollbar-thumb{background:oklch(85% 0.015 75);border-radius:8px;}
+
+    .app{display:flex;height:100vh;width:100%;overflow:hidden;background:var(--paper);}
+
+    /* Sidebar */
+    .sidebar{width:264px;flex-shrink:0;border-right:1px solid var(--hairline);display:flex;flex-direction:column;padding:18px 14px;gap:18px;overflow-y:auto;}
+    .ws-switcher{position:relative;}
+    .ws-button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--hairline);background:var(--paper-card);cursor:pointer;color:var(--ink);}
+    .ws-button:hover{border-color:var(--accent);}
+    .ws-button .name{flex:1;text-align:left;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Newsreader',Georgia,serif;}
+    .ws-button svg{flex-shrink:0;color:var(--ink-muted);}
+    .ws-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--paper-card);border:1px solid var(--hairline);border-radius:12px;box-shadow:0 10px 28px oklch(20% 0.02 75 / 0.14);padding:6px;z-index:30;}
+    .ws-item{display:flex;align-items:center;gap:8px;width:100%;padding:8px 9px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:13px;color:var(--ink);text-align:left;}
+    .ws-item:hover{background:var(--accent-soft);}
+    .ws-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .ws-item .path{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-muted);}
+    .ws-check{margin-left:6px;color:var(--accent);flex-shrink:0;}
+    .ws-open-new{display:flex;gap:6px;margin-top:6px;padding-top:8px;border-top:1px solid var(--hairline);}
+    .ws-path-input{flex:1;min-width:0;padding:7px 8px;border-radius:7px;border:1px solid var(--hairline);font-size:11.5px;font-family:'IBM Plex Mono',monospace;background:var(--paper);color:var(--ink);}
+    .ws-add-btn{padding:0 10px;border-radius:7px;border:none;background:var(--accent);color:white;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+    .nav{display:flex;flex-direction:column;gap:2px;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;border:none;background:transparent;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink-muted);text-align:left;}
+    .nav-item:hover{background:oklch(95% 0.01 75);color:var(--ink);}
+    .nav-item.active{background:var(--accent-soft);color:var(--accent);}
+    .nav-item svg{flex-shrink:0;}
+
+    .calendar{margin-top:auto;border-top:1px solid var(--hairline);padding-top:14px;}
+    .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:0 2px;}
+    .cal-header button{border:none;background:transparent;cursor:pointer;color:var(--ink-muted);padding:4px;border-radius:6px;display:flex;}
+    .cal-header button:hover{background:oklch(95% 0.01 75);color:var(--ink);}
+    .cal-label{font-size:11.5px;font-weight:700;letter-spacing:.02em;font-family:'IBM Plex Mono',monospace;}
+    .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:3px;}
+    .cal-weekdays span{font-size:9.5px;text-align:center;color:var(--ink-muted);font-weight:700;}
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+    .cal-day{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border:none;background:transparent;border-radius:7px;cursor:pointer;font-size:10.5px;color:var(--ink);gap:1px;padding:2px 0;}
+    .cal-day:hover{background:oklch(94% 0.012 75);}
+    .cal-day.today{background:var(--accent);color:white;font-weight:700;}
+    .cal-day.selected{background:var(--accent-soft);color:var(--accent);font-weight:700;}
+    .cal-day.blank{visibility:hidden;cursor:default;}
+    .cal-dots{display:flex;gap:2px;height:4px;align-items:center;}
+    .cal-dot{width:4px;height:4px;border-radius:50%;flex-shrink:0;}
+    .cal-dot.journal{background:currentColor;opacity:.6;}
+
+    /* Main */
+    .main{flex:1;overflow-y:auto;padding:30px 40px 60px;}
+    .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;gap:16px;}
+    .page-title{font-family:'Newsreader',Georgia,serif;font-size:30px;font-weight:600;margin:0;letter-spacing:-.01em;}
+    .page-sub{font-size:12px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;margin-top:4px;}
+    .page-action{padding:9px 15px;border-radius:9px;border:none;background:var(--accent);color:white;font-weight:700;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+    .page-action:hover{background:var(--accent-hover);}
+
+    .greeting-block{margin-bottom:28px;}
+    .greeting-word-wrap{display:inline-block;position:relative;}
+    .greeting-title{font-family:'Newsreader',Georgia,serif;font-size:34px;font-weight:600;margin:0;letter-spacing:-.01em;}
+    .greeting-swash{display:block;width:100%;height:9px;margin-top:-4px;}
+    .greeting-row{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;}
+    .streak-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12.5px;}
+    .streak-badge svg{flex-shrink:0;}
+    .journal-cta{display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:20px;border:1px solid var(--hairline);background:var(--paper-card);color:var(--ink);font-weight:700;font-size:12.5px;cursor:pointer;}
+    .journal-cta:hover{border-color:var(--accent);color:var(--accent);}
+
+    .bucket{margin-bottom:26px;}
+    .bucket-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+    .bucket-title .count{background:oklch(93% 0.012 75);padding:1px 8px;border-radius:20px;font-size:10.5px;font-family:'IBM Plex Mono',monospace;}
+    .task-list{display:flex;flex-direction:column;gap:7px;}
+
+    .task-row{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:12px;background:var(--paper-card);border:1px solid var(--hairline);}
+    .task-row:hover{border-color:oklch(78% 0.02 75);}
+    .status-btn{flex-shrink:0;width:21px;height:21px;border-radius:50%;border:2px solid var(--hairline);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:1px;padding:0;color:white;}
+    .status-btn:hover{border-color:var(--accent);}
+    .status-btn.st-doing{border-color:var(--accent);}
+    .status-btn.st-doing .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.4s ease-in-out infinite;}
+    .status-btn.st-done{border-color:var(--good);background:var(--good);}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(.65);}}
+
+    .task-main{flex:1;min-width:0;}
+    .task-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .task-title{font-size:13.5px;font-weight:600;cursor:default;}
+    .task-title.st-done{text-decoration:line-through;color:var(--ink-muted);font-weight:500;}
+    .task-meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px;}
+    .project-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;}
+    .project-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+    .due-badge{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+    .due-badge.overdue{background:var(--danger-soft);color:var(--danger);}
+    .due-badge.today{background:var(--today-bg);color:var(--today-fg);}
+    .due-badge.later{background:oklch(93% 0.01 75);color:var(--ink-muted);}
+    .tag-pill{font-size:10px;padding:2px 8px;border-radius:20px;background:oklch(93% 0.01 75);color:var(--ink-muted);}
+    .task-desc{margin-top:7px;font-size:12px;color:var(--ink-muted);line-height:1.55;white-space:pre-line;}
+    .task-actions{display:flex;gap:2px;flex-shrink:0;align-items:center;}
+    .icon-btn{border:none;background:transparent;cursor:pointer;color:var(--ink-muted);padding:5px;border-radius:7px;display:flex;}
+    .icon-btn:hover{background:oklch(93% 0.012 75);color:var(--ink);}
+    .spent-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;}
+    .empty-note{font-size:12.5px;color:var(--ink-muted);padding:14px 2px;}
+
+    .completed-strip{border-top:1px solid var(--hairline);padding-top:14px;margin-top:6px;}
+    .completed-toggle{background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-muted);display:flex;align-items:center;gap:6px;padding:0;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+    .completed-toggle:hover{color:var(--ink);}
+
+    /* Projects */
+    .projects-list{display:flex;flex-direction:column;gap:8px;}
+    .project-row{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:12px;background:var(--paper-card);border:1px solid var(--hairline);cursor:pointer;}
+    .project-row:hover{border-color:var(--accent);}
+    .project-color-tab{width:11px;height:11px;border-radius:4px;flex-shrink:0;}
+    .project-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+    .project-name{font-family:'Newsreader',Georgia,serif;font-size:16px;font-weight:600;}
+    .project-desc{font-size:12px;color:var(--ink-muted);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .project-tags{display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;}
+    .project-counts{display:flex;gap:12px;font-size:10.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;flex-shrink:0;}
+    .project-counts b{color:var(--ink);}
+
+    /* Project detail */
+    .pd-head{display:flex;align-items:flex-start;gap:13px;margin-bottom:6px;}
+    .pd-color{width:15px;height:15px;border-radius:5px;margin-top:8px;flex-shrink:0;}
+    .pd-tags{display:flex;gap:5px;margin-top:8px;}
+    .pd-desc{font-size:13px;color:var(--ink-muted);max-width:620px;line-height:1.6;margin:10px 0 22px;}
+    .pd-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start;}
+    .pd-column{display:flex;flex-direction:column;gap:8px;min-width:0;}
+    .pd-column-header{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);padding:0 2px;}
+    .pd-column-header .count{background:oklch(93% 0.012 75);padding:1px 8px;border-radius:20px;font-size:10.5px;font-family:'IBM Plex Mono',monospace;}
+    .pd-column .task-list{gap:7px;}
+    .add-task-row{display:flex;gap:8px;margin-top:18px;}
+    .add-task-input{flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--hairline);font-size:13px;background:var(--paper-card);color:var(--ink);}
+    .add-task-btn{padding:10px 16px;border-radius:10px;border:none;background:var(--accent);color:white;font-weight:700;font-size:12.5px;cursor:pointer;flex-shrink:0;}
+
+    /* Journal */
+    .journal-head{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+    .journal-nav-btn{background:var(--paper-card);border:1px solid var(--hairline);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-muted);}
+    .journal-nav-btn:hover{color:var(--ink);border-color:var(--accent);}
+    .journal-date{font-family:'Newsreader',Georgia,serif;font-size:23px;font-weight:600;}
+    .journal-tags{display:flex;gap:6px;margin:14px 0 4px;}
+    .journal-body{width:100%;min-height:230px;border:1px solid var(--hairline);border-radius:14px;background:var(--paper-card);padding:20px;font-family:'Newsreader',Georgia,serif;font-size:15px;line-height:1.75;color:var(--ink);resize:vertical;margin-top:12px;}
+    .journal-body::placeholder{color:var(--ink-muted);font-family:'Manrope',sans-serif;}
+    .linked-section{margin-top:24px;}
+    .linked-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-muted);margin-bottom:10px;}
+    .linked-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+    .linked-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 7px 6px 11px;border-radius:20px;background:var(--paper-card);border:1px solid var(--hairline);font-size:12px;}
+    .linked-remove{border:none;background:oklch(93% 0.012 75);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-muted);flex-shrink:0;}
+    .linked-remove:hover{background:var(--danger-soft);color:var(--danger);}
+    .add-link-btn{border:1px dashed oklch(78% 0.015 75);background:transparent;border-radius:20px;padding:6px 13px;font-size:12px;color:var(--ink-muted);cursor:pointer;}
+    .add-link-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .picker-wrap{position:relative;display:inline-block;}
+    .picker-panel{position:absolute;top:calc(100% + 6px);left:0;width:300px;background:var(--paper-card);border:1px solid var(--hairline);border-radius:12px;box-shadow:0 10px 28px oklch(20% 0.02 75/.14);padding:10px;z-index:15;}
+    .picker-input{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--hairline);font-size:12.5px;margin-bottom:6px;box-sizing:border-box;}
+    .picker-item{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:12px;text-align:left;color:var(--ink);}
+    .picker-item:hover{background:var(--accent-soft);}
+    .picker-empty{font-size:12px;color:var(--ink-muted);padding:8px 4px;}
+
+    /* Settings */
+    .settings-section{margin-bottom:28px;max-width:560px;}
+    .section-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-muted);margin-bottom:12px;}
+    .ws-rows-list{display:flex;flex-direction:column;gap:8px;}
+    .ws-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--paper-card);border:1px solid var(--hairline);}
+    .ws-row .name{font-weight:700;font-size:13.5px;font-family:'Newsreader',Georgia,serif;}
+    .ws-row .path{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-muted);margin-top:2px;}
+    .ws-row-btn{margin-left:auto;padding:7px 13px;border-radius:8px;border:1px solid var(--hairline);background:transparent;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink);flex-shrink:0;}
+    .ws-row-btn.is-active{background:var(--good-soft);color:var(--good);border-color:transparent;}
+    .sync-panel{background:var(--paper-card);border:1px solid var(--hairline);border-radius:14px;padding:20px;}
+    .sync-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+    .sync-field label{font-size:10.5px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;}
+    .sync-field input{padding:9px 11px;border-radius:8px;border:1px solid var(--hairline);font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);color:var(--ink);}
+    .sync-counts{display:flex;gap:14px;font-size:11.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;margin-bottom:14px;}
+    .sync-counts b{color:var(--ink);}
+    .sync-actions{display:flex;gap:8px;}
+    .btn-primary{padding:9px 16px;border-radius:9px;border:none;background:var(--accent);color:white;font-weight:700;font-size:12.5px;cursor:pointer;}
+    .btn-primary:hover{background:var(--accent-hover);}
+    .btn-secondary{padding:9px 16px;border-radius:9px;border:1px solid var(--hairline);background:transparent;color:var(--ink);font-weight:700;font-size:12.5px;cursor:pointer;}
+    .btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+    .sync-status{font-size:11.5px;color:var(--ink-muted);margin-top:12px;font-family:'IBM Plex Mono',monospace;}
+  </style>
+</helmet>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="ws-switcher">
+      <button class="ws-button" onClick="{{toggleWsSwitcher}}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+        <span class="name">{{activeWorkspaceName}}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <sc-if value="{{wsSwitcherOpen}}" hint-placeholder-val="{{false}}">
+        <div class="ws-dropdown">
+          <sc-for list="{{workspaceRows}}" as="ws" hint-placeholder-count="2">
+            <button class="ws-item" onClick="{{ws.select}}">
+              <span class="ws-dot" style="background:{{ws.dotColor}}"></span>
+              <span>{{ws.name}}</span>
+              <span class="path">{{ws.path}}</span>
+              <sc-if value="{{ws.isActive}}" hint-placeholder-val="{{true}}">
+                <svg class="ws-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+              </sc-if>
+            </button>
+          </sc-for>
+          <div class="ws-open-new">
+            <input class="ws-path-input" placeholder="/path/to/folder" value="{{newWorkspacePath}}" onInput="{{handleNewWorkspacePath}}">
+            <button class="ws-add-btn" onClick="{{addWorkspace}}">+ Open</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <nav class="nav">
+      <button class="{{navDashboardClass}}" onClick="{{goDashboard}}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Dashboard
+      </button>
+      <button class="{{navProjectsClass}}" onClick="{{goProjects}}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+        Projects
+      </button>
+      <button class="{{navJournalClass}}" onClick="{{goJournal}}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Journal
+      </button>
+      <button class="{{navSettingsClass}}" onClick="{{goSettings}}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+
+    <div class="calendar">
+      <div class="cal-header">
+        <button onClick="{{prevMonth}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span class="cal-label">{{calendarLabel}}</span>
+        <button onClick="{{nextMonth}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+      <div class="cal-weekdays">
+        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+      </div>
+      <div class="cal-grid">
+        <sc-for list="{{calendarDays}}" as="day" hint-placeholder-count="35">
+          <button class="{{day.cellClass}}" onClick="{{day.select}}">
+            <sc-if value="{{day.isBlank}}" hint-placeholder-val="{{false}}">
+              <span>&nbsp;</span>
+            </sc-if>
+            <sc-if value="{{day.isReal}}" hint-placeholder-val="{{true}}">
+              <span>{{day.label}}</span>
+              <div class="cal-dots">
+                <sc-if value="{{day.hasJournal}}" hint-placeholder-val="{{false}}">
+                  <span class="cal-dot journal"></span>
+                </sc-if>
+                <sc-for list="{{day.taskDots}}" as="dot" hint-placeholder-count="1">
+                  <span class="cal-dot" style="background:{{dot.color}}"></span>
+                </sc-for>
+              </div>
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <sc-if value="{{isDashboard}}" hint-placeholder-val="{{true}}">
+      <div>
+        <div class="greeting-block">
+          <span class="greeting-word-wrap">
+            <h1 class="greeting-title">{{greeting}}</h1>
+            <svg class="greeting-swash" viewBox="0 0 200 10" preserveAspectRatio="none"><path d="M2 6 Q 25 1 50 6 T 100 6 T 150 6 T 198 6" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>
+          </span>
+          <div class="page-sub">{{todayLabel}} &middot; {{activeWorkspaceName}}</div>
+          <div class="greeting-row">
+            <sc-if value="{{hasStreak}}" hint-placeholder-val="{{true}}">
+              <span class="streak-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1.5 1 2 3 2 4.5A5.5 5.5 0 0 1 11.5 20 6 6 0 0 1 6 14c0-3.5 2-5 3-7 .5-1 .8-2.2.5-3.5.9.3 2 1 2.5 2.5z"/></svg>
+                {{streakLabel}}
+              </span>
+            </sc-if>
+            <button class="journal-cta" onClick="{{goJournal}}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              Open today's journal
+            </button>
+          </div>
+        </div>
+
+        <div class="bucket">
+          <div class="bucket-title">Today <span class="count">{{todayTasks.length}}</span></div>
+          <div class="task-list">
+            <sc-for list="{{todayTasks}}" as="t" hint-placeholder-count="1">
+              <div class="task-row">
+                <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}">
+                  <sc-if value="{{t.isDoing}}" hint-placeholder-val="{{false}}"><span class="pulse"></span></sc-if>
+                  <sc-if value="{{t.isDone}}" hint-placeholder-val="{{false}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></sc-if>
+                </button>
+                <div class="task-main">
+                  <div class="task-title-row"><span class="{{t.titleClass}}">{{t.title}}</span></div>
+                  <div class="task-meta-row">
+                    <span class="project-badge"><span class="project-dot" style="background:{{t.projectColor}}"></span>{{t.projectName}}</span>
+                    <sc-if value="{{t.hasDue}}" hint-placeholder-val="{{true}}"><span class="{{t.dueBadgeClass}}">{{t.dueLabel}}</span></sc-if>
+                    <sc-for list="{{t.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+                    <sc-if value="{{t.isDoing}}" hint-placeholder-val="{{false}}"><span class="spent-badge">{{t.spentLabel}} tracking&hellip;</span></sc-if>
+                  </div>
+                </div>
+                <div class="task-actions">
+                  <button class="icon-btn" onClick="{{t.logToday}}" title="Log to today's journal">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 8h6M9 12h4"/></svg>
+                  </button>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{todayIsEmpty}}" hint-placeholder-val="{{false}}"><div class="empty-note">Nothing due today.</div></sc-if>
+          </div>
+        </div>
+
+        <sc-if value="{{hasOverdue}}" hint-placeholder-val="{{true}}">
+          <div class="bucket">
+            <div class="bucket-title">Overdue <span class="count">{{overdueTasks.length}}</span></div>
+            <div class="task-list">
+              <sc-for list="{{overdueTasks}}" as="t" hint-placeholder-count="1">
+                <div class="task-row">
+                  <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}">
+                    <sc-if value="{{t.isDoing}}" hint-placeholder-val="{{false}}"><span class="pulse"></span></sc-if>
+                    <sc-if value="{{t.isDone}}" hint-placeholder-val="{{false}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></sc-if>
+                  </button>
+                  <div class="task-main">
+                    <div class="task-title-row">
+                      <span class="{{t.titleClass}}">{{t.title}}</span>
+                    </div>
+                    <div class="task-meta-row">
+                      <span class="project-badge"><span class="project-dot" style="background:{{t.projectColor}}"></span>{{t.projectName}}</span>
+                      <sc-if value="{{t.hasDue}}" hint-placeholder-val="{{true}}"><span class="{{t.dueBadgeClass}}">{{t.dueLabel}}</span></sc-if>
+                      <sc-for list="{{t.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+                    </div>
+                  </div>
+                  <div class="task-actions">
+                    <button class="icon-btn" onClick="{{t.logToday}}" title="Log to today's journal">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 8h6M9 12h4"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <div class="bucket">
+          <div class="bucket-title">This week <span class="count">{{weekTasks.length}}</span></div>
+          <div class="task-list">
+            <sc-for list="{{weekTasks}}" as="t" hint-placeholder-count="1">
+              <div class="task-row">
+                <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}">
+                  <sc-if value="{{t.isDoing}}" hint-placeholder-val="{{false}}"><span class="pulse"></span></sc-if>
+                  <sc-if value="{{t.isDone}}" hint-placeholder-val="{{false}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></sc-if>
+                </button>
+                <div class="task-main">
+                  <div class="task-title-row"><span class="{{t.titleClass}}">{{t.title}}</span></div>
+                  <div class="task-meta-row">
+                    <span class="project-badge"><span class="project-dot" style="background:{{t.projectColor}}"></span>{{t.projectName}}</span>
+                    <sc-if value="{{t.hasDue}}" hint-placeholder-val="{{true}}"><span class="{{t.dueBadgeClass}}">{{t.dueLabel}}</span></sc-if>
+                    <sc-for list="{{t.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+                  </div>
+                </div>
+                <div class="task-actions">
+                  <button class="icon-btn" onClick="{{t.logToday}}" title="Log to today's journal">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 8h6M9 12h4"/></svg>
+                  </button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+
+        <div class="completed-strip">
+          <button class="completed-toggle" onClick="{{toggleCompleted}}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="{{completedChevStyle}}"><path d="M9 18l6-6-6-6"/></svg>
+            Completed today ({{completedTodayTasks.length}})
+          </button>
+          <sc-if value="{{completedExpanded}}" hint-placeholder-val="{{false}}">
+            <div class="task-list" style="margin-top:10px;">
+              <sc-for list="{{completedTodayTasks}}" as="t" hint-placeholder-count="1">
+                <div class="task-row">
+                  <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></button>
+                  <div class="task-main">
+                    <div class="task-title-row"><span class="{{t.titleClass}}">{{t.title}}</span></div>
+                    <div class="task-meta-row"><span class="project-badge"><span class="project-dot" style="background:{{t.projectColor}}"></span>{{t.projectName}}</span></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isProjects}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div class="page-header">
+          <div><h1 class="page-title">Projects</h1><div class="page-sub">{{projectRows.length}} projects</div></div>
+        </div>
+        <div class="projects-list">
+          <sc-for list="{{projectRows}}" as="p" hint-placeholder-count="2">
+            <div class="project-row" onClick="{{p.open}}">
+              <span class="project-color-tab" style="background:{{p.color}}"></span>
+              <div class="project-row-main">
+                <span class="project-name">{{p.name}}</span>
+                <span class="project-desc">{{p.description}}</span>
+              </div>
+              <div class="project-tags">
+                <sc-for list="{{p.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+              </div>
+              <div class="project-counts">
+                <span><b>{{p.todoCount}}</b> todo</span>
+                <span><b>{{p.doingCount}}</b> doing</span>
+                <span><b>{{p.doneCount}}</b> done</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isProjectDetail}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div class="page-header">
+          <div>
+            <div class="pd-head">
+              <span class="pd-color" style="background:{{selectedProject.color}}"></span>
+              <div>
+                <h1 class="page-title">{{selectedProject.name}}</h1>
+                <div class="pd-tags">
+                  <sc-for list="{{selectedProject.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pd-desc">{{selectedProject.description}}</div>
+
+        <div class="pd-columns">
+          <div class="pd-column">
+            <div class="pd-column-header">Todo <span class="count">{{projectTodoTasks.length}}</span></div>
+            <div class="task-list">
+              <sc-for list="{{projectTodoTasks}}" as="t" hint-placeholder-count="1">
+                <div class="task-row">
+                  <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}"></button>
+                  <div class="task-main" onClick="{{t.toggleExpand}}">
+                    <div class="task-title-row"><span class="{{t.titleClass}}">{{t.title}}</span></div>
+                    <div class="task-meta-row">
+                      <sc-if value="{{t.hasDue}}" hint-placeholder-val="{{false}}"><span class="{{t.dueBadgeClass}}">{{t.dueLabel}}</span></sc-if>
+                      <sc-for list="{{t.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+                    </div>
+                    <sc-if value="{{t.expanded}}" hint-placeholder-val="{{false}}"><div class="task-desc">{{t.description}}</div></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{projectTodoEmpty}}" hint-placeholder-val="{{false}}"><div class="empty-note">Nothing todo.</div></sc-if>
+            </div>
+          </div>
+
+          <div class="pd-column">
+            <div class="pd-column-header">Doing <span class="count">{{projectDoingTasks.length}}</span></div>
+            <div class="task-list">
+              <sc-for list="{{projectDoingTasks}}" as="t" hint-placeholder-count="1">
+                <div class="task-row">
+                  <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}"><span class="pulse"></span></button>
+                  <div class="task-main" onClick="{{t.toggleExpand}}">
+                    <div class="task-title-row"><span class="{{t.titleClass}}">{{t.title}}</span></div>
+                    <div class="task-meta-row">
+                      <sc-if value="{{t.hasDue}}" hint-placeholder-val="{{false}}"><span class="{{t.dueBadgeClass}}">{{t.dueLabel}}</span></sc-if>
+                      <sc-for list="{{t.tags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+                      <span class="spent-badge">{{t.spentLabel}} &middot; tracking&hellip;</span>
+                    </div>
+                    <sc-if value="{{t.expanded}}" hint-placeholder-val="{{false}}"><div class="task-desc">{{t.description}}</div></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{projectDoingEmpty}}" hint-placeholder-val="{{false}}"><div class="empty-note">Nothing in progress.</div></sc-if>
+            </div>
+          </div>
+
+          <div class="pd-column">
+            <div class="pd-column-header">Done <span class="count">{{projectDoneTasks.length}}</span></div>
+            <div class="task-list">
+              <sc-for list="{{projectDoneTasks}}" as="t" hint-placeholder-count="1">
+                <div class="task-row">
+                  <button class="{{t.statusBtnClass}}" onClick="{{t.cycle}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></button>
+                  <div class="task-main" onClick="{{t.toggleExpand}}">
+                    <div class="task-title-row"><span class="{{t.titleClass}}">{{t.title}}</span></div>
+                    <div class="task-meta-row">
+                      <sc-if value="{{t.hasSpent}}" hint-placeholder-val="{{false}}"><span class="spent-badge">{{t.spentLabel}}</span></sc-if>
+                    </div>
+                    <sc-if value="{{t.expanded}}" hint-placeholder-val="{{false}}"><div class="task-desc">{{t.description}}</div></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{projectDoneEmpty}}" hint-placeholder-val="{{false}}"><div class="empty-note">Nothing done yet.</div></sc-if>
+            </div>
+          </div>
+        </div>
+
+        <div class="add-task-row">
+          <input class="add-task-input" placeholder="New task title&hellip;" value="{{newTaskTitle}}" onInput="{{handleNewTaskTitle}}">
+          <button class="add-task-btn" onClick="{{addTask}}">+ Add task</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isJournal}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div class="journal-head">
+          <button class="journal-nav-btn" onClick="{{prevDay}}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <h1 class="journal-date">{{journalDateLabel}}</h1>
+          <button class="journal-nav-btn" onClick="{{nextDay}}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+        </div>
+        <div class="page-sub">{{activeWorkspaceName}}</div>
+
+        <div class="journal-tags">
+          <sc-for list="{{journalTags}}" as="tag" hint-placeholder-count="1"><span class="tag-pill">{{tag.name}}</span></sc-for>
+        </div>
+
+        <textarea class="journal-body" placeholder="Write about today&hellip;" value="{{journalBody}}" onInput="{{handleJournalBody}}"></textarea>
+
+        <div class="linked-section">
+          <div class="linked-title">Linked tasks</div>
+          <div class="linked-wrap">
+            <sc-for list="{{linkedTaskRows}}" as="lt" hint-placeholder-count="1">
+              <span class="linked-chip">
+                <span class="project-dot" style="background:{{lt.projectColor}}"></span>
+                {{lt.title}}
+                <button class="linked-remove" onClick="{{lt.remove}}">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </span>
+            </sc-for>
+            <div class="picker-wrap">
+              <button class="add-link-btn" onClick="{{togglePicker}}">+ Add task</button>
+              <sc-if value="{{pickerOpen}}" hint-placeholder-val="{{false}}">
+                <div class="picker-panel">
+                  <input class="picker-input" placeholder="Search tasks&hellip;" value="{{pickerQuery}}" onInput="{{handlePickerQuery}}">
+                  <sc-for list="{{pickerResults}}" as="pr" hint-placeholder-count="1">
+                    <button class="picker-item" onClick="{{pr.add}}">
+                      <span class="project-dot" style="background:{{pr.projectColor}}"></span>
+                      {{pr.title}}
+                    </button>
+                  </sc-for>
+                  <sc-if value="{{pickerEmpty}}" hint-placeholder-val="{{false}}"><div class="picker-empty">No matching open tasks.</div></sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isSettings}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div class="page-header"><h1 class="page-title">Settings</h1></div>
+
+        <div class="settings-section">
+          <div class="section-title">Workspaces</div>
+          <div class="ws-rows-list">
+            <sc-for list="{{workspaceRows}}" as="ws" hint-placeholder-count="2">
+              <div class="ws-row">
+                <span class="ws-dot" style="background:{{ws.dotColor}}"></span>
+                <div>
+                  <div class="name">{{ws.name}}</div>
+                  <div class="path">{{ws.path}}</div>
+                </div>
+                <button class="{{ws.rowBtnClass}}" onClick="{{ws.select}}">{{ws.rowBtnLabel}}</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="section-title">Remote sync &mdash; {{activeWorkspaceName}}</div>
+          <div class="sync-panel">
+            <div class="sync-field">
+              <label>Remote URL</label>
+              <input value="{{remoteUrl}}" onInput="{{handleRemoteUrl}}">
+            </div>
+            <div class="sync-counts">
+              <span><b>{{syncAhead}}</b> ahead</span>
+              <span><b>{{syncBehind}}</b> behind</span>
+            </div>
+            <div class="sync-actions">
+              <button class="btn-primary" onClick="{{syncPush}}">Push</button>
+              <button class="btn-secondary" onClick="{{syncPull}}">Pull</button>
+            </div>
+            <div class="sync-status">{{syncStatus}}</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var colors = {
+      website: 'oklch(65% 0.15 40)',
+      backend: 'oklch(62% 0.13 235)',
+      planning: 'oklch(62% 0.11 155)',
+      home: 'oklch(62% 0.12 295)',
+      rust: 'oklch(62% 0.15 20)',
+    };
+    this.colors = colors;
+    this.state = {
+      page: 'dashboard',
+      today: '2026-09-10',
+      wsSwitcherOpen: false,
+      newWorkspacePath: '',
+      calendarMonthIndex: 8,
+      calendarYear: 2026,
+      selectedProjectSlug: 'website-redesign',
+      selectedJournalDate: '2026-09-10',
+      expandedTaskIds: [],
+      newTaskTitle: '',
+      pickerOpen: false,
+      pickerQuery: '',
+      completedExpanded: false,
+      remoteUrl: 'git@github.com:phuc/personal-notes.git',
+      syncAhead: 2,
+      syncBehind: 0,
+      syncStatus: 'Last synced 2 hours ago',
+      workspaces: [
+        { id: 'w1', name: 'Personal Notes', path: '~/Notes', active: true },
+        { id: 'w2', name: 'Work Vault', path: '~/Work/vault', active: false },
+      ],
+      projects: [
+        { slug: 'website-redesign', name: 'Website Redesign', color: colors.website, description: 'Full redesign of the marketing site, launching alongside the Q4 announcement.', tags: ['marketing', 'q4'] },
+        { slug: 'backend-migration', name: 'Backend Migration', color: colors.backend, description: 'Move the API off the legacy host onto managed infrastructure.', tags: ['infra'] },
+        { slug: 'q3-planning', name: 'Q3 Planning', color: colors.planning, description: 'Roadmap and OKRs for next quarter.', tags: ['planning'] },
+        { slug: 'home-renovation', name: 'Home Renovation', color: colors.home, description: 'Kitchen remodel tracking — tile, contractor, permits.', tags: ['personal'] },
+        { slug: 'learn-rust', name: 'Learn Rust', color: colors.rust, description: 'Working through the Rust book, one chapter a week.', tags: ['learning'] },
+      ],
+      tasks: [
+        { id: 't1', projectSlug: 'website-redesign', title: 'Fix bug in auth flow', status: 'doing', due: '2026-09-15', spentMinutes: 135, tags: ['high', 'backend'], description: 'Investigate the token refresh race condition; see logs from Sept 8.', completedThisSession: false },
+        { id: 't2', projectSlug: 'website-redesign', title: 'Draft new homepage copy', status: 'todo', due: '2026-09-08', spentMinutes: 0, tags: ['content'], description: 'Marketing wants a warmer tone than the old site.', completedThisSession: false },
+        { id: 't3', projectSlug: 'website-redesign', title: 'Buy domain name', status: 'done', due: '2026-08-01', spentMinutes: 15, tags: [], description: '', completedThisSession: false },
+        { id: 't4', projectSlug: 'backend-migration', title: 'Provision new Postgres instance', status: 'todo', due: '2026-09-10', spentMinutes: 0, tags: ['infra', 'high'], description: 'Use the same instance size as staging.', completedThisSession: false },
+        { id: 't5', projectSlug: 'backend-migration', title: 'Write migration runbook', status: 'todo', due: null, spentMinutes: 0, tags: ['docs'], description: '', completedThisSession: false },
+        { id: 't6', projectSlug: 'q3-planning', title: 'Draft OKRs doc', status: 'doing', due: '2026-09-12', spentMinutes: 40, tags: [], description: '', completedThisSession: false },
+        { id: 't7', projectSlug: 'q3-planning', title: 'Schedule planning offsite', status: 'todo', due: '2026-09-20', spentMinutes: 0, tags: [], description: '', completedThisSession: false },
+        { id: 't8', projectSlug: 'home-renovation', title: 'Pick tile for backsplash', status: 'todo', due: '2026-09-11', spentMinutes: 0, tags: [], description: '', completedThisSession: false },
+        { id: 't9', projectSlug: 'home-renovation', title: 'Call contractor about permit', status: 'done', due: '2026-09-05', spentMinutes: 0, tags: [], description: '', completedThisSession: false },
+        { id: 't10', projectSlug: 'learn-rust', title: 'Finish ownership chapter', status: 'todo', due: null, spentMinutes: 0, tags: [], description: '', completedThisSession: false },
+        { id: 't11', projectSlug: 'learn-rust', title: 'Set up dev environment', status: 'done', due: '2026-08-20', spentMinutes: 0, tags: [], description: '', completedThisSession: false },
+      ],
+      journalEntries: {
+        '2026-09-10': { tags: ['work'], body: "Shipped the auth-flow investigation notes and talked to the team about the homepage tone. Feeling good about where the redesign is headed.", linkedTasks: ['t1', 't2'] },
+      },
+      journalHasEntry: { '2026-09-05': true, '2026-09-06': true, '2026-09-07': true, '2026-09-08': true, '2026-09-09': true, '2026-09-10': true },
+    };
+  }
+
+  toggleWsSwitcher = () => this.setState({ wsSwitcherOpen: !this.state.wsSwitcherOpen });
+  handleNewWorkspacePath = (e) => this.setState({ newWorkspacePath: e.target.value });
+  addWorkspace = () => {
+    if (!this.state.newWorkspacePath.trim()) return;
+    var id = 'w' + (this.state.workspaces.length + 1);
+    var ws = this.state.workspaces.map((w) => ({ ...w, active: false }));
+    ws.push({ id: id, name: this.state.newWorkspacePath.trim().split('/').pop() || 'New workspace', path: this.state.newWorkspacePath.trim(), active: true });
+    this.setState({ workspaces: ws, newWorkspacePath: '', wsSwitcherOpen: false });
+  };
+  selectWorkspace = (id) => {
+    var ws = this.state.workspaces.map((w) => ({ ...w, active: w.id === id }));
+    this.setState({ workspaces: ws, wsSwitcherOpen: false });
+  };
+
+  goDashboard = () => this.setState({ page: 'dashboard' });
+  goProjects = () => this.setState({ page: 'projects' });
+  goJournal = () => this.setState({ page: 'journal' });
+  goSettings = () => this.setState({ page: 'settings' });
+  openProject = (slug) => this.setState({ page: 'projectDetail', selectedProjectSlug: slug });
+
+  prevMonth = () => {
+    var m = this.state.calendarMonthIndex - 1, y = this.state.calendarYear;
+    if (m < 0) { m = 11; y -= 1; }
+    this.setState({ calendarMonthIndex: m, calendarYear: y });
+  };
+  nextMonth = () => {
+    var m = this.state.calendarMonthIndex + 1, y = this.state.calendarYear;
+    if (m > 11) { m = 0; y += 1; }
+    this.setState({ calendarMonthIndex: m, calendarYear: y });
+  };
+  selectDay = (dateStr) => this.setState({ page: 'journal', selectedJournalDate: dateStr });
+
+  cycleStatus = (id) => {
+    var tasks = this.state.tasks.map((t) => {
+      if (t.id !== id) return t;
+      var next = t.status === 'todo' ? 'doing' : t.status === 'doing' ? 'done' : 'todo';
+      return { ...t, status: next, completedThisSession: next === 'done' ? true : (next === 'todo' ? false : t.completedThisSession) };
+    });
+    this.setState({ tasks: tasks });
+  };
+  toggleExpand = (id) => {
+    var ids = this.state.expandedTaskIds.includes(id) ? this.state.expandedTaskIds.filter((x) => x !== id) : this.state.expandedTaskIds.concat([id]);
+    this.setState({ expandedTaskIds: ids });
+  };
+  toggleCompleted = () => this.setState({ completedExpanded: !this.state.completedExpanded });
+
+  handleNewTaskTitle = (e) => this.setState({ newTaskTitle: e.target.value });
+  addTask = () => {
+    if (!this.state.newTaskTitle.trim()) return;
+    var task = { id: 't' + Date.now(), projectSlug: this.state.selectedProjectSlug, title: this.state.newTaskTitle.trim(), status: 'todo', due: null, spentMinutes: 0, tags: [], description: '', completedThisSession: false };
+    this.setState({ tasks: this.state.tasks.concat([task]), newTaskTitle: '' });
+  };
+
+  logToday = (id) => {
+    var entries = { ...this.state.journalEntries };
+    var today = this.state.today;
+    var entry = entries[today] ? { ...entries[today] } : { tags: [], body: '', linkedTasks: [] };
+    if (!entry.linkedTasks.includes(id)) entry.linkedTasks = entry.linkedTasks.concat([id]);
+    entries[today] = entry;
+    var hasEntry = { ...this.state.journalHasEntry };
+    hasEntry[today] = true;
+    this.setState({ journalEntries: entries, journalHasEntry: hasEntry });
+  };
+
+  addDays = (dateStr, delta) => {
+    var parts = dateStr.split('-').map(Number);
+    var d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() + delta);
+    var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  };
+  prevDay = () => this.setState({ selectedJournalDate: this.addDays(this.state.selectedJournalDate, -1) });
+  nextDay = () => this.setState({ selectedJournalDate: this.addDays(this.state.selectedJournalDate, 1) });
+
+  handleJournalBody = (e) => {
+    var entries = { ...this.state.journalEntries };
+    var date = this.state.selectedJournalDate;
+    var entry = entries[date] ? { ...entries[date] } : { tags: [], body: '', linkedTasks: [] };
+    entry.body = e.target.value;
+    entries[date] = entry;
+    this.setState({ journalEntries: entries });
+  };
+
+  togglePicker = () => this.setState({ pickerOpen: !this.state.pickerOpen, pickerQuery: '' });
+  handlePickerQuery = (e) => this.setState({ pickerQuery: e.target.value });
+  addLinkedTask = (id) => {
+    var entries = { ...this.state.journalEntries };
+    var date = this.state.selectedJournalDate;
+    var entry = entries[date] ? { ...entries[date] } : { tags: [], body: '', linkedTasks: [] };
+    if (!entry.linkedTasks.includes(id)) entry.linkedTasks = entry.linkedTasks.concat([id]);
+    entries[date] = entry;
+    this.setState({ journalEntries: entries, pickerOpen: false, pickerQuery: '' });
+  };
+  removeLinkedTask = (id) => {
+    var entries = { ...this.state.journalEntries };
+    var date = this.state.selectedJournalDate;
+    var entry = entries[date] ? { ...entries[date] } : { tags: [], body: '', linkedTasks: [] };
+    entry.linkedTasks = entry.linkedTasks.filter((x) => x !== id);
+    entries[date] = entry;
+    this.setState({ journalEntries: entries });
+  };
+
+  handleRemoteUrl = (e) => this.setState({ remoteUrl: e.target.value });
+  syncPush = () => this.setState({ syncAhead: 0, syncStatus: 'Pushed just now' });
+  syncPull = () => this.setState({ syncBehind: 0, syncStatus: 'Pulled just now' });
+
+  formatSpent = (mins) => {
+    if (!mins) return '0m';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return h > 0 ? (h + 'h' + (m > 0 ? ' ' + m + 'm' : '')) : (m + 'm');
+  };
+
+  getGreeting = () => {
+    var h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  computeJournalStreak = () => {
+    var count = 0;
+    var d = this.state.today;
+    while (this.state.journalHasEntry[d]) {
+      count++;
+      d = this.addDays(d, -1);
+    }
+    return count;
+  };
+
+  buildTaskVM = (t, project) => {
+    var self = this;
+    var due = t.due;
+    var hasDue = !!due;
+    var dueLabel = '', dueBadgeClass = 'due-badge later';
+    if (hasDue) {
+      var parts = due.split('-').map(Number);
+      var dueDate = new Date(parts[0], parts[1] - 1, parts[2]);
+      var tp = this.state.today.split('-').map(Number);
+      var todayDate = new Date(tp[0], tp[1] - 1, tp[2]);
+      var diffDays = Math.round((dueDate - todayDate) / 86400000);
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      if (diffDays < 0) { dueLabel = 'Overdue'; dueBadgeClass = 'due-badge overdue'; }
+      else if (diffDays === 0) { dueLabel = 'Today'; dueBadgeClass = 'due-badge today'; }
+      else if (diffDays === 1) { dueLabel = 'Tomorrow'; dueBadgeClass = 'due-badge later'; }
+      else { dueLabel = months[dueDate.getMonth()] + ' ' + dueDate.getDate(); dueBadgeClass = 'due-badge later'; }
+    }
+    return {
+      id: t.id,
+      title: t.title,
+      titleClass: 'task-title' + (t.status === 'done' ? ' st-done' : ''),
+      statusBtnClass: 'status-btn' + (t.status === 'doing' ? ' st-doing' : t.status === 'done' ? ' st-done' : ''),
+      isDoing: t.status === 'doing',
+      isDone: t.status === 'done',
+      hasDue: hasDue,
+      dueLabel: dueLabel,
+      dueBadgeClass: dueBadgeClass,
+      hasSpent: t.spentMinutes > 0 || t.status === 'doing',
+      spentLabel: this.formatSpent(t.spentMinutes),
+      tags: t.tags.map((n) => ({ name: n })),
+      description: t.description,
+      expanded: this.state.expandedTaskIds.includes(t.id),
+      projectName: project ? project.name : '',
+      projectColor: project ? project.color : 'oklch(70% 0.02 75)',
+      cycle: () => self.cycleStatus(t.id),
+      toggleExpand: () => self.toggleExpand(t.id),
+      logToday: (e) => { if (e && e.stopPropagation) e.stopPropagation(); self.logToday(t.id); },
+    };
+  };
+
+  renderVals() {
+    var state = this.state;
+    var self = this;
+    var projectBySlug = {};
+    state.projects.forEach((p) => { projectBySlug[p.slug] = p; });
+
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    var activeWs = state.workspaces.find((w) => w.active) || state.workspaces[0];
+    var streak = this.computeJournalStreak();
+
+    var openTasks = state.tasks.filter((t) => t.status !== 'done');
+    var overdue = [], today = [], week = [];
+    var tp = state.today.split('-').map(Number);
+    var todayDate = new Date(tp[0], tp[1] - 1, tp[2]);
+    openTasks.forEach((t) => {
+      if (!t.due) return;
+      var vm = this.buildTaskVM(t, projectBySlug[t.projectSlug]);
+      var parts = t.due.split('-').map(Number);
+      var d = new Date(parts[0], parts[1] - 1, parts[2]);
+      var diff = Math.round((d - todayDate) / 86400000);
+      if (diff < 0) overdue.push(vm);
+      else if (diff === 0) today.push(vm);
+      else if (diff <= 7) week.push(vm);
+      // Beyond a week (and undated tasks) stay off the dashboard by design —
+      // they're still visible in each project's Todo column.
+    });
+    var completedToday = state.tasks.filter((t) => t.status === 'done' && t.completedThisSession).map((t) => this.buildTaskVM(t, projectBySlug[t.projectSlug]));
+
+    var projectRows = state.projects.map((p) => {
+      var pt = state.tasks.filter((t) => t.projectSlug === p.slug);
+      return {
+        slug: p.slug,
+        name: p.name,
+        color: p.color,
+        description: p.description,
+        tags: p.tags.map((n) => ({ name: n })),
+        todoCount: pt.filter((t) => t.status === 'todo').length,
+        doingCount: pt.filter((t) => t.status === 'doing').length,
+        doneCount: pt.filter((t) => t.status === 'done').length,
+        open: () => self.openProject(p.slug),
+      };
+    });
+
+    var selectedProject = projectBySlug[state.selectedProjectSlug] || state.projects[0];
+    var selectedProjectVm = selectedProject ? { name: selectedProject.name, color: selectedProject.color, description: selectedProject.description, tags: selectedProject.tags.map((n) => ({ name: n })) } : { name: '', color: '', description: '', tags: [] };
+    var projectDetailTasks = state.tasks.filter((t) => t.projectSlug === (selectedProject ? selectedProject.slug : '')).map((t) => this.buildTaskVM(t, selectedProject));
+    var projectTodoTasks = projectDetailTasks.filter((t) => !t.isDoing && !t.isDone);
+    var projectDoingTasks = projectDetailTasks.filter((t) => t.isDoing);
+    var projectDoneTasks = projectDetailTasks.filter((t) => t.isDone);
+
+    var workspaceRows = state.workspaces.map((w) => ({
+      id: w.id,
+      name: w.name,
+      path: w.path,
+      isActive: w.active,
+      dotColor: w.active ? 'var(--accent)' : 'oklch(80% 0.01 75)',
+      rowBtnClass: w.active ? 'ws-row-btn is-active' : 'ws-row-btn',
+      rowBtnLabel: w.active ? 'Active' : 'Open',
+      select: () => self.selectWorkspace(w.id),
+    }));
+
+    var journalDate = state.selectedJournalDate;
+    var entry = state.journalEntries[journalDate] || { tags: [], body: '', linkedTasks: [] };
+    var jp = journalDate.split('-').map(Number);
+    var jDateObj = new Date(jp[0], jp[1] - 1, jp[2]);
+    var linkedTaskRows = (entry.linkedTasks || []).map((id) => {
+      var t = state.tasks.find((x) => x.id === id);
+      if (!t) return null;
+      var proj = projectBySlug[t.projectSlug];
+      return { id: id, title: t.title, projectColor: proj ? proj.color : 'oklch(70% 0.02 75)', remove: () => self.removeLinkedTask(id) };
+    }).filter(Boolean);
+    var linkedIds = entry.linkedTasks || [];
+    var q = (state.pickerQuery || '').toLowerCase();
+    var pickerResults = state.tasks.filter((t) => t.status !== 'done' && !linkedIds.includes(t.id) && t.title.toLowerCase().includes(q)).slice(0, 6).map((t) => {
+      var proj = projectBySlug[t.projectSlug];
+      return { id: t.id, title: t.title, projectColor: proj ? proj.color : 'oklch(70% 0.02 75)', add: () => self.addLinkedTask(t.id) };
+    });
+
+    // Calendar grid for Sept 2026-style layout: compute first weekday + days in month generically.
+    var y = state.calendarYear, m = state.calendarMonthIndex;
+    var firstOfMonth = new Date(y, m, 1);
+    var startWeekday = firstOfMonth.getDay();
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var cells = [];
+    for (var i = 0; i < startWeekday; i++) cells.push({ isBlank: true, isReal: false, cellClass: 'cal-day blank', label: '', select: null });
+    for (var dnum = 1; dnum <= daysInMonth; dnum++) {
+      var mm = String(m + 1).padStart(2, '0'), dd = String(dnum).padStart(2, '0');
+      var dateStr = y + '-' + mm + '-' + dd;
+      var isToday = dateStr === state.today;
+      var isSelected = state.page === 'journal' && dateStr === state.selectedJournalDate;
+      var dots = state.tasks.filter((t) => t.due === dateStr).map((t) => ({ color: (projectBySlug[t.projectSlug] || {}).color || 'oklch(70% 0.02 75)' })).slice(0, 3);
+      var cls = 'cal-day';
+      if (isToday) cls += ' today'; else if (isSelected) cls += ' selected';
+      cells.push({
+        isBlank: false, isReal: true, cellClass: cls, label: String(dnum),
+        hasJournal: !!state.journalHasEntry[dateStr], taskDots: dots,
+        select: () => self.selectDay(dateStr),
+      });
+    }
+    while (cells.length % 7 !== 0) cells.push({ isBlank: true, isReal: false, cellClass: 'cal-day blank', label: '', select: null });
+
+    return {
+      isDashboard: state.page === 'dashboard',
+      isProjects: state.page === 'projects',
+      isProjectDetail: state.page === 'projectDetail',
+      isJournal: state.page === 'journal',
+      isSettings: state.page === 'settings',
+      navDashboardClass: 'nav-item' + (state.page === 'dashboard' ? ' active' : ''),
+      navProjectsClass: 'nav-item' + (state.page === 'projects' || state.page === 'projectDetail' ? ' active' : ''),
+      navJournalClass: 'nav-item' + (state.page === 'journal' ? ' active' : ''),
+      navSettingsClass: 'nav-item' + (state.page === 'settings' ? ' active' : ''),
+      goDashboard: this.goDashboard, goProjects: this.goProjects, goJournal: this.goJournal, goSettings: this.goSettings,
+
+      activeWorkspaceName: activeWs ? activeWs.name : '',
+      wsSwitcherOpen: state.wsSwitcherOpen,
+      toggleWsSwitcher: this.toggleWsSwitcher,
+      newWorkspacePath: state.newWorkspacePath,
+      handleNewWorkspacePath: this.handleNewWorkspacePath,
+      addWorkspace: this.addWorkspace,
+      workspaceRows: workspaceRows,
+
+      todayLabel: weekdays[todayDate.getDay()] + ', ' + months[todayDate.getMonth()] + ' ' + todayDate.getDate() + ', ' + todayDate.getFullYear(),
+      greeting: this.getGreeting(),
+      hasStreak: streak > 0,
+      streakLabel: streak + '-day journal streak',
+
+      calendarLabel: months[m].slice(0, 3) + ' ' + y,
+      prevMonth: this.prevMonth, nextMonth: this.nextMonth,
+      calendarDays: cells,
+
+      hasOverdue: overdue.length > 0,
+      overdueTasks: overdue,
+      todayTasks: today,
+      todayIsEmpty: today.length === 0,
+      weekTasks: week,
+      completedTodayTasks: completedToday,
+      completedExpanded: state.completedExpanded,
+      completedChevStyle: 'transform:rotate(' + (state.completedExpanded ? '90deg' : '0deg') + ');transition:transform .15s;',
+      toggleCompleted: this.toggleCompleted,
+
+      projectRows: projectRows,
+
+      selectedProject: selectedProjectVm,
+      projectDetailTasks: projectDetailTasks,
+      projectTodoTasks: projectTodoTasks,
+      projectTodoEmpty: projectTodoTasks.length === 0,
+      projectDoingTasks: projectDoingTasks,
+      projectDoingEmpty: projectDoingTasks.length === 0,
+      projectDoneTasks: projectDoneTasks,
+      projectDoneEmpty: projectDoneTasks.length === 0,
+      newTaskTitle: state.newTaskTitle,
+      handleNewTaskTitle: this.handleNewTaskTitle,
+      addTask: this.addTask,
+
+      journalDateLabel: weekdays[jDateObj.getDay()] + ', ' + months[jDateObj.getMonth()] + ' ' + jDateObj.getDate() + ', ' + jDateObj.getFullYear(),
+      prevDay: this.prevDay, nextDay: this.nextDay,
+      journalTags: (entry.tags || []).map((n) => ({ name: n })),
+      journalBody: entry.body || '',
+      handleJournalBody: this.handleJournalBody,
+      linkedTaskRows: linkedTaskRows,
+      pickerOpen: state.pickerOpen,
+      togglePicker: this.togglePicker,
+      pickerQuery: state.pickerQuery,
+      handlePickerQuery: this.handlePickerQuery,
+      pickerResults: pickerResults,
+      pickerEmpty: pickerResults.length === 0,
+
+      remoteUrl: state.remoteUrl,
+      handleRemoteUrl: this.handleRemoteUrl,
+      syncAhead: state.syncAhead,
+      syncBehind: state.syncBehind,
+      syncStatus: state.syncStatus,
+      syncPush: this.syncPush,
+      syncPull: this.syncPull,
+    };
+  }
+}
+</script>
+</body>
+</html>
