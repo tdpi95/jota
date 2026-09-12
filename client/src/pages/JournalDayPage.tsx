@@ -171,6 +171,13 @@ function JournalDayPageInner({ date }: { date: string }) {
     return map;
   }, [projectsQuery.data]);
 
+  // Title-only view of tasksById for HistoryPanel's commit-message display.
+  const taskTitles = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [id, info] of tasksById) map.set(id, info.title);
+    return map;
+  }, [tasksById]);
+
   const searchResults: IndexedTask[] = (searchQuery.data?.tasks ?? []).filter((task) => !linkedTaskIds.includes(task.id));
 
   return (
@@ -243,7 +250,7 @@ function JournalDayPageInner({ date }: { date: string }) {
         </div>
       </div>
 
-      <HistoryPanel path={`journal/${year}/${date}.md`} onReverted={invalidateEntry} />
+      <HistoryPanel path={`journal/${year}/${date}.md`} onReverted={invalidateEntry} taskTitles={taskTitles} />
     </div>
   );
 }

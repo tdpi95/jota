@@ -98,7 +98,9 @@
     "undoTooltip": "Undo this change",
     "confirmUndo": "Undo \"{{message}}\"?",
     "loadingDiff": "Loading diff…",
-    "undoFailed": "Undo failed."
+    "undoFailed": "Undo failed.",
+    "showOlder": "+{{count}} older",
+    "hideOlder": "Show fewer"
   },
   "modal": {
     "close": "Close"
@@ -125,6 +127,11 @@
     "placeholder": "Add tag…",
     "removeTag": "Remove tag {{tag}}"
   },
+  "checklistEditor": {
+    "addPlaceholder": "Add checklist item…",
+    "addItem": "+ Add item",
+    "removeItem": "Remove item"
+  },
   "taskForm": {
     "titleLabel": "Title",
     "titlePlaceholder": "New task title…",
@@ -133,6 +140,7 @@
     "addTask": "+ Add task",
     "dueDateLabel": "Due date",
     "tagsLabel": "Tags",
+    "checklistLabel": "Checklist",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Notes about this task…",
     "save": "Save"
@@ -149,9 +157,6 @@
       "doing": "doing",
       "done": "done"
     }
-  },
-  "timeSpentBadge": {
-    "tracking": " · tracking…"
   },
   "workspaceSwitcher": {
     "noWorkspaceOpen": "No workspace open",
@@ -179,11 +184,14 @@
     "loadingOpenTasks": "Loading open tasks…",
     "failedToLoad": "Failed to load open tasks.",
     "buckets": {
+      "doing": "Doing",
       "today": "Today",
       "overdue": "Overdue",
       "thisWeek": "This week"
     },
-    "nothingDueToday": "Nothing due today."
+    "nothingDueToday": "Nothing due today.",
+    "showMore": "+{{count}} more",
+    "showFewer": "Show fewer"
   },
   "projectsList": {
     "title": "Projects",
@@ -209,6 +217,8 @@
       "done": "Done"
     },
     "nothingHere": "Nothing here.",
+    "showOlderDone": "+{{count}} older",
+    "hideOlderDone": "Show fewer",
     "loading": "Loading project…",
     "failedToLoad": "Failed to load project.",
     "backToProjects": "Back to projects"

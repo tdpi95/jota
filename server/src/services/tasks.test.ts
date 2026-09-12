@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { getHistory } from '../lib/vaultGit.js';
 import { ensureGitRepo } from '../lib/workspaces.js';
 import { linkTask } from './journal.js';
-import { createProject } from './projects.js';
+import { createProject, getProject } from './projects.js';
 import { createTask, deleteTask, getJournalLinksForTask, listOpenTasks, searchTasks, updateTask } from './tasks.js';
 
 // Mirrors PLAN.md milestone 7's verify step (the tasks half): create
@@ -130,6 +130,38 @@ test('updateTask can edit text/description/due/tags without a status change', ()
   assert.deepEqual(updated.tags, ['content', 'high']);
   assert.equal(updated.status, 'todo');
   assert.equal(getHistory(ws)[0].message, `[api] update_task ${task.id} (website-redesign)`);
+});
+
+test('createTask accepts an initial checklist and updateTask full-replaces it', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+  const task = createTask(ws, 'website-redesign', {
+    text: 'Draft homepage copy',
+    checklist: [{ text: 'Get sign-off', done: false }],
+  });
+  assert.deepEqual(task.checklist, [{ text: 'Get sign-off', done: false }]);
+
+  const updated = updateTask(ws, 'website-redesign', task.id, {
+    checklist: [
+      { text: 'Get sign-off', done: true },
+      { text: 'Write final copy', done: false },
+    ],
+  });
+  assert.deepEqual(updated.checklist, [
+    { text: 'Get sign-off', done: true },
+    { text: 'Write final copy', done: false },
+  ]);
+
+  // Persisted, not just returned in-memory — re-reading the project file
+  // (getProject reads the source file directly, per PLAN.md) confirms the
+  // checklist actually made it to disk in the expected grammar.
+  const reloaded = getProject(ws, 'website-redesign').tasks.find((t) => t.id === task.id);
+  assert.deepEqual(reloaded?.checklist, updated.checklist);
+
+  // Also survives the SQLite index round trip (listOpenTasks reads the
+  // index, not the file — PLAN.md "which reads go where").
+  const indexed = listOpenTasks(ws).find((t) => t.id === task.id);
+  assert.deepEqual(indexed?.checklist, updated.checklist);
 });
 
 test('updateTask on an unknown task id throws a structured 404', () => {

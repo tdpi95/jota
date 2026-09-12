@@ -12,8 +12,8 @@ const router = Router({ mergeParams: true });
 router.post<{ slug: string }>('/', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { text, due, tags, description } = req.body ?? {};
-    const task = taskService.createTask(workspace.path, req.params.slug, { text, due, tags, description }, 'api');
+    const { text, due, tags, description, checklist } = req.body ?? {};
+    const task = taskService.createTask(workspace.path, req.params.slug, { text, due, tags, description, checklist }, 'api');
     res.status(201).json({ task });
   } catch (err) {
     next(err);
@@ -23,12 +23,12 @@ router.post<{ slug: string }>('/', (req, res, next) => {
 router.patch<{ slug: string; taskId: string }>('/:taskId', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { text, description, due, tags, status, afterTaskId } = req.body ?? {};
+    const { text, description, due, tags, checklist, status, afterTaskId } = req.body ?? {};
     const task = taskService.updateTask(
       workspace.path,
       req.params.slug,
       req.params.taskId,
-      { text, description, due, tags, status, afterTaskId },
+      { text, description, due, tags, checklist, status, afterTaskId },
       'api',
     );
     res.json({ task });

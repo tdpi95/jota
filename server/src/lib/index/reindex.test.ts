@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import type { ProjectFrontmatter, Task } from '../../types.js';
 import { serializeJournalFile } from '../markdown/journal.js';
 import { serializeProjectFile } from '../markdown/project.js';
+import { DatabaseSync } from 'node:sqlite';
+
 import { getIndexDbPath, openIndexDb } from './db.js';
 import { getIndexStatus, rebuildIndex, reconcileWorkspace } from './reindex.js';
 
@@ -34,6 +36,7 @@ function makeTask(id: string, overrides: Partial<Task> = {}): Task {
     doneAt: null,
     tags: [],
     description: null,
+    checklist: [],
     ...overrides,
   };
 }
@@ -133,6 +136,37 @@ test('removing a project file removes its index rows on the next reconcile', () 
   assert.equal(stats.projectsRemoved, 1);
   assert.equal(countRows(dir, 'projects'), 1);
   assert.equal(countRows(dir, 'tasks'), 1);
+});
+
+test('openIndexDb migrates an index created before the checklist column existed', () => {
+  const dir = scratchWorkspace();
+  const dbPath = getIndexDbPath(dir);
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
+  // Simulate a pre-checklist index: the `tasks` table without that column,
+  // one row already in it.
+  const legacy = new DatabaseSync(dbPath);
+  legacy.exec(`
+    CREATE TABLE tasks (
+      id TEXT PRIMARY KEY, project_slug TEXT NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL,
+      due TEXT, created_at TEXT NOT NULL, doing_since TEXT, spent_minutes INTEGER NOT NULL,
+      done_at TEXT, tags TEXT NOT NULL, description TEXT
+    );
+  `);
+  legacy.prepare(
+    `INSERT INTO tasks (id, project_slug, text, status, due, created_at, doing_since, spent_minutes, done_at, tags, description)
+     VALUES ('t_legacy1', 'x', 'Legacy task', 'todo', NULL, '2026-01-01T00:00:00Z', NULL, 0, NULL, '[]', NULL)`,
+  ).run();
+  legacy.close();
+
+  // openIndexDb must add the missing column (defaulting existing rows to
+  // '[]') rather than throwing on the next write, and be a no-op on a
+  // second open once it's there.
+  const db = openIndexDb(dir);
+  const row = db.prepare('SELECT checklist FROM tasks WHERE id = ?').get('t_legacy1') as { checklist: string };
+  assert.equal(row.checklist, '[]');
+  db.close();
+  assert.doesNotThrow(() => openIndexDb(dir).close());
 });
 
 test('rebuildIndex after deleting the sqlite file reproduces identical state', () => {

@@ -16,6 +16,7 @@ import * as taskService from '../services/tasks.js';
 
 const TASK_STATUS = z.enum(['todo', 'doing', 'done']);
 const DATE = z.string().describe('YYYY-MM-DD');
+const CHECKLIST_ITEM = z.object({ text: z.string(), done: z.boolean() });
 
 function ok(data: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -57,10 +58,13 @@ export function registerTools(server: McpServer, workspacePath: string): void {
         due: z.string().optional().describe('YYYY-MM-DD due date.'),
         tags: z.array(z.string()).optional(),
         description: z.string().optional().describe('Free-text description.'),
+        checklist: z.array(CHECKLIST_ITEM).optional().describe('Sub-task checklist items, in order.'),
       },
     },
-    ({ projectSlug, text, due, tags, description }) =>
-      wrap(() => taskService.createTask(workspacePath, projectSlug, { text, due, tags, description }, 'mcp:create_task')),
+    ({ projectSlug, text, due, tags, description, checklist }) =>
+      wrap(() =>
+        taskService.createTask(workspacePath, projectSlug, { text, due, tags, description, checklist }, 'mcp:create_task'),
+      ),
   );
 
   server.registerTool(
@@ -68,8 +72,10 @@ export function registerTools(server: McpServer, workspacePath: string): void {
     {
       title: 'Update task',
       description:
-        "Updates a task's text/description/due/tags, or transitions its status. Moving to 'doing' starts the time tracker; " +
-        "moving away from 'doing' automatically folds elapsed time into spentMinutes — there is no separate start/stop tool.",
+        "Updates a task's text/description/due/tags/checklist, or transitions its status. Moving to 'doing' starts the time " +
+        "tracker; moving away from 'doing' automatically folds elapsed time into spentMinutes — there is no separate " +
+        'start/stop tool. `checklist`, if given, replaces the whole sub-task list — read the task first (get_project/' +
+        'search_tasks) to toggle/add/remove one item without losing the others.',
       inputSchema: {
         projectSlug: z.string(),
         taskId: z.string(),
@@ -77,12 +83,19 @@ export function registerTools(server: McpServer, workspacePath: string): void {
         description: z.string().nullable().optional(),
         due: z.string().nullable().optional(),
         tags: z.array(z.string()).optional(),
+        checklist: z.array(CHECKLIST_ITEM).optional().describe('Full replacement of the sub-task checklist.'),
         status: TASK_STATUS.optional(),
       },
     },
-    ({ projectSlug, taskId, text, description, due, tags, status }) =>
+    ({ projectSlug, taskId, text, description, due, tags, checklist, status }) =>
       wrap(() =>
-        taskService.updateTask(workspacePath, projectSlug, taskId, { text, description, due, tags, status }, 'mcp:update_task'),
+        taskService.updateTask(
+          workspacePath,
+          projectSlug,
+          taskId,
+          { text, description, due, tags, checklist, status },
+          'mcp:update_task',
+        ),
       ),
   );
 

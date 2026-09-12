@@ -1,5 +1,6 @@
 // Client-side mirror of server/src/lib/markdown/taskLine.ts's `formatDuration`
-// (compact "2h15m"/"45m"/"3h" format), plus the live-elapsed math PLAN.md's
+// (compact "2h15m"/"45m"/"3h"/"1d2h15m" format — a day is a flat 24h), plus
+// the live-elapsed math PLAN.md's
 // "Doing-timer transition" section assigns to the frontend: "The live 'N
 // (tracking...)' value shown in the UI is computed client-side (spentMinutes
 // + elapsed-since-doingSince, ticking locally); the file's @spent token only
@@ -7,11 +8,11 @@
 
 export function formatDuration(totalMinutes: number): string {
   if (totalMinutes <= 0) return '';
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `${h}h${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
+  const d = Math.floor(totalMinutes / 1440);
+  const rest = totalMinutes % 1440;
+  const h = Math.floor(rest / 60);
+  const m = rest % 60;
+  return `${d > 0 ? `${d}d` : ''}${h > 0 ? `${h}h` : ''}${m > 0 ? `${m}m` : ''}`;
 }
 
 /** Minutes elapsed since an ISO8601 timestamp, floored, never negative

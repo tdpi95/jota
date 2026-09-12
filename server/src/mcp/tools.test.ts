@@ -124,6 +124,45 @@ test('update_task drives the doing-timer transition exactly as the REST API woul
   assert.equal(getHistory(ws)[0].message, `[mcp:update_task] update_task ${task.id} status todo→doing (website-redesign)`);
 });
 
+test('create_task/update_task pass checklist items through to the file and back', async () => {
+  const ws = scratchWorkspace();
+  const client = await connectedClient(ws);
+  await client.callTool({ name: 'create_project', arguments: { name: 'Website Redesign' } });
+
+  const task = expectOk<{ id: string; checklist: { text: string; done: boolean }[] }>(
+    (await client.callTool({
+      name: 'create_task',
+      arguments: {
+        projectSlug: 'website-redesign',
+        text: 'Draft homepage copy',
+        checklist: [{ text: 'Get sign-off', done: false }],
+      },
+    })) as CallToolResult,
+  );
+  assert.deepEqual(task.checklist, [{ text: 'Get sign-off', done: false }]);
+
+  const onDisk = fs.readFileSync(path.join(ws, 'projects', 'website-redesign.md'), 'utf8');
+  assert.match(onDisk, /- \[ \] Get sign-off/);
+
+  const updated = expectOk<{ checklist: { text: string; done: boolean }[] }>(
+    (await client.callTool({
+      name: 'update_task',
+      arguments: {
+        projectSlug: 'website-redesign',
+        taskId: task.id,
+        checklist: [
+          { text: 'Get sign-off', done: true },
+          { text: 'Write final copy', done: false },
+        ],
+      },
+    })) as CallToolResult,
+  );
+  assert.deepEqual(updated.checklist, [
+    { text: 'Get sign-off', done: true },
+    { text: 'Write final copy', done: false },
+  ]);
+});
+
 test('journal linking round-trips through link/get/unlink and matches file content', async () => {
   const ws = scratchWorkspace();
   const client = await connectedClient(ws);

@@ -6,6 +6,13 @@
 
 export type TaskStatus = 'todo' | 'doing' | 'done';
 
+/** Sub-task checklist entry — plain text + done state, no due/tags/time
+ * tracking of its own (server/src/types.ts's `ChecklistItem`). */
+export interface ChecklistItem {
+  text: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   status: TaskStatus;
@@ -22,6 +29,7 @@ export interface Task {
   doneAt: string | null;
   tags: string[];
   description: string | null;
+  checklist: ChecklistItem[];
 }
 
 export interface ProjectFrontmatter {
@@ -79,6 +87,7 @@ export interface IndexedTask {
   doneAt: string | null;
   tags: string[];
   description: string | null;
+  checklist: ChecklistItem[];
 }
 
 /** `lib/workspaces.ts`'s `WorkspaceSyncConfig` — absent/undefined on a

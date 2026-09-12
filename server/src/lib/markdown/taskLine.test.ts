@@ -47,6 +47,10 @@ test('project file parses frontmatter and every task field', () => {
     tags: ['content'],
     description:
       'Marketing wants a warmer tone than the old site. Pull inspiration from\nthe Q3 brand deck before writing final copy.\n\nCheck with Linh about the hero image licensing before this goes live.',
+    checklist: [
+      { done: true, text: 'Get sign-off on tone from marketing' },
+      { done: false, text: 'Write final copy' },
+    ],
   });
   assert.deepEqual(done, {
     id: 't_1122aa',
@@ -59,6 +63,7 @@ test('project file parses frontmatter and every task field', () => {
     doneAt: '2026-08-01',
     tags: [],
     description: null,
+    checklist: [],
   });
   assert.deepEqual(todo, {
     id: 't_a1b2c3',
@@ -71,6 +76,7 @@ test('project file parses frontmatter and every task field', () => {
     doneAt: null,
     tags: ['content', 'high'],
     description: null,
+    checklist: [],
   });
 
   // Raw content ("## Backlog" heading) is preserved, not dropped.
@@ -131,6 +137,19 @@ test('formatDuration / parseDuration round-trip compact durations', () => {
   assert.throws(() => parseDuration('nonsense'), /Invalid @spent duration/);
 });
 
+test('formatDuration / parseDuration round-trip days (a day is a flat 24h)', () => {
+  assert.equal(formatDuration(1440), '1d');
+  assert.equal(formatDuration(1500), '1d1h');
+  assert.equal(formatDuration(1445), '1d5m');
+  assert.equal(formatDuration(1500 + 15), '1d1h15m');
+  assert.equal(formatDuration(3 * 1440), '3d');
+  assert.equal(parseDuration('1d'), 1440);
+  assert.equal(parseDuration('1d1h'), 1500);
+  assert.equal(parseDuration('1d5m'), 1445);
+  assert.equal(parseDuration('1d1h15m'), 1515);
+  assert.equal(parseDuration('3d'), 3 * 1440);
+});
+
 test('serializeTask always re-emits tokens in the fixed order', () => {
   const task: Task = {
     id: 't_zzzzzz',
@@ -143,11 +162,73 @@ test('serializeTask always re-emits tokens in the fixed order', () => {
     doneAt: null,
     tags: ['a', 'b'],
     description: null,
+    checklist: [],
   };
   assert.equal(
     serializeTask(task),
     '- [/] Reordered input @due(2026-03-01) @created(2026-01-01T00:00:00Z) @doingSince(2026-01-02T00:00:00Z) @spent(1h) #a #b <!-- id:t_zzzzzz -->',
   );
+});
+
+test('serializeTask writes checklist items right after the checkbox line, before the description', () => {
+  const task: Task = {
+    id: 't_check1',
+    status: 'todo',
+    text: 'Ship the feature',
+    due: null,
+    created: '2026-01-01T00:00:00Z',
+    doingSince: null,
+    spentMinutes: 0,
+    doneAt: null,
+    tags: [],
+    description: 'Some notes.',
+    checklist: [
+      { done: true, text: 'Write the code' },
+      { done: false, text: 'Write the tests' },
+    ],
+  };
+  assert.equal(
+    serializeTask(task),
+    '- [ ] Ship the feature @created(2026-01-01T00:00:00Z) <!-- id:t_check1 -->\n' +
+      '  - [x] Write the code\n' +
+      '  - [ ] Write the tests\n' +
+      '  Some notes.',
+  );
+});
+
+test('checklist round-trips through parse -> serialize and coexists with a description', () => {
+  const original = serializeTask({
+    id: 't_check2',
+    status: 'todo',
+    text: 'Ship the feature',
+    due: null,
+    created: '2026-01-01T00:00:00Z',
+    doingSince: null,
+    spentMinutes: 0,
+    doneAt: null,
+    tags: [],
+    description: 'Line one.\n\nLine two.',
+    checklist: [
+      { done: true, text: 'Write the code' },
+      { done: false, text: 'Write the tests' },
+    ],
+  });
+  const blocks = parseProjectFileBody(original);
+  const task = blocks[0].type === 'task' ? blocks[0].task : null;
+  assert.ok(task);
+  assert.deepEqual(task!.checklist, [
+    { done: true, text: 'Write the code' },
+    { done: false, text: 'Write the tests' },
+  ]);
+  assert.equal(task!.description, 'Line one.\n\nLine two.');
+  assert.equal(serializeTask(task!), original);
+});
+
+test('a task with no checklist parses it as an empty array', () => {
+  const blocks = parseProjectFileBody('- [ ] No sub-tasks here @created(2026-01-01T00:00:00Z) <!-- id:t_nosub -->');
+  const task = blocks[0].type === 'task' ? blocks[0].task : null;
+  assert.ok(task);
+  assert.deepEqual(task!.checklist, []);
 });
 
 // Small local helper so the "any order" / "missing token" tests above don't

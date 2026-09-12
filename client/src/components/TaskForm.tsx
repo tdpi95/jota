@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CreateTaskInput, UpdateTaskInput } from '../api/client';
-import type { Task } from '../types';
+import type { ChecklistItem, Task } from '../types';
+import ChecklistEditor from './ChecklistEditor';
 import MarkdownTextarea from './MarkdownTextarea';
 import TagInput from './TagInput';
 
@@ -11,6 +12,7 @@ export interface TaskFormValues {
   due: string | null;
   tags: string[];
   description: string | null;
+  checklist: ChecklistItem[];
 }
 
 function initialValues(task?: Task): TaskFormValues {
@@ -19,6 +21,7 @@ function initialValues(task?: Task): TaskFormValues {
     due: task?.due ?? null,
     tags: task?.tags ?? [],
     description: task?.description ?? null,
+    checklist: task?.checklist ?? [],
   };
 }
 
@@ -58,6 +61,7 @@ export default function TaskForm({
       due: values.due || null,
       tags: values.tags,
       description: values.description?.trim() ? values.description : null,
+      checklist: values.checklist,
     });
     if (!task) setValues(initialValues());
   }
@@ -99,6 +103,10 @@ export default function TaskForm({
           <div className="form-field">
             <label>{t('taskForm.tagsLabel')}</label>
             <TagInput value={values.tags} onChange={(tags) => setValues({ ...values, tags })} />
+          </div>
+          <div className="form-field">
+            <label>{t('taskForm.checklistLabel')}</label>
+            <ChecklistEditor value={values.checklist} onChange={(checklist) => setValues({ ...values, checklist })} />
           </div>
           <div className="form-field">
             <label>{t('taskForm.descriptionLabel')}</label>

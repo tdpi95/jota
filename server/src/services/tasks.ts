@@ -17,7 +17,7 @@ import {
   type IndexedTask,
 } from '../lib/index/queries.js';
 import type { ProjectBodyBlock } from '../lib/markdown/taskLine.js';
-import type { Task, TaskStatus } from '../types.js';
+import type { ChecklistItem, Task, TaskStatus } from '../types.js';
 import { getProject, loadProjectFile, saveProjectFile } from './projects.js';
 
 export class TaskServiceError extends HttpError {
@@ -32,6 +32,7 @@ export interface CreateTaskInput {
   due?: string | null;
   tags?: string[];
   description?: string | null;
+  checklist?: ChecklistItem[];
 }
 
 export interface UpdateTaskInput {
@@ -39,6 +40,14 @@ export interface UpdateTaskInput {
   description?: string | null;
   due?: string | null;
   tags?: string[];
+  /**
+   * Full replacement of the task's checklist (sub-tasks), same
+   * full-replace-on-provide convention as `tags` — the caller (UI or agent)
+   * already has the current array and sends back the whole thing with one
+   * item toggled/added/removed/edited, rather than an index-addressed
+   * add/toggle/remove tool per operation.
+   */
+  checklist?: ChecklistItem[];
   status?: TaskStatus;
   /**
    * Reorders the task within the project file (drag-and-drop on the Kanban
@@ -97,6 +106,7 @@ export function createTask(workspacePath: string, slug: string, input: CreateTas
     doneAt: null,
     tags: input.tags ?? [],
     description: input.description ?? null,
+    checklist: input.checklist ?? [],
   };
   parsed.blocks.push({ type: 'task', task });
 
@@ -121,6 +131,7 @@ export function updateTask(
   if (input.description !== undefined) task.description = input.description;
   if (input.due !== undefined) task.due = input.due;
   if (input.tags !== undefined) task.tags = input.tags;
+  if (input.checklist !== undefined) task.checklist = input.checklist;
 
   let reordered = false;
   if (input.afterTaskId !== undefined) {

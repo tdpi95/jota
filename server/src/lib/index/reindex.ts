@@ -62,8 +62,8 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
   `);
   const deleteTasksForSlug = db.prepare('DELETE FROM tasks WHERE project_slug = ?');
   const insertTask = db.prepare(`
-    INSERT INTO tasks (id, project_slug, text, status, due, created_at, doing_since, spent_minutes, done_at, tags, description)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (id, project_slug, text, status, due, created_at, doing_since, spent_minutes, done_at, tags, description, checklist)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (const file of files) {
@@ -104,6 +104,7 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
         task.doneAt,
         JSON.stringify(task.tags),
         task.description,
+        JSON.stringify(task.checklist),
       );
     }
     reparsed++;

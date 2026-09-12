@@ -72,6 +72,8 @@ color: "#4f86f7"
 ---
 
 - [/] Draft new homepage copy @due(2026-09-20) @created(2026-09-08T09:15:00Z) @doingSince(2026-09-10T13:00:00Z) @spent(2h15m) #content <!-- id:t_9f0e21 -->
+  - [x] Get sign-off on tone from marketing
+  - [ ] Write final copy
   Marketing wants a warmer tone than the old site. Pull inspiration from
   the Q3 brand deck before writing final copy.
 
@@ -84,16 +86,17 @@ color: "#4f86f7"
 **Task line grammar** — checkbox marker is status (`[ ]` todo, `[/]` doing, `[x]` done). Inline tokens, always re-emitted in this fixed order on write (parser accepts any order/whitespace on read):
 
 ```
-@due(YYYY-MM-DD) → @created(<ISO8601 UTC>) → @doingSince(<ISO8601 UTC>) → @spent(<Xh><Ym>) → @done(YYYY-MM-DD) → #tag(s) → <!-- id:t_xxxxxxxx -->
+@due(YYYY-MM-DD) → @created(<ISO8601 UTC>) → @doingSince(<ISO8601 UTC>) → @spent(<Xd><Yh><Zm>) → @done(YYYY-MM-DD) → #tag(s) → <!-- id:t_xxxxxxxx -->
 ```
 
 - `@created(...)` — set once at creation, never rewritten.
 - `@doingSince(...)` — present only while `status == doing`; added the instant a task enters doing, removed (folded into `@spent`) the instant it leaves.
-- `@spent(...)` — cumulative time-in-doing, compact human format (`2h15m`, `45m`, `3h`), omitted entirely when zero.
+- `@spent(...)` — cumulative time-in-doing, compact human format (`2h15m`, `45m`, `3h`, `1d2h15m`, `3d`), omitted entirely when zero. A day is a flat 24h (no calendar/timezone awareness) purely to keep a long-running task's total readable instead of growing into triple-digit hour counts.
 - **Time tracking is automatic, tied to status**: moving a task to `[/]` doing starts the implicit timer (`@doingSince` = now); moving it away (to done or back to todo) computes elapsed time and adds it to `@spent`, then clears `@doingSince`. No separate start/stop control. `@doingSince` is a durable file field, so elapsed time is computed correctly even across a server restart while a task was left in doing.
 - `#tag`(s) — zero or more, also used for priority (e.g. `#high`).
 - `<!-- id:t_xxxxxxxx -->` — stable id in an HTML comment, assigned once via `crypto.randomUUID()`.
 - **Description**: multi-line/multi-paragraph free text as indented continuation lines (2-space indent) directly beneath the checkbox line; blank indented lines preserve paragraph breaks; the block ends at the first non-indented line (naturally the next checkbox line or other body content). Non-checkbox, non-description body lines are preserved verbatim — the parser is non-destructive to content it doesn't understand.
+- **Checklist (sub-tasks)**: zero or more plain nested GFM checkboxes (`  - [ ] ...` / `  - [x] ...`, one 2-space indent level, immediately beneath the checkbox line and before the description) — deliberately lightweight compared to a top-level task: just text + done, no `@due`/`@tags`/`<!-- id -->`/time-tracking of its own, so it stays a quick hand-editable checkbox rather than a second copy of the task-line grammar. Addressed by array position (no stable id), since the only mutation path is a full-array replace (`checklist` on `PATCH .../tasks/:taskId` and the `update_task`/`create_task` MCP tools) — same convention as `tags`. No blank line separates the checklist block from the description that may follow it (matches the existing checkbox-line-to-description precedent above); the parser tells them apart structurally (checklist lines are checkbox-shaped, description lines aren't), not by a blank-line boundary.
 
 ### Journal file — one per day, `<workspace>/journal/<YYYY>/<YYYY-MM-DD>.md`
 
@@ -132,7 +135,7 @@ All business logic (task/project/journal read-modify-write, doing-timer transiti
 
 - Workspaces: `GET /api/workspaces`, `POST /api/workspaces`, `POST /api/workspaces/:id/open`, `DELETE /api/workspaces/:id`, `GET /api/workspaces/active`.
 - Projects: `GET/POST /api/projects` (create accepts `description`, `tags`, `color`, else auto-assigned), `GET/PATCH/DELETE /api/projects/:slug`.
-- Tasks: `POST /api/projects/:slug/tasks` (accepts `description`; server sets `createdAt`, `spentMinutes=0`), `PATCH /api/projects/:slug/tasks/:taskId` (status changes trigger the doing-timer transition logic; also updates `text`/`description`/`due`/`tags`; an optional `afterTaskId` reorders the task — `null` moves it to the front of the project file, a task id moves it to immediately after that task's block — backing the Kanban drag-and-drop described under milestone 18), `DELETE .../tasks/:taskId`.
+- Tasks: `POST /api/projects/:slug/tasks` (accepts `description`, `checklist`; server sets `createdAt`, `spentMinutes=0`), `PATCH /api/projects/:slug/tasks/:taskId` (status changes trigger the doing-timer transition logic; also updates `text`/`description`/`due`/`tags`/`checklist` — `checklist`, like `tags`, is a full-array replace, not an index-addressed add/toggle/remove; an optional `afterTaskId` reorders the task — `null` moves it to the front of the project file, a task id moves it to immediately after that task's block — backing the Kanban drag-and-drop described under milestone 18), `DELETE .../tasks/:taskId`.
 - Journal: `GET /api/journal/:year`, `GET/PUT /api/journal/:year/:date` (PUT accepts `linkedTasks` full-replace), `POST /api/journal/:year/:date/links/:taskId` (idempotent add, auto-creates the day's file), `DELETE .../links/:taskId`.
 - Aggregates: `GET /api/tasks/open`, `GET /api/tasks/:taskId/journal-links`, `GET /api/tasks/search?q=` (matches task text, description, *and* tags — one query for "search by text or tags", milestone 18), `GET /api/calendar/:year/:month`, `GET /api/reports/time-spent?groupBy=&from=&to=&includeInProgress=`.
 - Index/misc: `POST /api/index/rebuild`, `GET /api/index/status`, `GET /api/vault/status`.

@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   spent_minutes INTEGER NOT NULL,
   done_at TEXT,
   tags TEXT NOT NULL,
-  description TEXT
+  description TEXT,
+  checklist TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_project_slug ON tasks(project_slug);
 
@@ -78,6 +79,17 @@ export function openIndexDb(workspacePath: string): DatabaseSync {
   const db = new DatabaseSync(dbPath);
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
+  // Lightweight migration for an index created before `checklist` existed —
+  // `CREATE TABLE IF NOT EXISTS` above is a no-op against an already-existing
+  // `tasks` table, so an old index needs the column added explicitly rather
+  // than forcing every existing workspace through a full `/api/index/rebuild`.
+  // SQLite has no `ADD COLUMN IF NOT EXISTS`; swallow the "duplicate column"
+  // error on every subsequent open once it's there.
+  try {
+    db.exec("ALTER TABLE tasks ADD COLUMN checklist TEXT NOT NULL DEFAULT '[]'");
+  } catch {
+    // already has the column
+  }
   return db;
 }
 

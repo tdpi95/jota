@@ -75,6 +75,15 @@ export default function TaskRow({
   }
 
   const nextStatus = NEXT_STATUS[task.status];
+  const hasChecklist = task.checklist.length > 0;
+  const checklistDoneCount = task.checklist.filter((item) => item.done).length;
+  const expandable = Boolean(task.description) || hasChecklist;
+
+  function toggleChecklistItem(index: number) {
+    onSave({
+      checklist: task.checklist.map((item, i) => (i === index ? { ...item, done: !item.done } : item)),
+    });
+  }
 
   return (
     <div className="task-row">
@@ -85,7 +94,7 @@ export default function TaskRow({
       >
         <StatusIcon status={task.status} />
       </button>
-      <div className="task-main" onClick={() => task.description && setExpanded((v) => !v)}>
+      <div className="task-main" onClick={() => expandable && setExpanded((v) => !v)}>
         <div className="task-title-row">
           <span className={`task-title ${task.status === 'done' ? 'st-done' : ''}`}>{task.text}</span>
         </div>
@@ -97,6 +106,11 @@ export default function TaskRow({
             </span>
           )}
           <DueDateBadge due={task.due} />
+          {hasChecklist && (
+            <span className="checklist-badge">
+              {checklistDoneCount}/{task.checklist.length}
+            </span>
+          )}
           {task.tags.map((tag) => (
             <span className="tag-pill" key={tag}>
               {tag}
@@ -104,6 +118,16 @@ export default function TaskRow({
           ))}
           <TimeSpentBadge spentMinutes={task.spentMinutes} doingSince={task.doingSince} />
         </div>
+        {expanded && hasChecklist && (
+          <div className="task-checklist" onClick={(e) => e.stopPropagation()}>
+            {task.checklist.map((item, index) => (
+              <label className="task-checklist-item" key={index}>
+                <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(index)} />
+                <span className={item.done ? 'st-done' : ''}>{item.text}</span>
+              </label>
+            ))}
+          </div>
+        )}
         {expanded && task.description && <div className="task-desc">{task.description}</div>}
       </div>
       <div className="task-actions">

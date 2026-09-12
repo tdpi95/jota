@@ -98,7 +98,9 @@
     "undoTooltip": "Hoàn tác thay đổi này",
     "confirmUndo": "Hoàn tác \"{{message}}\"?",
     "loadingDiff": "Đang tải diff…",
-    "undoFailed": "Hoàn tác thất bại."
+    "undoFailed": "Hoàn tác thất bại.",
+    "showOlder": "+{{count}} mục cũ hơn",
+    "hideOlder": "Ẩn bớt"
   },
   "modal": {
     "close": "Đóng"
@@ -125,6 +127,11 @@
     "placeholder": "Thêm thẻ…",
     "removeTag": "Xóa thẻ {{tag}}"
   },
+  "checklistEditor": {
+    "addPlaceholder": "Thêm mục việc cần làm…",
+    "addItem": "+ Thêm mục",
+    "removeItem": "Xóa mục"
+  },
   "taskForm": {
     "titleLabel": "Tiêu đề",
     "titlePlaceholder": "Tên công việc mới…",
@@ -133,6 +140,7 @@
     "addTask": "+ Thêm việc",
     "dueDateLabel": "Hạn chót",
     "tagsLabel": "Thẻ",
+    "checklistLabel": "Việc cần làm",
     "descriptionLabel": "Mô tả",
     "descriptionPlaceholder": "Ghi chú về việc này…",
     "save": "Lưu"
@@ -149,9 +157,6 @@
       "doing": "đang làm",
       "done": "đã xong"
     }
-  },
-  "timeSpentBadge": {
-    "tracking": " · đang tính giờ…"
   },
   "workspaceSwitcher": {
     "noWorkspaceOpen": "Chưa mở không gian làm việc nào",
@@ -179,11 +184,14 @@
     "loadingOpenTasks": "Đang tải công việc đang mở…",
     "failedToLoad": "Không thể tải công việc đang mở.",
     "buckets": {
+      "doing": "Đang làm",
       "today": "Hôm nay",
       "overdue": "Quá hạn",
       "thisWeek": "Tuần này"
     },
-    "nothingDueToday": "Không có việc nào đến hạn hôm nay."
+    "nothingDueToday": "Không có việc nào đến hạn hôm nay.",
+    "showMore": "+{{count}} nữa",
+    "showFewer": "Ẩn bớt"
   },
   "projectsList": {
     "title": "Dự án",
@@ -209,6 +217,8 @@
       "done": "Đã xong"
     },
     "nothingHere": "Chưa có gì ở đây.",
+    "showOlderDone": "+{{count}} việc cũ hơn",
+    "hideOlderDone": "Ẩn bớt",
     "loading": "Đang tải dự án…",
     "failedToLoad": "Không thể tải dự án.",
     "backToProjects": "Về danh sách dự án"

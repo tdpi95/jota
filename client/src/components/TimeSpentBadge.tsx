@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { formatDuration, liveSpentMinutes } from '../lib/duration';
 
 /**
  * Live-ticking time-spent display (PLAN.md "Doing-timer transition": "The
- * live 'N (tracking...)' value shown in the UI is computed client-side
- * ... ticking locally"). Re-renders once a minute while `doingSince` is set
- * so the badge actually advances without polling the server — the file's
- * `@spent` token itself never changes until a real status transition.
- * Renders nothing if there's nothing to show (not doing, and zero spent).
+ * live ... value shown in the UI is computed client-side ... ticking
+ * locally"). Re-renders once a minute while `doingSince` is set so the badge
+ * actually advances without polling the server — the file's `@spent` token
+ * itself never changes until a real status transition. No "(tracking…)"
+ * suffix — the ticking number itself is the tracking indicator. Renders
+ * nothing if there's nothing to show (not doing, and zero spent).
  */
 export default function TimeSpentBadge({ spentMinutes, doingSince }: { spentMinutes: number; doingSince: string | null }) {
-  const { t } = useTranslation();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -24,10 +23,5 @@ export default function TimeSpentBadge({ spentMinutes, doingSince }: { spentMinu
   const live = liveSpentMinutes(spentMinutes, doingSince, now);
   if (live <= 0) return null;
 
-  return (
-    <span className="spent-badge">
-      {formatDuration(live)}
-      {doingSince ? t('timeSpentBadge.tracking') : ''}
-    </span>
-  );
+  return <span className="spent-badge">{formatDuration(live)}</span>;
 }

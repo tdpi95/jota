@@ -1,4 +1,4 @@
-import type { Task, TaskStatus } from '../../types.js';
+import type { ChecklistItem, Task, TaskStatus } from '../../types.js';
 
 // The task-line grammar: everything else (services, MCP tools, UI) depends on
 // this being exactly right. See PLAN.md's "Storage format" section for the
@@ -12,6 +12,11 @@ import type { Task, TaskStatus } from '../../types.js';
 
 const CHECKBOX_RE = /^- \[( |x|\/)\] (.*)$/;
 
+/** A checklist (sub-task) item line, one indent level beneath the task's own
+ * checkbox line — plain `[ ]`/`[x]` only, no `[/]` "doing": sub-items have no
+ * time tracking of their own. */
+const CHECKLIST_ITEM_RE = /^- \[( |x)\] (.*)$/;
+
 /** Matches one recognized inline token; alternation groups line up 1:1 with
  * the `groups` destructure in parseTaskTokens below. */
 const TOKEN_RE =
@@ -23,24 +28,28 @@ const TOKEN_RE =
  * content it doesn't understand" requirement. */
 export type ProjectBodyBlock = { type: 'task'; task: Task } | { type: 'raw'; text: string };
 
-/** Compact human duration, e.g. "2h15m", "45m", "3h". Empty minutes -> "". */
+/** Compact human duration, e.g. "2h15m", "45m", "3h", "1d2h15m", "3d". A day
+ * is a flat 24h (no calendar/timezone awareness — `spentMinutes` is a plain
+ * cumulative counter, not tied to clock days) so a long-running task doesn't
+ * grow into unreadable triple-digit hour counts. Empty minutes -> "". */
 export function formatDuration(totalMinutes: number): string {
   if (totalMinutes <= 0) return '';
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  if (h > 0 && m > 0) return `${h}h${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
+  const d = Math.floor(totalMinutes / 1440);
+  const rest = totalMinutes % 1440;
+  const h = Math.floor(rest / 60);
+  const m = rest % 60;
+  return `${d > 0 ? `${d}d` : ''}${h > 0 ? `${h}h` : ''}${m > 0 ? `${m}m` : ''}`;
 }
 
 export function parseDuration(raw: string): number {
-  const m = /^(?:(\d+)h)?(?:(\d+)m)?$/.exec(raw.trim());
-  if (!m || (!m[1] && !m[2])) {
+  const m = /^(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?$/.exec(raw.trim());
+  if (!m || (!m[1] && !m[2] && !m[3])) {
     throw new Error(`Invalid @spent duration: "${raw}"`);
   }
-  const hours = m[1] ? parseInt(m[1], 10) : 0;
-  const minutes = m[2] ? parseInt(m[2], 10) : 0;
-  return hours * 60 + minutes;
+  const days = m[1] ? parseInt(m[1], 10) : 0;
+  const hours = m[2] ? parseInt(m[2], 10) : 0;
+  const minutes = m[3] ? parseInt(m[3], 10) : 0;
+  return days * 1440 + hours * 60 + minutes;
 }
 
 interface ParsedTokens {
@@ -83,8 +92,15 @@ function parseTaskTokens(rest: string): ParsedTokens {
   return { text, due, created, doingSince, spentMinutes, doneAt, tags, id };
 }
 
-/** Serializes one task to its checkbox line + indented description lines
- * (if any), joined with '\n'. Does not include a trailing newline. */
+/** Serializes one task to its checkbox line + indented checklist/description
+ * lines (if any), joined with '\n'. Does not include a trailing newline.
+ * Checklist items (if any) come immediately after the checkbox line, then
+ * the description — no blank line between either section, matching the
+ * existing checkbox-line-to-description precedent (see the fixture); a
+ * blank separator would round-trip back into the description as a spurious
+ * leading blank line (parseProjectBody only ends the checklist section on
+ * the first indented line that isn't checklist-shaped, so no separator is
+ * needed for the two to parse apart cleanly). */
 export function serializeTask(task: Task): string {
   const marker = task.status === 'done' ? 'x' : task.status === 'doing' ? '/' : ' ';
 
@@ -98,10 +114,10 @@ export function serializeTask(task: Task): string {
   tokens.push(`<!-- id:${task.id} -->`);
 
   const line = `- [${marker}] ${task.text} ${tokens.join(' ')}`;
-  if (!task.description) return line;
-
-  const descLines = task.description.split('\n').map((l) => (l === '' ? '' : `  ${l}`));
-  return [line, ...descLines].join('\n');
+  const checklistLines = task.checklist.map((item) => `  - [${item.done ? 'x' : ' '}] ${item.text}`);
+  const descLines = task.description ? task.description.split('\n').map((l) => (l === '' ? '' : `  ${l}`)) : [];
+  if (checklistLines.length === 0 && descLines.length === 0) return line;
+  return [line, ...checklistLines, ...descLines].join('\n');
 }
 
 /** Parses a project file's body (frontmatter already stripped) into an
@@ -132,6 +148,21 @@ export function parseProjectBody(body: string): ProjectBodyBlock[] {
     const status: TaskStatus = m[1] === 'x' ? 'done' : m[1] === '/' ? 'doing' : 'todo';
     const tokens = parseTaskTokens(m[2]);
     i++;
+
+    // Checklist: indented (2-space) lines immediately beneath the checkbox
+    // line, each itself a plain `- [ ]`/`- [x]` item. Stops at the first
+    // indented line that isn't checklist-shaped (including a blank line) —
+    // whatever's left of the indented block is the description, parsed
+    // below exactly as before checklists existed.
+    const checklist: ChecklistItem[] = [];
+    while (i < lines.length) {
+      const l = lines[i];
+      if (!/^ {2}/.test(l)) break;
+      const cm = CHECKLIST_ITEM_RE.exec(l.slice(2));
+      if (!cm) break;
+      checklist.push({ done: cm[1] === 'x', text: cm[2] });
+      i++;
+    }
 
     // Description: indented (2-space) continuation lines. A run of blank
     // lines only belongs to the description if a further indented line
@@ -172,6 +203,7 @@ export function parseProjectBody(body: string): ProjectBodyBlock[] {
         doneAt: tokens.doneAt,
         tags: tokens.tags,
         description,
+        checklist,
       },
     });
   }

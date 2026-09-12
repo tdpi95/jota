@@ -13,6 +13,8 @@ color: '#4f86f7'
 ## Backlog
 
 - [/] Draft new homepage copy @due(2026-09-20) @created(2026-09-08T09:15:00Z) @doingSince(2026-09-10T13:00:00Z) @spent(2h15m) #content <!-- id:t_9f0e21 -->
+  - [x] Get sign-off on tone from marketing
+  - [ ] Write final copy
   Marketing wants a warmer tone than the old site. Pull inspiration from
   the Q3 brand deck before writing final copy.
 

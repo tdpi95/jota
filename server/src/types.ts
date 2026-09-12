@@ -4,6 +4,15 @@
 
 export type TaskStatus = 'todo' | 'doing' | 'done';
 
+/** One sub-task checklist entry beneath a task — plain text + done state,
+ * deliberately lightweight (no due/tags/time-tracking of its own, unlike a
+ * top-level task) so it stays a quick, hand-editable GFM checkbox rather
+ * than a second copy of the full task-line grammar. */
+export interface ChecklistItem {
+  text: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   status: TaskStatus;
@@ -26,6 +35,8 @@ export interface Task {
    * as empty strings (paragraph breaks). Null if the task has no description.
    */
   description: string | null;
+  /** Sub-task checklist, in file order. Empty array if the task has none. */
+  checklist: ChecklistItem[];
 }
 
 export interface ProjectFrontmatter {

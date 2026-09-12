@@ -7,6 +7,7 @@
 
 import type {
   CalendarDay,
+  ChecklistItem,
   HistoryCommit,
   IndexedTask,
   JournalEntry,
@@ -115,6 +116,7 @@ export interface CreateTaskInput {
   due?: string | null;
   tags?: string[];
   description?: string | null;
+  checklist?: ChecklistItem[];
 }
 
 export function createTask(slug: string, input: CreateTaskInput): Promise<{ task: Task }> {
@@ -126,6 +128,9 @@ export interface UpdateTaskInput {
   description?: string | null;
   due?: string | null;
   tags?: string[];
+  /** Full replacement of the task's checklist (sub-tasks), same
+   * full-replace-on-provide convention as `tags`. */
+  checklist?: ChecklistItem[];
   status?: TaskStatus;
   /** Drag-and-drop reorder within the Kanban columns: `undefined` leaves
    * position untouched, `null` moves to the front of the project file,

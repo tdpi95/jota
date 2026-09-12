@@ -9,8 +9,15 @@ import Modal from '../components/Modal';
 import ProjectForm from '../components/ProjectForm';
 import TaskForm from '../components/TaskForm';
 import TaskRow from '../components/TaskRow';
-import { todayStr, yearOf } from '../lib/date';
+import { daysBetween, todayStr, yearOf } from '../lib/date';
 import type { Task, TaskStatus } from '../types';
+
+/** A project's Done column can grow without bound over the project's
+ * lifetime — tasks finished a year ago have equal footing with yesterday's
+ * unless something caps what's shown. Done tasks completed within this many
+ * days render by default (newest-done-first); everything older collapses
+ * behind a "+N older" toggle instead of always rendering. */
+const RECENT_DONE_DAYS = 7;
 
 export default function ProjectDetailPage() {
   const { t } = useTranslation();
@@ -25,6 +32,7 @@ export default function ProjectDetailPage() {
   const [editing, setEditing] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverInfo, setDragOverInfo] = useState<{ status: TaskStatus; afterId: string | null } | null>(null);
+  const [showAllDone, setShowAllDone] = useState(false);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { data, isLoading, isError, error } = useQuery({
@@ -99,6 +107,23 @@ export default function ProjectDetailPage() {
   const project = data.project;
   const { frontmatter, tasks } = project;
   const byStatus = (status: TaskStatus): Task[] => tasks.filter((t) => t.status === status);
+  const taskTitles = new Map(tasks.map((t) => [t.id, t.text]));
+
+  // Done column: newest-done-first (file order has no meaning for finished
+  // tasks the way it does for todo/doing's drag-reorderable position), with
+  // anything older than RECENT_DONE_DAYS collapsed behind "+N older" by
+  // default. `allDoneTasks`/`visibleDoneTasks` back both the column's render
+  // and its drag-and-drop math below, so the two stay in visual agreement.
+  const allDoneTasks = byStatus('done')
+    .slice()
+    .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''));
+  const today = todayStr();
+  const olderDoneTasks = allDoneTasks.filter((t) => t.doneAt !== null && daysBetween(t.doneAt, today) > RECENT_DONE_DAYS);
+  const visibleDoneTasks = showAllDone ? allDoneTasks : allDoneTasks.filter((t) => !olderDoneTasks.includes(t));
+
+  function columnTasks(status: TaskStatus): Task[] {
+    return status === 'done' ? visibleDoneTasks : byStatus(status);
+  }
 
   /** Drag-and-drop within/between the Kanban columns (PLAN.md milestone 18).
    * `afterId: null` means "drop at the top of this column". No optimistic
@@ -118,7 +143,7 @@ export default function ProjectDetailPage() {
   function handleColumnDragOver(e: React.DragEvent, status: TaskStatus) {
     if (!draggingTaskId) return;
     e.preventDefault();
-    const others = byStatus(status).filter((t) => t.id !== draggingTaskId);
+    const others = columnTasks(status).filter((t) => t.id !== draggingTaskId);
     setDragOverInfo({ status, afterId: computeAfterId(e, others) });
   }
 
@@ -187,12 +212,16 @@ export default function ProjectDetailPage() {
 
       <div className="pd-columns">
         {COLUMNS.map((col) => {
-          const colTasks = byStatus(col.status);
+          const colTasks = columnTasks(col.status);
+          // The Done column's header always counts every finished task, even
+          // while older ones are collapsed below — otherwise the count would
+          // misleadingly drop the moment the page hides them.
+          const totalCount = col.status === 'done' ? allDoneTasks.length : colTasks.length;
           const isDragOverColumn = dragOverInfo?.status === col.status;
           return (
             <div className={`pd-column ${isDragOverColumn ? 'drag-over' : ''}`} key={col.status}>
               <div className="pd-column-header">
-                {col.title} <span className="count">{colTasks.length}</span>
+                {col.title} <span className="count">{totalCount}</span>
               </div>
               <div className="task-list" onDragOver={(e) => handleColumnDragOver(e, col.status)} onDrop={(e) => handleColumnDrop(e, col.status)}>
                 {isDragOverColumn && dragOverInfo?.afterId === null && <div className="drop-indicator" />}
@@ -224,14 +253,24 @@ export default function ProjectDetailPage() {
                     {isDragOverColumn && dragOverInfo?.afterId === task.id && <div className="drop-indicator" />}
                   </div>
                 ))}
-                {colTasks.length === 0 && <div className="empty-note">{t('projectDetail.nothingHere')}</div>}
+                {col.status === 'done' && !showAllDone && olderDoneTasks.length > 0 && (
+                  <button type="button" className="list-toggle-btn" onClick={() => setShowAllDone(true)}>
+                    {t('projectDetail.showOlderDone', { count: olderDoneTasks.length })}
+                  </button>
+                )}
+                {col.status === 'done' && showAllDone && olderDoneTasks.length > 0 && (
+                  <button type="button" className="list-toggle-btn" onClick={() => setShowAllDone(false)}>
+                    {t('projectDetail.hideOlderDone')}
+                  </button>
+                )}
+                {totalCount === 0 && <div className="empty-note">{t('projectDetail.nothingHere')}</div>}
               </div>
             </div>
           );
         })}
       </div>
 
-      <HistoryPanel path={`projects/${slug}.md`} onReverted={invalidateProject} />
+      <HistoryPanel path={`projects/${slug}.md`} onReverted={invalidateProject} taskTitles={taskTitles} />
     </div>
   );
 }

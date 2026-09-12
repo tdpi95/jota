@@ -7,7 +7,7 @@
 // to lib/index/*.ts (PLAN.md).
 
 import { openIndexDb } from './db.js';
-import type { TaskStatus } from '../../types.js';
+import type { ChecklistItem, TaskStatus } from '../../types.js';
 
 export interface IndexedTask {
   id: string;
@@ -23,6 +23,7 @@ export interface IndexedTask {
   doneAt: string | null;
   tags: string[];
   description: string | null;
+  checklist: ChecklistItem[];
 }
 
 interface TaskJoinRow {
@@ -37,6 +38,7 @@ interface TaskJoinRow {
   done_at: string | null;
   tags: string;
   description: string | null;
+  checklist: string;
   project_name: string;
   project_color: string;
 }
@@ -56,12 +58,13 @@ function mapTaskRow(row: TaskJoinRow): IndexedTask {
     doneAt: row.done_at,
     tags: JSON.parse(row.tags) as string[],
     description: row.description,
+    checklist: JSON.parse(row.checklist) as ChecklistItem[],
   };
 }
 
 const TASK_JOIN_SELECT = `
   SELECT t.id, t.project_slug, t.text, t.status, t.due, t.created_at, t.doing_since,
-         t.spent_minutes, t.done_at, t.tags, t.description,
+         t.spent_minutes, t.done_at, t.tags, t.description, t.checklist,
          p.name AS project_name, p.color AS project_color
   FROM tasks t
   JOIN projects p ON p.slug = t.project_slug

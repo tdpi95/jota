@@ -27,6 +27,7 @@ function toTask(t: IndexedTask): Task {
     doneAt: t.doneAt,
     tags: t.tags,
     description: t.description,
+    checklist: t.checklist,
   };
 }
 
@@ -46,6 +47,10 @@ function lastActivity(project: ProjectSummary): number {
 }
 
 const RECENT_PROJECTS_LIMIT = 3;
+/** Each task bucket (Doing/Today/Overdue/This week) below the fold shows at
+ * most this many rows by default — same "+N more"/"Show fewer" collapse
+ * pattern used elsewhere (ProjectDetailPage's Done column, HistoryPanel). */
+const BUCKET_LIMIT = 10;
 
 /**
  * Dashboard v2 (PLAN.md: "open tasks across all projects, bucketed by due
@@ -82,6 +87,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [recentProjectsOpen, setRecentProjectsOpen] = useState(true);
+  const [expandedBuckets, setExpandedBuckets] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), SEARCH_DEBOUNCE_MS);
@@ -158,6 +164,13 @@ export default function DashboardPage() {
     else if (diff === 0) dueToday.push(t);
     else if (diff <= 7) week.push(t);
   }
+  // Everything currently in progress, regardless of due date — a task with
+  // no due date (or one due further out) would otherwise never appear on
+  // the Dashboard at all despite actively tracking time. Deliberately not
+  // exclusive with the due-date buckets above: the same task can show up
+  // both here and in e.g. Overdue, since "what's overdue" and "what am I
+  // actively working on" are different questions worth answering separately.
+  const doing = open.filter((t) => t.status === 'doing');
 
   // Shared by the Today/Overdue/This-week buckets and the search popup's
   // results — same task shape (IndexedTask), same mutations either way.
@@ -175,17 +188,30 @@ export default function DashboardPage() {
     );
   }
 
-  function renderBucket(title: string, tasks: IndexedTask[], opts: { hideIfEmpty?: boolean; emptyLabel?: string } = {}) {
+  function renderBucket(key: string, title: string, tasks: IndexedTask[], opts: { hideIfEmpty?: boolean; emptyLabel?: string } = {}) {
     if (tasks.length === 0 && opts.hideIfEmpty) return null;
+    const expanded = expandedBuckets[key] ?? false;
+    const visibleTasks = expanded ? tasks : tasks.slice(0, BUCKET_LIMIT);
+    const hiddenCount = tasks.length - visibleTasks.length;
     return (
-      <div className="bucket" key={title}>
+      <div className="bucket" key={key}>
         <div className="bucket-title">
           {title} <span className="count">{tasks.length}</span>
         </div>
         <div className="task-list">
-          {tasks.map(renderTaskRow)}
+          {visibleTasks.map(renderTaskRow)}
           {tasks.length === 0 && opts.emptyLabel && <div className="empty-note">{opts.emptyLabel}</div>}
         </div>
+        {hiddenCount > 0 && (
+          <button type="button" className="list-toggle-btn" onClick={() => setExpandedBuckets((m) => ({ ...m, [key]: true }))}>
+            {t('dashboard.showMore', { count: hiddenCount })}
+          </button>
+        )}
+        {expanded && tasks.length > BUCKET_LIMIT && (
+          <button type="button" className="list-toggle-btn" onClick={() => setExpandedBuckets((m) => ({ ...m, [key]: false }))}>
+            {t('dashboard.showFewer')}
+          </button>
+        )}
       </div>
     );
   }
@@ -320,9 +346,10 @@ export default function DashboardPage() {
 
       {!isLoading && !isError && (
         <>
-          {renderBucket(t('dashboard.buckets.today'), dueToday, { emptyLabel: t('dashboard.nothingDueToday') })}
-          {renderBucket(t('dashboard.buckets.overdue'), overdue, { hideIfEmpty: true })}
-          {renderBucket(t('dashboard.buckets.thisWeek'), week)}
+          {renderBucket('doing', t('dashboard.buckets.doing'), doing, { hideIfEmpty: true })}
+          {renderBucket('today', t('dashboard.buckets.today'), dueToday, { emptyLabel: t('dashboard.nothingDueToday') })}
+          {renderBucket('overdue', t('dashboard.buckets.overdue'), overdue, { hideIfEmpty: true })}
+          {renderBucket('thisWeek', t('dashboard.buckets.thisWeek'), week)}
         </>
       )}
     </div>
