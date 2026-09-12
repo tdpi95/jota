@@ -68,7 +68,7 @@ const isMainModule = process.argv[1] !== undefined && import.meta.url === `file:
 if (isMainModule) {
   const devPort = Number(process.env.PORT) || 4174;
   startServer(devPort)
-    .then(({ port }) => console.log(`pivot server listening on http://127.0.0.1:${port}`))
+    .then(({ port }) => console.log(`poco server listening on http://127.0.0.1:${port}`))
     .catch((err) => {
       console.error('failed to start server:', err);
       process.exit(1);

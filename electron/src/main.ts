@@ -136,7 +136,7 @@ function showMainWindow(): void {
  * "Settings" item and by the reminder notification's click handler
  * (PLAN.md: "clicking the notification shows/focuses the window and
  * navigates to /journal"). A full `loadURL` rather than an IPC
- * "navigate client-side" message: simpler, and `window.pivot` has no
+ * "navigate client-side" message: simpler, and `window.poco` has no
  * navigation bridge in PLAN.md's own preload contract, so this reuses the
  * same URL-loading `createWindow` already does rather than inventing one. */
 function navigateMainWindow(path: string): void {
@@ -162,14 +162,14 @@ async function fetchLanguage(port: number): Promise<Lang> {
   }
 }
 
-ipcMain.handle('pivot:pick-folder', async () => {
+ipcMain.handle('poco:pick-folder', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
 });
 
-ipcMain.handle('pivot:open-workspace-folder', async (_event, folderPath: string) => {
+ipcMain.handle('poco:open-workspace-folder', async (_event, folderPath: string) => {
   // shell.openPath resolves to '' on success, or a human-readable error
   // string (e.g. the path no longer exists) — never rejects, so translate
   // that into the plain boolean the bridge contract promises.
@@ -178,8 +178,8 @@ ipcMain.handle('pivot:open-workspace-folder', async (_event, folderPath: string)
   return errorMessage === '';
 });
 
-ipcMain.handle('pivot:get-launch-at-login', () => getLaunchAtLogin());
-ipcMain.handle('pivot:set-launch-at-login', async (_event, enabled: boolean) => {
+ipcMain.handle('poco:get-launch-at-login', () => getLaunchAtLogin());
+ipcMain.handle('poco:set-launch-at-login', async (_event, enabled: boolean) => {
   setLaunchAtLogin(enabled);
   // Best-effort: also record the user's explicit choice in the registry, so
   // a later app start knows this was already decided and doesn't re-apply
@@ -226,14 +226,14 @@ async function applyLaunchAtLoginDefaultIfUndecided(port: number): Promise<void>
   }
 }
 
-ipcMain.handle('pivot:get-reminder-settings', async () => {
+ipcMain.handle('poco:get-reminder-settings', async () => {
   if (serverPort === null) throw new Error('embedded server is not ready yet');
   const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active/reminder`);
   if (!res.ok) throw new Error(`failed to load reminder settings (${res.status})`);
   return res.json();
 });
 
-ipcMain.handle('pivot:set-reminder-settings', async (_event, settings: { enabled: boolean; time: string | null }) => {
+ipcMain.handle('poco:set-reminder-settings', async (_event, settings: { enabled: boolean; time: string | null }) => {
   if (serverPort === null) throw new Error('embedded server is not ready yet');
   const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active/reminder`, {
     method: 'PUT',

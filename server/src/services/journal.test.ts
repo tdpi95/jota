@@ -12,7 +12,7 @@ import { getJournalEntry, linkTask, listJournalYear, putJournalEntry, unlinkTask
 // agree after add/remove.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pivot-journal-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-journal-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'journal'), { recursive: true });
   ensureGitRepo(dir);

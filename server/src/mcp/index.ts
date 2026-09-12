@@ -15,20 +15,20 @@ import { registerTools } from './tools.js';
 
 /**
  * Resolves the workspace this process targets, once, at startup:
- * `PIVOT_WORKSPACE` if set, else the app registry's currently-active
+ * `POCO_WORKSPACE` if set, else the app registry's currently-active
  * workspace. Resolved exactly once — not re-read per tool call — so an
  * agent's target vault can't silently change mid-conversation just because
  * someone switched workspaces in the running app (PLAN.md: "MCP is
  * decoupled from 'whichever workspace the app has open'").
  */
 function resolveWorkspacePath(): string {
-  const envPath = process.env.PIVOT_WORKSPACE?.trim();
+  const envPath = process.env.POCO_WORKSPACE?.trim();
   if (envPath) return envPath;
 
   const active = getActiveWorkspace();
   if (!active) {
     throw new Error(
-      'No workspace to target: set the PIVOT_WORKSPACE environment variable to a workspace path, or open one in the pivot app first.',
+      'No workspace to target: set the POCO_WORKSPACE environment variable to a workspace path, or open one in the poco app first.',
     );
   }
   return active.path;
@@ -38,22 +38,22 @@ async function main() {
   const workspacePath = resolveWorkspacePath();
 
   // Self-heal the same way opening a workspace in the app does (PLAN.md
-  // "Workspaces": ".pivot/ ... otherwise travels with the folder if
+  // "Workspaces": ".poco/ ... otherwise travels with the folder if
   // copied ... or self-heals via reconciliation") — lets an MCP host point
   // straight at a plain folder that was never registered through the app.
   scaffoldWorkspaceDirs(workspacePath);
   ensureGitHistory(workspacePath);
 
-  const server = new McpServer({ name: 'pivot', version: '0.1.0' });
+  const server = new McpServer({ name: 'poco', version: '0.1.0' });
   registerTools(server, workspacePath);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // stderr only — stdout is the JSON-RPC transport channel.
-  console.error(`pivot MCP server running on stdio, targeting workspace: ${workspacePath}`);
+  console.error(`poco MCP server running on stdio, targeting workspace: ${workspacePath}`);
 }
 
 main().catch((err) => {
-  console.error('pivot MCP server failed to start:', err);
+  console.error('poco MCP server failed to start:', err);
   process.exit(1);
 });

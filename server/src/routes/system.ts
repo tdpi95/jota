@@ -1,5 +1,5 @@
 // Environment/capability checks that aren't scoped to any workspace —
-// "is this machine set up correctly to run pivot" rather than vault
+// "is this machine set up correctly to run poco" rather than vault
 // content. Backs Settings' "git not found" notice and its MCP setup
 // instructions (both new, requested directly rather than in PLAN.md's
 // original milestone list — see PROGRESS.md's milestone 18 notes).

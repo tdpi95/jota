@@ -14,7 +14,7 @@ export interface ReminderSettings {
   time: string | null;
 }
 
-export interface PivotBridge {
+export interface PocoBridge {
   pickFolder: () => Promise<string | null>;
   getLaunchAtLogin: () => Promise<boolean>;
   setLaunchAtLogin: (enabled: boolean) => Promise<void>;
@@ -26,13 +26,13 @@ export interface PivotBridge {
   openWorkspaceFolder: (path: string) => Promise<boolean>;
 }
 
-const pivotBridge: PivotBridge = {
-  pickFolder: () => ipcRenderer.invoke('pivot:pick-folder'),
-  getLaunchAtLogin: () => ipcRenderer.invoke('pivot:get-launch-at-login'),
-  setLaunchAtLogin: (enabled) => ipcRenderer.invoke('pivot:set-launch-at-login', enabled),
-  getReminderSettings: () => ipcRenderer.invoke('pivot:get-reminder-settings'),
-  setReminderSettings: (settings) => ipcRenderer.invoke('pivot:set-reminder-settings', settings),
-  openWorkspaceFolder: (path) => ipcRenderer.invoke('pivot:open-workspace-folder', path),
+const pocoBridge: PocoBridge = {
+  pickFolder: () => ipcRenderer.invoke('poco:pick-folder'),
+  getLaunchAtLogin: () => ipcRenderer.invoke('poco:get-launch-at-login'),
+  setLaunchAtLogin: (enabled) => ipcRenderer.invoke('poco:set-launch-at-login', enabled),
+  getReminderSettings: () => ipcRenderer.invoke('poco:get-reminder-settings'),
+  setReminderSettings: (settings) => ipcRenderer.invoke('poco:set-reminder-settings', settings),
+  openWorkspaceFolder: (path) => ipcRenderer.invoke('poco:open-workspace-folder', path),
 };
 
-contextBridge.exposeInMainWorld('pivot', pivotBridge);
+contextBridge.exposeInMainWorld('poco', pocoBridge);

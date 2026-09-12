@@ -3,15 +3,15 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
-import { getPivotBridge } from '../lib/pivotBridge';
+import { getPocoBridge } from '../lib/pocoBridge';
 
 /**
  * Sidebar workspace control (PLAN.md "Frontend" — `AppShell`'s
  * `WorkspaceSwitcher`): the active workspace's name, a dropdown listing
  * every registered workspace to switch among, and "+ Open folder" to
- * register a new one. `window.pivot.pickFolder()` (the native OS picker,
+ * register a new one. `window.poco.pickFolder()` (the native OS picker,
  * milestone 3) is the primary way to supply a path — the plain text-input
- * fallback below only appears when `window.pivot` isn't present at all
+ * fallback below only appears when `window.poco` isn't present at all
  * (e.g. the client opened as a bare page outside the Electron shell), which
  * isn't the app's real supported path but keeps this usable for a quick
  * check.
@@ -52,7 +52,7 @@ export default function WorkspaceSwitcher() {
   });
 
   async function handleOpenFolder() {
-    const bridge = getPivotBridge();
+    const bridge = getPocoBridge();
     if (!bridge) {
       // No native picker available outside Electron — fall back to the
       // inline path input rendered below instead of silently doing nothing.
@@ -67,7 +67,7 @@ export default function WorkspaceSwitcher() {
     if (path) addMutation.mutate({ path });
   }
 
-  const hasBridge = getPivotBridge() !== null;
+  const hasBridge = getPocoBridge() !== null;
 
   return (
     <div className="ws-switcher">

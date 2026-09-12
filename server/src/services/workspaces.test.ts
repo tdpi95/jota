@@ -20,7 +20,7 @@ import {
   setReminderSettings,
 } from './workspaces.js';
 
-// Every test gets its own scratch $HOME so ~/.pivot/config.json never touches
+// Every test gets its own scratch $HOME so ~/.poco/config.json never touches
 // the real one, mirroring PLAN.md milestone 2's verify step: register two
 // scratch folders, switch between them, confirm isolation and that removing
 // a workspace never touches its folder.
@@ -29,8 +29,8 @@ function scratchDir(prefix: string): string {
 }
 
 test('add registers a workspace, scaffolds its dirs, and activates it', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
 
   const entry = addWorkspace({ path: vaultA, name: 'Vault A' }, homeDir);
 
@@ -39,17 +39,17 @@ test('add registers a workspace, scaffolds its dirs, and activates it', () => {
   assert.equal(getActiveWorkspace(homeDir)?.id, entry.id);
   assert.deepEqual(listWorkspaces(homeDir).map((w) => w.id), [entry.id]);
 
-  for (const dir of ['projects', 'journal', path.join('.pivot', 'cache'), path.join('.pivot', 'backups'), '.git']) {
+  for (const dir of ['projects', 'journal', path.join('.poco', 'cache'), path.join('.poco', 'backups'), '.git']) {
     assert.ok(fs.existsSync(path.join(vaultA, dir)), `expected ${dir} to be scaffolded`);
   }
   const gitignore = fs.readFileSync(path.join(vaultA, '.gitignore'), 'utf8');
-  assert.match(gitignore, /^\.pivot\/$/m);
+  assert.match(gitignore, /^\.poco\/$/m);
 });
 
 test('switching between two workspaces keeps each scoped to its own folder', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
-  const vaultB = scratchDir('pivot-vault-b-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
+  const vaultB = scratchDir('poco-vault-b-');
 
   const a = addWorkspace({ path: vaultA }, homeDir);
   const b = addWorkspace({ path: vaultB }, homeDir);
@@ -65,8 +65,8 @@ test('switching between two workspaces keeps each scoped to its own folder', () 
 });
 
 test('re-adding an already-registered path adopts it instead of duplicating', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
 
   const first = addWorkspace({ path: vaultA }, homeDir);
   const second = addWorkspace({ path: vaultA }, homeDir);
@@ -76,8 +76,8 @@ test('re-adding an already-registered path adopts it instead of duplicating', ()
 });
 
 test('removing a workspace un-registers it without touching its folder', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
 
   const entry = addWorkspace({ path: vaultA }, homeDir);
   fs.writeFileSync(path.join(vaultA, 'projects', 'keep-me.md'), '# still here\n', 'utf8');
@@ -88,34 +88,34 @@ test('removing a workspace un-registers it without touching its folder', () => {
   assert.ok(fs.existsSync(path.join(vaultA, 'projects', 'keep-me.md')), 'folder/content must survive removal');
 });
 
-test('opening a workspace whose .pivot dir was deleted self-heals it', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+test('opening a workspace whose .poco dir was deleted self-heals it', () => {
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
 
   const entry = addWorkspace({ path: vaultA }, homeDir);
-  fs.rmSync(path.join(vaultA, '.pivot'), { recursive: true, force: true });
-  assert.ok(!fs.existsSync(path.join(vaultA, '.pivot')));
+  fs.rmSync(path.join(vaultA, '.poco'), { recursive: true, force: true });
+  assert.ok(!fs.existsSync(path.join(vaultA, '.poco')));
 
   openWorkspace(entry.id, homeDir);
-  assert.ok(fs.existsSync(path.join(vaultA, '.pivot', 'cache')));
+  assert.ok(fs.existsSync(path.join(vaultA, '.poco', 'cache')));
 });
 
 test('opening an unknown id throws a structured 404 error', () => {
-  const homeDir = scratchDir('pivot-home-');
+  const homeDir = scratchDir('poco-home-');
   assert.throws(() => openWorkspace('does-not-exist', homeDir), /no workspace with id/);
 });
 
 test('a newly-added workspace defaults its reminder to 20:00 enabled', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
   addWorkspace({ path: vaultA }, homeDir);
 
   assert.deepEqual(getReminderSettings(homeDir), { enabled: true, time: '20:00' });
 });
 
 test('an entry written before the reminder field existed still defaults to 20:00, not disabled', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
   const entry = addWorkspace({ path: vaultA }, homeDir);
 
   // Simulate a pre-milestone-17 registry entry: strip the field entirely
@@ -130,8 +130,8 @@ test('an entry written before the reminder field existed still defaults to 20:00
 });
 
 test('setReminderSettings persists a custom time and disabling clears it to null, not just enabled:false', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
   addWorkspace({ path: vaultA }, homeDir);
 
   assert.deepEqual(setReminderSettings({ enabled: true, time: '07:30' }, homeDir), { enabled: true, time: '07:30' });
@@ -142,9 +142,9 @@ test('setReminderSettings persists a custom time and disabling clears it to null
 });
 
 test('markReminderFired records the given local date on the active workspace only', () => {
-  const homeDir = scratchDir('pivot-home-');
-  const vaultA = scratchDir('pivot-vault-a-');
-  const vaultB = scratchDir('pivot-vault-b-');
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
+  const vaultB = scratchDir('poco-vault-b-');
   const a = addWorkspace({ path: vaultA }, homeDir);
   addWorkspace({ path: vaultB }, homeDir); // B is now active
 
@@ -156,7 +156,7 @@ test('markReminderFired records the given local date on the active workspace onl
 });
 
 test('launch-at-login preference is null until explicitly set, then persists the exact value', () => {
-  const homeDir = scratchDir('pivot-home-');
+  const homeDir = scratchDir('poco-home-');
   assert.equal(getLaunchAtLoginPreference(homeDir), null);
 
   setLaunchAtLoginPreference(true, homeDir);
@@ -167,7 +167,7 @@ test('launch-at-login preference is null until explicitly set, then persists the
 });
 
 test('language preference defaults to en and persists an explicit choice', () => {
-  const homeDir = scratchDir('pivot-home-');
+  const homeDir = scratchDir('poco-home-');
   assert.equal(getLanguagePreference(homeDir), 'en');
 
   setLanguagePreference('vi', homeDir);

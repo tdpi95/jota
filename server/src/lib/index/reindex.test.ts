@@ -18,7 +18,7 @@ import { getIndexStatus, rebuildIndex, reconcileWorkspace } from './reindex.js';
 // and confirm it's the only one reparsed.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pivot-index-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-index-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'journal', '2026'), { recursive: true });
   return dir;

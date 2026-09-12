@@ -19,13 +19,13 @@ function scratchDir(prefix: string): string {
 }
 
 function bareRemote(): string {
-  const dir = scratchDir('pivot-bare-');
+  const dir = scratchDir('poco-bare-');
   execFileSync('git', ['init', '--bare'], { cwd: dir, stdio: 'ignore' });
   return dir;
 }
 
 function seededWorkspace(): string {
-  const dir = scratchDir('pivot-sync-');
+  const dir = scratchDir('poco-sync-');
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   fs.writeFileSync(path.join(dir, 'projects', 'a.md'), 'line one\n', 'utf8');
@@ -34,7 +34,7 @@ function seededWorkspace(): string {
 }
 
 function cloneWorkspace(remote: string): string {
-  const dir = scratchDir('pivot-sync-clone-');
+  const dir = scratchDir('poco-sync-clone-');
   execFileSync('git', ['clone', remote, dir], { stdio: 'ignore' });
   ensureGitRepo(dir); // sets a local identity if none resolves, needed for later merge commits
   return dir;

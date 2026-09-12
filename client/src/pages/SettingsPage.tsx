@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../api/client';
 import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
-import { getPivotBridge, type ReminderSettings } from '../lib/pivotBridge';
+import { getPocoBridge, type ReminderSettings } from '../lib/pocoBridge';
 import type { PullResult } from '../types';
 
 const DEFAULT_REMINDER: ReminderSettings = { enabled: true, time: '20:00' };
@@ -14,12 +14,12 @@ const DEFAULT_REMINDER: ReminderSettings = { enabled: true, time: '20:00' };
  * Workspace list/management, the active workspace's remote-sync panel, and
  * the desktop-only reminder-time/launch-at-login fields (PLAN.md `/settings`,
  * milestone 16). The last two only do anything inside the Electron shell —
- * `getPivotBridge()` is `null` on a plain browser page, in which case those
+ * `getPocoBridge()` is `null` on a plain browser page, in which case those
  * controls are hidden rather than shown non-functional.
  */
 export default function SettingsPage() {
   const queryClient = useQueryClient();
-  const bridge = getPivotBridge();
+  const bridge = getPocoBridge();
   const { t, i18n } = useTranslation();
 
   // --- Language (PLAN.md "Localization") ---
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
   // --- Agent access (MCP) — config snippets for MCP hosts ---
   const mcpInfoQuery = useQuery({ queryKey: ['system', 'mcp-info'], queryFn: api.getMcpInfo });
-  const mcpEntryPath = mcpInfoQuery.data?.entryPath ?? '/path/to/pivot/server/src/mcp/index.ts';
+  const mcpEntryPath = mcpInfoQuery.data?.entryPath ?? '/path/to/poco/server/src/mcp/index.ts';
   const mcpWorkspacePath = active?.path ?? '/path/to/your/workspace';
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -179,14 +179,14 @@ export default function SettingsPage() {
   }
 
   const claudeDesktopSnippet = JSON.stringify(
-    { mcpServers: { pivot: { command: 'npx', args: ['tsx', mcpEntryPath], env: { PIVOT_WORKSPACE: mcpWorkspacePath } } } },
+    { mcpServers: { poco: { command: 'npx', args: ['tsx', mcpEntryPath], env: { POCO_WORKSPACE: mcpWorkspacePath } } } },
     null,
     2,
   );
-  const codexSnippet = ['[mcp_servers.pivot]', 'command = "npx"', `args = ["tsx", "${mcpEntryPath}"]`, `env = { PIVOT_WORKSPACE = "${mcpWorkspacePath}" }`].join(
+  const codexSnippet = ['[mcp_servers.poco]', 'command = "npx"', `args = ["tsx", "${mcpEntryPath}"]`, `env = { POCO_WORKSPACE = "${mcpWorkspacePath}" }`].join(
     '\n',
   );
-  const claudeCodeCommand = `claude mcp add pivot -e PIVOT_WORKSPACE=${mcpWorkspacePath} -- npx tsx ${mcpEntryPath}`;
+  const claudeCodeCommand = `claude mcp add poco -e POCO_WORKSPACE=${mcpWorkspacePath} -- npx tsx ${mcpEntryPath}`;
 
   return (
     <div>

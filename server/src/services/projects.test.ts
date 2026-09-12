@@ -12,7 +12,7 @@ import { COLOR_PALETTE, createProject, deleteProject, getProject, listProjects, 
 // project, confirm the file, index, and git history all agree.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pivot-projects-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-projects-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;

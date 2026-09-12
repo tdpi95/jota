@@ -14,7 +14,7 @@ import { createTask } from './tasks.js';
 // calls), cross-checked by hand against the .md files.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pivot-calendar-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-calendar-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;

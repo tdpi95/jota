@@ -57,7 +57,7 @@ export function listWorkspaces(): Promise<{ workspaces: Workspace[] }> {
 }
 
 /** Registers (or, if already registered, just re-activates) a folder as a
- * workspace — `path` comes from `window.pivot.pickFolder()` in the Electron
+ * workspace — `path` comes from `window.poco.pickFolder()` in the Electron
  * shell. */
 export function addWorkspace(input: { path: string; name?: string }): Promise<{ workspace: Workspace }> {
   return request('/workspaces', { method: 'POST', body: JSON.stringify(input) });

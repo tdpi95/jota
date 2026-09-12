@@ -4,7 +4,7 @@
 // React client bundle (which uses react-i18next, `client/src/i18n/`) and
 // don't need a full i18n library for four strings.
 //
-// The app-wide language preference lives in `~/.pivot/config.json`
+// The app-wide language preference lives in `~/.poco/config.json`
 // (`services/workspaces.ts`'s `getLanguagePreference`/`setLanguagePreference`,
 // exposed over HTTP as `GET/PUT /api/preferences/language`) and is polled
 // from here the same way `reminder.ts` already polls the active workspace's
@@ -27,16 +27,16 @@ export interface ReminderStrings {
 
 const DICT: Record<Lang, TrayStrings & ReminderStrings> = {
   en: {
-    tooltip: 'Pivot',
-    open: 'Open Pivot',
+    tooltip: 'Poco',
+    open: 'Open Poco',
     settings: 'Settings',
     quit: 'Quit',
     title: 'Time to journal',
     body: "You haven't written today's entry yet",
   },
   vi: {
-    tooltip: 'Pivot',
-    open: 'Mở Pivot',
+    tooltip: 'Poco',
+    open: 'Mở Poco',
     settings: 'Cài đặt',
     quit: 'Thoát',
     title: 'Đến giờ viết nhật ký',

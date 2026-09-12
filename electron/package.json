@@ -1,5 +1,5 @@
 {
-  "name": "pivot-electron",
+  "name": "poco-electron",
   "private": true,
   "version": "0.1.0",
   "main": "dist/main.js",

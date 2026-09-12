@@ -1,4 +1,4 @@
-# pivot
+# poco
 
 A personal, local-first daily-tasks + journal app backed entirely by plain
 markdown files — tasks grouped by project, journal/daily notes bucketed by
@@ -21,7 +21,7 @@ and optional git-remote sync. Available in English and Vietnamese.
 Existing markdown-based tools (Obsidian, Logseq, Dendron, org-mode/org-journal,
 Foam, SilverBullet) all get close, but none match "one task file per project,
 one journal file per day, grouped by year" without heavy plugin configuration
-or accepting a different file-per-unit convention. `pivot` is built around
+or accepting a different file-per-unit convention. `poco` is built around
 that exact layout from the ground up. Full design rationale lives in
 [PLAN.md](PLAN.md).
 
@@ -53,7 +53,7 @@ that exact layout from the ground up. Full design rationale lives in
   service layer the app itself uses (create/update projects and tasks,
   journal entries and links, task search/summary), so any MCP-capable agent
   (Claude Code, Claude Desktop, etc.) can manage and summarize your tasks
-  and journal directly. Targets an explicit workspace via `PIVOT_WORKSPACE`,
+  and journal directly. Targets an explicit workspace via `POCO_WORKSPACE`,
   independent of whatever workspace the app itself has open.
 - **Daily reminder**: a native OS notification if you haven't journaled yet
   today, from a tray-resident background app (the app stays running in the
@@ -92,7 +92,7 @@ node --version
 
 ```bash
 git clone <this-repo-url>
-cd pivot
+cd poco
 npm install
 ```
 
@@ -135,7 +135,7 @@ npx tsc --noEmit -w electron
 ```bash
 npm run mcp -w server
 # or, targeting a specific workspace explicitly:
-PIVOT_WORKSPACE=/path/to/workspace npx tsx server/src/mcp/index.ts
+POCO_WORKSPACE=/path/to/workspace npx tsx server/src/mcp/index.ts
 ```
 
 Exposes 14 tools (`create_project`, `create_task`, `update_task`,
@@ -157,7 +157,7 @@ is the supported way to run the app.
 ## Project structure
 
 ```
-pivot/
+poco/
   server/     # Express + TypeScript backend, markdown core, SQLite index, MCP server
   client/     # Vite + React + TypeScript frontend (i18n: en/vi)
   electron/   # Electron desktop shell — main process, tray, daily reminder

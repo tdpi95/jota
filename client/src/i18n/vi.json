@@ -63,7 +63,7 @@
     },
     "agentAccess": {
       "sectionTitle": "Quyền truy cập của agent (MCP)",
-      "intro": "Bất kỳ AI agent nào hỗ trợ MCP (Claude Desktop, Claude Code, Codex, v.v.) đều có thể đọc và chỉnh sửa công việc cũng như nhật ký của không gian làm việc này thông qua máy chủ MCP tích hợp sẵn của pivot. Thêm nó vào cấu hình agent của bạn, trỏ đến điểm khởi chạy bên dưới.",
+      "intro": "Bất kỳ AI agent nào hỗ trợ MCP (Claude Desktop, Claude Code, Codex, v.v.) đều có thể đọc và chỉnh sửa công việc cũng như nhật ký của không gian làm việc này thông qua máy chủ MCP tích hợp sẵn của poco. Thêm nó vào cấu hình agent của bạn, trỏ đến điểm khởi chạy bên dưới.",
       "noActiveWorkspaceNote": "Mở một không gian làm việc ở trên để điền đường dẫn thực vào bên dưới — hiện tại các ví dụ này chỉ hiển thị giá trị giữ chỗ.",
       "claudeDesktopLabel": "Claude Desktop — claude_desktop_config.json",
       "codexLabel": "Codex CLI — ~/.codex/config.toml",

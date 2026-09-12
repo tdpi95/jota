@@ -56,7 +56,7 @@ export function getActiveWorkspaceOrThrow(homeDir: string = os.homedir()): Works
  * Registers a folder as a workspace and makes it the active one — the
  * "+ Open folder" flow. Adopting an already-registered path (re-opening it
  * from the OS picker) just activates the existing entry rather than creating
- * a duplicate. Scaffolds `.pivot/`/`projects/`/`journal/` and `git init`s the
+ * a duplicate. Scaffolds `.poco/`/`projects/`/`journal/` and `git init`s the
  * folder if needed; an existing folder with content is adopted as-is.
  */
 export function addWorkspace(input: AddWorkspaceInput, homeDir: string = os.homedir()): WorkspaceEntry {
@@ -93,7 +93,7 @@ export function addWorkspace(input: AddWorkspaceInput, homeDir: string = os.home
 
 /**
  * Switches the active workspace among already-registered ones. Re-scaffolds
- * the target's `.pivot/` dirs first, so a workspace folder that was copied
+ * the target's `.poco/` dirs first, so a workspace folder that was copied
  * or moved without them self-heals on open (PLAN.md "Workspaces").
  */
 export function openWorkspace(id: string, homeDir: string = os.homedir()): WorkspaceEntry {
@@ -136,14 +136,14 @@ function findEntryOrThrow(id: string, registry: ReturnType<typeof readRegistry>)
   return entry;
 }
 
-/** `window.pivot.getReminderSettings()` (via `electron/src/main.ts`'s IPC
+/** `window.poco.getReminderSettings()` (via `electron/src/main.ts`'s IPC
  * handler, over HTTP) — the active workspace's daily-reminder time, PLAN.md
  * "Daily reminder". */
 export function getReminderSettings(homeDir: string = os.homedir()): ReminderSettings {
   return reminderSettingsOf(getActiveWorkspaceOrThrow(homeDir));
 }
 
-/** `window.pivot.setReminderSettings(...)`. `enabled: false` persists as
+/** `window.poco.setReminderSettings(...)`. `enabled: false` persists as
  * `reminderTime: null`; `enabled: true` with no `time` falls back to the
  * same default a newly-added workspace gets. */
 export function setReminderSettings(settings: ReminderSettings, homeDir: string = os.homedir()): ReminderSettings {

@@ -1,4 +1,4 @@
-// App-level workspace registry (~/.pivot/config.json) and per-workspace
+// App-level workspace registry (~/.poco/config.json) and per-workspace
 // directory scaffolding. See PLAN.md "Workspaces" — this is the registry
 // that exists *outside* any workspace, since the app needs to know the
 // workspace list before opening one.
@@ -67,7 +67,7 @@ export interface WorkspaceRegistry {
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };
 
 export function getRegistryPath(homeDir: string = os.homedir()): string {
-  return path.join(homeDir, '.pivot', 'config.json');
+  return path.join(homeDir, '.poco', 'config.json');
 }
 
 export function readRegistry(homeDir: string = os.homedir()): WorkspaceRegistry {
@@ -84,18 +84,18 @@ export function writeRegistry(registry: WorkspaceRegistry, homeDir: string = os.
 }
 
 /**
- * Creates `.pivot/{cache,backups}`, `projects/`, `journal/` under a workspace
- * root if they don't already exist, and makes sure `.pivot/` is gitignored
+ * Creates `.poco/{cache,backups}`, `projects/`, `journal/` under a workspace
+ * root if they don't already exist, and makes sure `.poco/` is gitignored
  * within that workspace (it's a cache, not content — PLAN.md "Workspaces").
  * Idempotent: safe to call on every add *and* every open, so a workspace
- * that was copied/moved without its `.pivot/` dir self-heals.
+ * that was copied/moved without its `.poco/` dir self-heals.
  */
 export function scaffoldWorkspaceDirs(workspacePath: string): void {
   fs.mkdirSync(path.join(workspacePath, 'projects'), { recursive: true });
   fs.mkdirSync(path.join(workspacePath, 'journal'), { recursive: true });
-  fs.mkdirSync(path.join(workspacePath, '.pivot', 'cache'), { recursive: true });
-  fs.mkdirSync(path.join(workspacePath, '.pivot', 'backups'), { recursive: true });
-  ensureGitignoreEntry(workspacePath, '.pivot/');
+  fs.mkdirSync(path.join(workspacePath, '.poco', 'cache'), { recursive: true });
+  fs.mkdirSync(path.join(workspacePath, '.poco', 'backups'), { recursive: true });
+  ensureGitignoreEntry(workspacePath, '.poco/');
 }
 
 function ensureGitignoreEntry(workspacePath: string, entry: string): void {
@@ -131,7 +131,7 @@ function ensureGitIdentity(workspacePath: string): void {
   try {
     execFileSync('git', ['config', 'user.email'], { cwd: workspacePath, stdio: 'ignore' });
   } catch {
-    execFileSync('git', ['config', 'user.name', 'pivot'], { cwd: workspacePath, stdio: 'ignore' });
-    execFileSync('git', ['config', 'user.email', 'pivot@localhost'], { cwd: workspacePath, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.name', 'poco'], { cwd: workspacePath, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.email', 'poco@localhost'], { cwd: workspacePath, stdio: 'ignore' });
   }
 }
