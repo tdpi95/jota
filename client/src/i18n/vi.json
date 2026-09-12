@@ -77,6 +77,7 @@
       "dashboard": "Tổng quan",
       "projects": "Dự án",
       "journal": "Nhật ký",
+      "calendar": "Lịch",
       "settings": "Cài đặt"
     }
   },
@@ -84,6 +85,27 @@
     "previousMonth": "Tháng trước",
     "nextMonth": "Tháng sau",
     "weekdayLabels": ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+  },
+  "calendarPage": {
+    "title": "Lịch",
+    "today": "Hôm nay",
+    "loading": "Đang tải lịch…",
+    "failedToLoad": "Không tải được lịch.",
+    "openJournalEntry": "Mở mục nhật ký — {{date}}",
+    "showMore": "+{{count}} nữa",
+    "showFewer": "Ẩn bớt",
+    "pickMonth": "Chọn một tháng.",
+    "yearOverview": "Xem theo năm",
+    "previousYear": "Năm trước",
+    "nextYear": "Năm sau",
+    "weekdayLabels": ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+    "mode": {
+      "sectionTitle": "Hiển thị công việc theo",
+      "due": "Ngày đến hạn",
+      "journal": "Nhật ký ghi nhận",
+      "dueHint": "Công việc hiển thị vào ngày đến hạn.",
+      "journalHint": "Công việc hiển thị vào ngày được ghi nhận trong một mục nhật ký."
+    }
   },
   "dueDateBadge": {
     "overdue": "Quá hạn · {{date}}",
