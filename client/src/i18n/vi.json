@@ -28,7 +28,9 @@
       "manualOpen": "+ Mở",
       "removeTooltip": "Gỡ khỏi danh sách (giữ nguyên thư mục)",
       "confirmRemove": "Gỡ \"{{name}}\" khỏi danh sách không gian làm việc? Thư mục vẫn được giữ nguyên.",
-      "failedToOpen": "Không thể mở không gian làm việc."
+      "failedToOpen": "Không thể mở không gian làm việc.",
+      "openInFileManagerTooltip": "Mở thư mục không gian làm việc",
+      "openInFileManagerFailed": "Không thể mở thư mục — có thể đã bị di chuyển hoặc xóa."
     },
     "sync": {
       "sectionTitle": "Đồng bộ từ xa — {{name}}",
@@ -54,7 +56,21 @@
       "sectionTitle": "Ứng dụng desktop",
       "label": "Khởi động cùng hệ thống"
     },
-    "desktopOnlyNotice": "Nhắc nhở hằng ngày và tùy chọn khởi động cùng hệ thống chỉ khả dụng trên ứng dụng desktop."
+    "desktopOnlyNotice": "Nhắc nhở hằng ngày và tùy chọn khởi động cùng hệ thống chỉ khả dụng trên ứng dụng desktop.",
+    "git": {
+      "notFoundNotice": "Không tìm thấy Git trên máy này — lịch sử hoàn tác và đồng bộ từ xa sẽ không hoạt động cho đến khi được cài đặt.",
+      "downloadLink": "Tải Git"
+    },
+    "agentAccess": {
+      "sectionTitle": "Quyền truy cập của agent (MCP)",
+      "intro": "Bất kỳ AI agent nào hỗ trợ MCP (Claude Desktop, Claude Code, Codex, v.v.) đều có thể đọc và chỉnh sửa công việc cũng như nhật ký của không gian làm việc này thông qua máy chủ MCP tích hợp sẵn của pivot. Thêm nó vào cấu hình agent của bạn, trỏ đến điểm khởi chạy bên dưới.",
+      "noActiveWorkspaceNote": "Mở một không gian làm việc ở trên để điền đường dẫn thực vào bên dưới — hiện tại các ví dụ này chỉ hiển thị giá trị giữ chỗ.",
+      "claudeDesktopLabel": "Claude Desktop — claude_desktop_config.json",
+      "codexLabel": "Codex CLI — ~/.codex/config.toml",
+      "claudeCodeLabel": "Dùng Claude Code thay thế?",
+      "copy": "Sao chép",
+      "copied": "Đã sao chép!"
+    }
   },
   "appShell": {
     "nav": {

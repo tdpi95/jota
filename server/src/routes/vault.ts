@@ -5,10 +5,26 @@
 import { Router } from 'express';
 
 import { reconcileWorkspace } from '../lib/index/reindex.js';
-import { getDiff, getHistory, revertCommit } from '../lib/vaultGit.js';
+import { getDiff, getHeadCommit, getHistory, revertCommit } from '../lib/vaultGit.js';
 import * as workspaceService from '../services/workspaces.js';
 
 const router = Router();
+
+// Polled by the client (a few-second interval, PLAN.md "Frontend") to detect
+// changes made outside its own mutations — most notably an MCP agent
+// writing to the same workspace from a separate process. Deliberately just
+// the commit hash, not a body worth invalidating a cache over on its own:
+// the client compares hashes and, on a change, invalidates its whole query
+// cache (same "something changed, re-fetch everything" pattern the
+// WorkspaceSwitcher already uses for a workspace switch).
+router.get('/head', (req, res, next) => {
+  try {
+    const workspace = workspaceService.getActiveWorkspaceOrThrow();
+    res.json({ hash: getHeadCommit(workspace.path) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/history', (req, res, next) => {
   try {

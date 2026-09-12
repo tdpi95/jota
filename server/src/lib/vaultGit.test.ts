@@ -5,7 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 import { ensureGitRepo } from './workspaces.js';
-import { commitChange, ensureGitHistory, getDiff, getHistory, revertCommit } from './vaultGit.js';
+import { commitChange, ensureGitHistory, getDiff, getHeadCommit, getHistory, isGitAvailable, revertCommit } from './vaultGit.js';
 
 // Mirrors PLAN.md milestone 5's verify step: make a few changes through the
 // helper directly, confirm `git log` shows one commit per change with the
@@ -93,6 +93,31 @@ test('revertCommit throws with git\'s own error on an unknown commit', () => {
   const dir = scratchRepo();
   commitChange(dir, { origin: 'api', message: 'seed', paths: [] });
   assert.throws(() => revertCommit(dir, 'deadbeef'), /git revert failed/);
+});
+
+test('isGitAvailable is true when the git CLI is on PATH, false when it is not', () => {
+  assert.equal(isGitAvailable(), true); // every environment these tests run in has git installed
+
+  const originalPath = process.env.PATH;
+  try {
+    process.env.PATH = ''; // no directories to find a `git` binary in
+    assert.equal(isGitAvailable(), false);
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
+
+test('getHeadCommit returns null for a repo with no commits, then the current HEAD hash after one', () => {
+  const dir = scratchRepo();
+  assert.equal(getHeadCommit(dir), null);
+
+  fs.writeFileSync(path.join(dir, 'projects', 'a.md'), '1', 'utf8');
+  commitChange(dir, { origin: 'api', message: 'create a', paths: ['projects/a.md'] });
+  assert.equal(getHeadCommit(dir), getHistory(dir)[0].hash);
+
+  fs.writeFileSync(path.join(dir, 'projects', 'b.md'), '1', 'utf8');
+  commitChange(dir, { origin: 'mcp:create_task', message: 'create b', paths: ['projects/b.md'] });
+  assert.equal(getHeadCommit(dir), getHistory(dir)[0].hash); // moves with each new commit
 });
 
 test('ensureGitHistory makes exactly one initial commit of pre-existing content, idempotently', () => {

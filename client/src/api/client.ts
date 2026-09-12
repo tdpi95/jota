@@ -220,6 +220,14 @@ export function revertVaultCommit(commit: string): Promise<{ commit: HistoryComm
   return request(`/vault/revert/${encodeURIComponent(commit)}`, { method: 'POST' });
 }
 
+/** The workspace's current git commit hash — polled by `VaultChangePoller`
+ * to auto-refresh the UI after a change made outside the client's own
+ * mutations (an MCP agent, most notably, but also a hand-edit + commit or a
+ * `git pull`). */
+export function getVaultHead(): Promise<{ hash: string | null }> {
+  return request('/vault/head');
+}
+
 // --- Remote sync (Settings page's Sync panel, milestone 16) ---
 
 export function getSyncRemote(): Promise<{ sync: WorkspaceSyncConfig }> {
@@ -254,6 +262,20 @@ export function getLanguagePreference(): Promise<{ language: 'en' | 'vi' }> {
 
 export function setLanguagePreference(language: 'en' | 'vi'): Promise<{ language: 'en' | 'vi' }> {
   return request('/preferences/language', { method: 'PUT', body: JSON.stringify({ language }) });
+}
+
+// --- System (Settings' git-notice + Agent access section) ---
+
+/** Whether the `git` CLI is available on this machine — undo history and
+ * remote sync both depend on it. */
+export function checkGitAvailable(): Promise<{ available: boolean }> {
+  return request('/system/git-available');
+}
+
+/** Absolute path to this app's own standalone MCP server entrypoint, for
+ * building copy-pasteable agent config snippets. */
+export function getMcpInfo(): Promise<{ entryPath: string }> {
+  return request('/system/mcp-info');
 }
 
 export { ApiError };

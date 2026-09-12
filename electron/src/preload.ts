@@ -20,6 +20,10 @@ export interface PivotBridge {
   setLaunchAtLogin: (enabled: boolean) => Promise<void>;
   getReminderSettings: () => Promise<ReminderSettings>;
   setReminderSettings: (settings: ReminderSettings) => Promise<void>;
+  /** Opens `path` in the OS's default file manager (Finder/Explorer/Nautilus).
+   * Resolves `true` on success, `false` if the OS reported an error (e.g. the
+   * folder was moved/deleted since it was registered) — never rejects. */
+  openWorkspaceFolder: (path: string) => Promise<boolean>;
 }
 
 const pivotBridge: PivotBridge = {
@@ -28,6 +32,7 @@ const pivotBridge: PivotBridge = {
   setLaunchAtLogin: (enabled) => ipcRenderer.invoke('pivot:set-launch-at-login', enabled),
   getReminderSettings: () => ipcRenderer.invoke('pivot:get-reminder-settings'),
   setReminderSettings: (settings) => ipcRenderer.invoke('pivot:set-reminder-settings', settings),
+  openWorkspaceFolder: (path) => ipcRenderer.invoke('pivot:open-workspace-folder', path),
 };
 
 contextBridge.exposeInMainWorld('pivot', pivotBridge);

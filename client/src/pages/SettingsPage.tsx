@@ -40,6 +40,9 @@ export default function SettingsPage() {
   const active = activeQuery.data?.workspace ?? null;
   const workspaces = workspacesQuery.data?.workspaces ?? [];
 
+  // --- Git availability (undo history + sync both depend on it) ---
+  const gitQuery = useQuery({ queryKey: ['system', 'git-available'], queryFn: api.checkGitAvailable });
+
   // --- Workspaces ---
 
   const [manualPath, setManualPath] = useState('');
@@ -64,6 +67,19 @@ export default function SettingsPage() {
     if (!bridge) return;
     const path = await bridge.pickFolder();
     if (path) addMutation.mutate({ path });
+  }
+
+  // Reveals a registered workspace's folder in the OS file manager — a
+  // convenience for finding/hand-editing the markdown files directly, per
+  // this app's own "portable outside the app" principle. Electron-only,
+  // same as `handleOpenFolder` above; hidden entirely (not shown disabled)
+  // when there's no bridge to back it.
+  const [folderOpenError, setFolderOpenError] = useState<string | null>(null);
+  async function handleRevealWorkspaceFolder(path: string) {
+    if (!bridge) return;
+    setFolderOpenError(null);
+    const ok = await bridge.openWorkspaceFolder(path);
+    if (!ok) setFolderOpenError(t('settings.workspaces.openInFileManagerFailed'));
   }
 
   // --- Remote sync (active workspace only) ---
@@ -144,11 +160,48 @@ export default function SettingsPage() {
   const syncStatus = statusQuery.data;
   const syncConfigured = syncStatus?.remoteUrl != null;
 
+  // --- Agent access (MCP) — config snippets for MCP hosts ---
+  const mcpInfoQuery = useQuery({ queryKey: ['system', 'mcp-info'], queryFn: api.getMcpInfo });
+  const mcpEntryPath = mcpInfoQuery.data?.entryPath ?? '/path/to/pivot/server/src/mcp/index.ts';
+  const mcpWorkspacePath = active?.path ?? '/path/to/your/workspace';
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  function copySnippet(key: string, text: string) {
+    navigator.clipboard?.writeText(text).then(
+      () => {
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+      },
+      () => {
+        /* clipboard access denied — the snippet is still selectable/copyable by hand */
+      },
+    );
+  }
+
+  const claudeDesktopSnippet = JSON.stringify(
+    { mcpServers: { pivot: { command: 'npx', args: ['tsx', mcpEntryPath], env: { PIVOT_WORKSPACE: mcpWorkspacePath } } } },
+    null,
+    2,
+  );
+  const codexSnippet = ['[mcp_servers.pivot]', 'command = "npx"', `args = ["tsx", "${mcpEntryPath}"]`, `env = { PIVOT_WORKSPACE = "${mcpWorkspacePath}" }`].join(
+    '\n',
+  );
+  const claudeCodeCommand = `claude mcp add pivot -e PIVOT_WORKSPACE=${mcpWorkspacePath} -- npx tsx ${mcpEntryPath}`;
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">{t('settings.title')}</h1>
       </div>
+
+      {gitQuery.data && !gitQuery.data.available && (
+        <div className="notice-banner">
+          <span>{t('settings.git.notFoundNotice')}</span>
+          <a href="https://git-scm.com/downloads" target="_blank" rel="noreferrer">
+            {t('settings.git.downloadLink')}
+          </a>
+        </div>
+      )}
 
       <div className="settings-section">
         <div className="section-title">{t('settings.language.sectionTitle')}</div>
@@ -187,6 +240,13 @@ export default function SettingsPage() {
                 >
                   {isActive ? t('common.active') : t('common.open')}
                 </button>
+                {bridge && (
+                  <button className="icon-btn" title={t('settings.workspaces.openInFileManagerTooltip')} onClick={() => handleRevealWorkspaceFolder(ws.path)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   className="icon-btn"
                   title={t('settings.workspaces.removeTooltip')}
@@ -202,6 +262,7 @@ export default function SettingsPage() {
           })}
           {workspaces.length === 0 && !workspacesQuery.isLoading && <p className="empty-note">{t('settings.workspaces.empty')}</p>}
         </div>
+        {folderOpenError && <div className="field-error" style={{ marginTop: 10 }}>{folderOpenError}</div>}
 
         {bridge ? (
           <button className="btn-secondary" style={{ marginTop: 10 }} onClick={handleOpenFolder} disabled={addMutation.isPending}>
@@ -290,6 +351,48 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <div className="settings-section">
+        <div className="section-title">{t('settings.agentAccess.sectionTitle')}</div>
+        <p className="mcp-intro">{t('settings.agentAccess.intro')}</p>
+        {!active && <p className="empty-note" style={{ marginBottom: 16 }}>{t('settings.agentAccess.noActiveWorkspaceNote')}</p>}
+
+        <div className="mcp-snippet">
+          <div className="mcp-snippet-head">
+            <span>{t('settings.agentAccess.claudeDesktopLabel')}</span>
+            <button className="ws-row-btn" onClick={() => copySnippet('claude-desktop', claudeDesktopSnippet)}>
+              {copiedKey === 'claude-desktop' ? t('settings.agentAccess.copied') : t('settings.agentAccess.copy')}
+            </button>
+          </div>
+          <pre>
+            <code>{claudeDesktopSnippet}</code>
+          </pre>
+        </div>
+
+        <div className="mcp-snippet">
+          <div className="mcp-snippet-head">
+            <span>{t('settings.agentAccess.codexLabel')}</span>
+            <button className="ws-row-btn" onClick={() => copySnippet('codex', codexSnippet)}>
+              {copiedKey === 'codex' ? t('settings.agentAccess.copied') : t('settings.agentAccess.copy')}
+            </button>
+          </div>
+          <pre>
+            <code>{codexSnippet}</code>
+          </pre>
+        </div>
+
+        <div className="mcp-snippet">
+          <div className="mcp-snippet-head">
+            <span>{t('settings.agentAccess.claudeCodeLabel')}</span>
+            <button className="ws-row-btn" onClick={() => copySnippet('claude-code', claudeCodeCommand)}>
+              {copiedKey === 'claude-code' ? t('settings.agentAccess.copied') : t('settings.agentAccess.copy')}
+            </button>
+          </div>
+          <pre>
+            <code>{claudeCodeCommand}</code>
+          </pre>
+        </div>
+      </div>
 
       {bridge && (
         <div className="settings-section">

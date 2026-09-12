@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import CalendarSidebar from './CalendarSidebar';
+import VaultChangePoller from './VaultChangePoller';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 const NAV_ICONS: Record<string, React.ReactNode> = {
@@ -44,12 +45,14 @@ function NavItem({ to, label, icon, end }: { to: string; label: string; icon: st
 /**
  * App-wide layout: sidebar nav + routed page content + `WorkspaceSwitcher`
  * (multi-workspace open/switch, milestone 16) + `CalendarSidebar` (month
- * grid, milestone 13).
+ * grid, milestone 13) + `VaultChangePoller` (auto-refresh after an
+ * out-of-band vault change, e.g. an MCP agent's writes — renders nothing).
  */
 export default function AppShell() {
   const { t } = useTranslation();
   return (
     <div className="app">
+      <VaultChangePoller />
       <aside className="sidebar">
         <WorkspaceSwitcher />
         <nav className="nav">

@@ -9,6 +9,20 @@ import { execFileSync } from 'node:child_process';
 
 import { ensureGitRepo } from './workspaces.js';
 
+/** Whether the `git` CLI is invokable at all — every workspace's undo
+ * history and remote sync depend on it (PLAN.md "Backup & recovery"), but
+ * git isn't bundled with this app, so a machine that never had it installed
+ * needs a clear signal rather than every commit silently no-op-ing forever.
+ * Backs Settings' "git not found" notice. */
+export function isGitAvailable(): boolean {
+  try {
+    execFileSync('git', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface CommitInfo {
   hash: string;
   /** ISO8601, commit date. */
@@ -97,6 +111,24 @@ export function getHistory(workspacePath: string, opts: { path?: string; limit?:
       const [hash, date, message] = line.split(RECORD_SEPARATOR);
       return { hash, date, message };
     });
+}
+
+/** The workspace's current commit hash, or `null` for a repo with no commits
+ * yet. Backs the frontend's auto-refresh poll (PLAN.md "Frontend"): every
+ * write, from either front door (`api` or `mcp:<tool>`), is a commit, so a
+ * changed HEAD is a cheap, reliable signal that something outside the
+ * client's own mutations touched the vault — no filesystem watcher needed. */
+export function getHeadCommit(workspacePath: string): string | null {
+  try {
+    const output = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: workspacePath,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return output.trim();
+  } catch {
+    return null; // not a repo yet, or no commits
+  }
 }
 
 /** The patch introduced by one commit (works for the root commit too, since

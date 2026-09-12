@@ -22,6 +22,10 @@ export interface PivotBridge {
   setLaunchAtLogin: (enabled: boolean) => Promise<void>;
   getReminderSettings: () => Promise<ReminderSettings>;
   setReminderSettings: (settings: ReminderSettings) => Promise<void>;
+  /** Opens `path` in the OS's default file manager (Finder/Explorer/Nautilus).
+   * Resolves `true` on success, `false` if the OS reported an error (e.g. the
+   * folder was moved/deleted since it was registered) — never rejects. */
+  openWorkspaceFolder: (path: string) => Promise<boolean>;
 }
 
 declare global {

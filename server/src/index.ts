@@ -15,6 +15,7 @@ import preferencesRouter from './routes/preferences.js';
 import projectsRouter from './routes/projects.js';
 import reportsRouter from './routes/reports.js';
 import syncRouter from './routes/sync.js';
+import systemRouter from './routes/system.js';
 import taskQueriesRouter from './routes/taskQueries.js';
 import tasksRouter from './routes/tasks.js';
 import vaultRouter from './routes/vault.js';
@@ -44,6 +45,7 @@ export function createApp() {
   app.use('/api/calendar', calendarRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/preferences', preferencesRouter);
+  app.use('/api/system', systemRouter);
 
   app.use(handleServiceError);
   return app;

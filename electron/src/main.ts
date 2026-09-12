@@ -9,7 +9,7 @@
 // of which Node version a given Electron release bundles, and so this
 // package's own TS project never needs to reach across into server/src.
 
-import { app, BrowserWindow, dialog, ipcMain, type Tray } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, type Tray } from 'electron';
 import { type ChildProcess, spawn } from 'node:child_process';
 import path from 'node:path';
 import treeKill from 'tree-kill';
@@ -103,6 +103,15 @@ async function createWindow(port: number): Promise<void> {
     },
   });
 
+  // Any `target="_blank"` link (e.g. Settings' git-download link) must open
+  // in the user's real browser, not a second Electron window — Electron's
+  // own default for an unhandled `window.open` is to just deny it silently,
+  // which would make such a link appear to do nothing.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
   // Dev: Vite's own dev server (proxying /api to the embedded server).
   // Prod: the embedded server's own URL, which also serves the built client.
   await mainWindow.loadURL(isDev ? DEV_CLIENT_URL : `http://127.0.0.1:${port}`);
@@ -158,6 +167,15 @@ ipcMain.handle('pivot:pick-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
+});
+
+ipcMain.handle('pivot:open-workspace-folder', async (_event, folderPath: string) => {
+  // shell.openPath resolves to '' on success, or a human-readable error
+  // string (e.g. the path no longer exists) — never rejects, so translate
+  // that into the plain boolean the bridge contract promises.
+  const errorMessage = await shell.openPath(folderPath);
+  if (errorMessage) console.error(`[main] failed to open workspace folder "${folderPath}":`, errorMessage);
+  return errorMessage === '';
 });
 
 ipcMain.handle('pivot:get-launch-at-login', () => getLaunchAtLogin());

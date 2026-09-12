@@ -6,14 +6,15 @@ year. No hosted backend, no accounts, no lock-in: your vault is just a folder
 of `.md` files you can read, edit, `grep`, sync, or back up with any tool you
 already use.
 
-Ships as an **Electron desktop app** (planned — see [Status](#status)), with
-AI-agent access (Claude Code, Claude Desktop, or any other MCP client) via a
-built-in **MCP server**, git-backed versioning as an undo mechanism for any
-edit — human or agent — and optional git-remote sync.
+Ships as an **Electron desktop app**, with AI-agent access (Claude Code,
+Claude Desktop, or any other MCP client) via a built-in **MCP server**,
+git-backed versioning as an undo mechanism for any edit — human or agent —
+and optional git-remote sync. Available in English and Vietnamese.
 
-> **Early development.** Most of this README describes where the project is
-> headed, not what's runnable today. See [Status](#status) below for what
-> actually works right now.
+> **Status: feature-complete, polish in progress.** Every core milestone
+> (markdown core, backend, MCP server, frontend, Electron shell, daily
+> reminder, localization) is built and working end-to-end. What's left is
+> polish — see [Status](#status) below.
 
 ## Why
 
@@ -32,26 +33,44 @@ that exact layout from the ground up. Full design rationale lives in
   reopen the app, get identical results.
 - **Rich tasks**: description, creation time, tags, due date, and automatic
   time-tracking — move a task to "doing" and the clock starts, no manual timer.
-- **Projects** carry a description, tags, and a color (for calendar marks).
-- **Journal entries** can link to the tasks you worked on that day.
-- **Multiple workspaces**, Obsidian-style — point the app at any folder.
+  Drag-and-drop between Todo/Doing/Done columns.
+- **Projects** carry a description, tags, and a color (from a preset palette
+  or any custom hex) shown as calendar marks and badges.
+- **Journal entries** can link to the tasks you worked on that day, with a
+  searchable task picker.
+- **Dashboard**: today/overdue/this-week task buckets across all projects,
+  recent projects, quick-add, and a task/tag search popup.
+- **Calendar sidebar**: month grid marking due dates and journal entries,
+  click-through to any day.
+- **Multiple workspaces**, Obsidian-style — point the app at any folder via
+  a native folder picker, switch between registered workspaces anytime.
 - **Git-backed history**: every workspace is its own git repo, auto-committed
-  on every write, so any unwanted change (yours or an AI agent's) is a
-  one-click revert away. Optional push/pull to a remote for backup/sync.
-- **MCP server** for agent access — full read/write tools over the same
-  service layer the app itself uses, so any MCP-capable agent (Claude Code,
-  Claude Desktop, etc.) can manage and summarize your tasks and journal
-  directly.
+  on every write, tagged by origin (`[api]` vs `[mcp:<tool>]`) — any unwanted
+  change (yours or an AI agent's) is a one-click revert away, with a diff
+  view. Optional push/pull to a remote for backup/sync, with structured
+  conflict surfacing.
+- **MCP server** for agent access — 14 read/write tools over the same
+  service layer the app itself uses (create/update projects and tasks,
+  journal entries and links, task search/summary), so any MCP-capable agent
+  (Claude Code, Claude Desktop, etc.) can manage and summarize your tasks
+  and journal directly. Targets an explicit workspace via `PIVOT_WORKSPACE`,
+  independent of whatever workspace the app itself has open.
 - **Daily reminder**: a native OS notification if you haven't journaled yet
-  today, from a tray-resident background app.
+  today, from a tray-resident background app (the app stays running in the
+  tray after the window closes; only "Quit" actually quits). Launch-at-login
+  and reminder time are configurable in Settings.
+- **Localization**: English and Vietnamese, switchable instantly in Settings,
+  covering the full UI plus the Electron tray menu and reminder notification.
 
 ## Status
 
 Tracked in [PROGRESS.md](PROGRESS.md) against the milestone list in
-[PLAN.md](PLAN.md). Short version: the on-disk markdown format (parsing +
-serializing tasks/projects/journal entries, byte-for-byte round-trip tested)
-is done. The Express backend, MCP server, React frontend, and Electron shell
-have not been built yet.
+[PLAN.md](PLAN.md). Short version: milestones 1–17 and 19 (localization) are
+done and verified (each against its own Verify step, not just "code
+written"). Milestone 18 (Polish) is in progress — task drag-and-drop, the
+project modal, a custom color picker, and a projects tag filter are done;
+first-run state, loading/error states, a backup job, and `electron-builder`
+packaging config are still outstanding.
 
 Read [CLAUDE.md](CLAUDE.md) if you're picking this project up in an AI coding
 session — it's the working-conventions guide for this repo.
@@ -78,58 +97,70 @@ npm install
 ```
 
 This is an [npm workspaces](https://docs.npmjs.com/cli/v10/using-npm/workspaces)
-monorepo (`server/`, `client/`, and eventually `electron/`) — one `npm install`
-at the root installs everything.
+monorepo (`server/`, `client/`, `electron/`) — one `npm install` at the root
+installs everything.
+
+### Run the app
+
+```bash
+npm run dev
+```
+
+Launches the Vite client and the Electron shell together (the Electron main
+process embeds the Express server and points a `BrowserWindow` at it — the
+renderer talks to `/api/...` over plain HTTP, same as a web app would).
+First run prompts you to pick a workspace folder.
 
 ### Run the tests
-
-The only thing fully built so far is the markdown core (task-line grammar,
-project/journal frontmatter parsing and serialization). Run its tests from
-the repo root:
 
 ```bash
 npm test
 ```
 
-This runs the server package's test suite (`node`'s built-in test runner via
-`tsx`), including a byte-for-byte round-trip check: parse a sample project
-and journal file, serialize the result back out, and confirm the output is
-identical to the input.
+Runs the server package's test suite (`node`'s built-in test runner via
+`tsx`) — markdown round-trip parsing/serialization, services, MCP tools
+(driven through a real `@modelcontextprotocol/sdk` client), workspace
+registry, git-backed history/revert, sync, and more.
 
 ### Typecheck
 
 ```bash
-npm run build -w server
+npx tsc --noEmit -w server
+npx tsc --noEmit -w client
+npx tsc --noEmit -w electron
 ```
 
-(or `npx tsc --noEmit -w server` for a check without emitting output).
-
-### Run the app
-
-Not available yet — there's no server entry point, no client, and no
-Electron shell built yet. Once the backend + frontend milestones land,
-this section will cover:
+### Run the MCP server standalone
 
 ```bash
-npm run dev     # server + client, concurrently, for local development
+npm run mcp -w server
+# or, targeting a specific workspace explicitly:
+PIVOT_WORKSPACE=/path/to/workspace npx tsx server/src/mcp/index.ts
 ```
 
-And once the Electron shell milestone lands, building/installing the actual
-desktop app:
+Exposes 14 tools (`create_project`, `create_task`, `update_task`,
+`get_task_summary`, journal linking, search, etc.) over stdio to any MCP
+host (Claude Code, Claude Desktop, ...). See [PLAN.md](PLAN.md) for the full
+tool list and [PROGRESS.md](PROGRESS.md)'s "Milestone 10 notes" for how
+workspace targeting works.
+
+### Build the packaged desktop app
 
 ```bash
-npm run build -w electron   # produces a packaged, installable app
+npm run build -w electron
 ```
 
-Check [PROGRESS.md](PROGRESS.md) for which of these actually work today.
+Basic `electron-builder` packaging config is still outstanding (tracked
+under milestone 18 in [PROGRESS.md](PROGRESS.md)) — for now, `npm run dev`
+is the supported way to run the app.
 
 ## Project structure
 
 ```
 pivot/
   server/     # Express + TypeScript backend, markdown core, SQLite index, MCP server
-  client/     # Vite + React + TypeScript frontend (not started)
-  electron/   # Electron desktop shell (not started)
+  client/     # Vite + React + TypeScript frontend (i18n: en/vi)
+  electron/   # Electron desktop shell — main process, tray, daily reminder
   design/     # UI prototype (Claude Design canvas source)
   vault/      # a convenience default/dev workspace — not a hardcoded runtime path
 ```
@@ -138,9 +169,9 @@ pivot/
 
 - [PLAN.md](PLAN.md) — the full design doc: storage format, backend
   architecture, MCP tools, git-backed backup/sync, Electron shell, daily
-  reminder, milestones.
-- [PROGRESS.md](PROGRESS.md) — what's actually built vs. planned, and the
-  key-decisions log.
+  reminder, localization, milestones.
+- [PROGRESS.md](PROGRESS.md) — what's actually built vs. planned, milestone
+  notes, and the key-decisions log.
 - [CLAUDE.md](CLAUDE.md) — working conventions for AI coding sessions on
   this repo.
 

@@ -28,7 +28,9 @@
       "manualOpen": "+ Open",
       "removeTooltip": "Remove from list (keeps the folder)",
       "confirmRemove": "Remove \"{{name}}\" from the workspace list? The folder itself is untouched.",
-      "failedToOpen": "Failed to open workspace."
+      "failedToOpen": "Failed to open workspace.",
+      "openInFileManagerTooltip": "Open workspace folder",
+      "openInFileManagerFailed": "Couldn't open the folder — it may have been moved or deleted."
     },
     "sync": {
       "sectionTitle": "Remote sync — {{name}}",
@@ -54,7 +56,21 @@
       "sectionTitle": "Desktop app",
       "label": "Launch at login"
     },
-    "desktopOnlyNotice": "The daily reminder and launch-at-login toggle are only available in the desktop app."
+    "desktopOnlyNotice": "The daily reminder and launch-at-login toggle are only available in the desktop app.",
+    "git": {
+      "notFoundNotice": "Git wasn't found on this machine — undo history and remote sync won't work until it's installed.",
+      "downloadLink": "Download Git"
+    },
+    "agentAccess": {
+      "sectionTitle": "Agent access (MCP)",
+      "intro": "Any MCP-capable AI agent (Claude Desktop, Claude Code, Codex, etc.) can read and edit this workspace's tasks and journal through pivot's built-in MCP server. Add it to your agent's config, pointed at the entrypoint below.",
+      "noActiveWorkspaceNote": "Open a workspace above to get its real path filled in below — for now these examples show a placeholder.",
+      "claudeDesktopLabel": "Claude Desktop — claude_desktop_config.json",
+      "codexLabel": "Codex CLI — ~/.codex/config.toml",
+      "claudeCodeLabel": "Using Claude Code instead?",
+      "copy": "Copy",
+      "copied": "Copied!"
+    }
   },
   "appShell": {
     "nav": {

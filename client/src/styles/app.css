@@ -1323,6 +1323,63 @@ textarea {
   font-family: 'IBM Plex Mono', monospace;
 }
 
+/* Notice banner (e.g. Settings' "git not found") */
+.notice-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  margin-bottom: 20px;
+}
+.notice-banner a {
+  color: var(--danger);
+  font-weight: 700;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* Agent access (MCP) config snippets, Settings page */
+.mcp-intro {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin: 0 0 16px;
+  max-width: 640px;
+}
+.mcp-snippet {
+  max-width: 640px;
+  margin-bottom: 16px;
+}
+.mcp-snippet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+.mcp-snippet-head span {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.mcp-snippet pre {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre;
+}
+
 /* History panel (milestone 15) */
 .history-panel {
   margin-top: 32px;
