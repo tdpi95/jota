@@ -130,6 +130,8 @@ export interface CalendarTaskMark {
   taskId: string;
   projectSlug: string;
   projectColor: string;
+  text: string;
+  status: TaskStatus;
   reason: 'due' | 'linked';
 }
 

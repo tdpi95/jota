@@ -77,6 +77,7 @@
       "dashboard": "Dashboard",
       "projects": "Projects",
       "journal": "Journal",
+      "calendar": "Calendar",
       "settings": "Settings"
     }
   },
@@ -84,6 +85,27 @@
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
     "weekdayLabels": ["S", "M", "T", "W", "T", "F", "S"]
+  },
+  "calendarPage": {
+    "title": "Calendar",
+    "today": "Today",
+    "loading": "Loading calendar…",
+    "failedToLoad": "Failed to load calendar.",
+    "openJournalEntry": "Open journal entry — {{date}}",
+    "showMore": "+{{count}} more",
+    "showFewer": "Show fewer",
+    "pickMonth": "Pick a month.",
+    "yearOverview": "Year overview",
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
+    "weekdayLabels": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "mode": {
+      "sectionTitle": "Show tasks by",
+      "due": "Due date",
+      "journal": "Journal log",
+      "dueHint": "Tasks shown on the day they're due.",
+      "journalHint": "Tasks shown on the day they were logged to a journal entry."
+    }
   },
   "dueDateBadge": {
     "overdue": "Overdue · {{date}}",

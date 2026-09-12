@@ -89,7 +89,11 @@ export default function CalendarSidebar() {
       dotColors: [...new Set((day?.tasks ?? []).map((t) => t.projectColor))].slice(0, 3),
     });
   }
-  while (cells.length % 7 !== 0) cells.push({ key: `trail-${cells.length}`, blank: true });
+  // Always pad out to a fixed 6 rows (42 cells), not just the next multiple
+  // of 7 — a month that only needs 4 or 5 rows would otherwise render a
+  // shorter grid, shifting this component (pinned to the bottom of the
+  // sidebar via margin-top: auto) up or down as the user navigates months.
+  while (cells.length < 42) cells.push({ key: `trail-${cells.length}`, blank: true });
 
   return (
     <div className="calendar">
@@ -117,7 +121,9 @@ export default function CalendarSidebar() {
         {cells.map((cell) => (
           <button
             key={cell.key}
-            className={`cal-day ${cell.blank ? 'blank' : cell.isToday ? 'today' : cell.isSelected ? 'selected' : ''}`}
+            className={`cal-day ${cell.blank ? 'blank' : cell.isToday ? 'today' : cell.isSelected ? 'selected' : ''} ${
+              !cell.blank && cell.hasJournalEntry ? 'has-journal' : ''
+            }`}
             disabled={cell.blank}
             onClick={() => cell.date && navigate(`/journal/${cell.date.slice(0, 4)}/${cell.date}`)}
             title={cell.date}

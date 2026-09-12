@@ -272,6 +272,12 @@ textarea {
 .cal-day:hover {
   background: oklch(94% 0.012 75);
 }
+/* A day with a non-empty journal entry gets a soft wash, same signal as
+   CalendarPage's full-grid highlight — placed before .today/.selected so
+   those stronger states still win the background when a day is both. */
+.cal-day.has-journal {
+  background: var(--good-soft);
+}
 .cal-day.today {
   background: var(--accent);
   color: white;
@@ -301,6 +307,242 @@ textarea {
 .cal-dot.journal {
   background: currentColor;
   opacity: 0.6;
+}
+
+/* Full calendar page (as opposed to the sidebar's compact dots above) */
+.cp-view-toggle {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cp-view-toggle .ws-row-btn {
+  margin-left: 0;
+}
+.cp-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cp-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cp-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-family: 'IBM Plex Mono', monospace;
+  min-width: 110px;
+  /* a <button>, not a <span> — clicking it opens the year overview */
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  text-align: left;
+}
+.cp-label:hover {
+  background: oklch(94% 0.012 75);
+  color: var(--accent);
+}
+.cp-today-btn {
+  margin-left: 8px;
+}
+.cp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  margin-bottom: 4px;
+}
+.cp-weekdays span {
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cp-day {
+  min-height: 108px;
+  min-width: 0; /* grid items default to a content-based min-width, which
+    would otherwise let a long task title stretch its whole column wider
+    than the other 6 — this is what makes text-overflow/ellipsis below
+    actually clip instead of just being ignored. */
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--paper-card);
+}
+.cp-day.blank {
+  visibility: hidden;
+  border-color: transparent;
+  background: transparent;
+}
+.cp-day.today {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* A day with a non-empty journal entry gets a soft wash + border tint,
+   distinct from .today's accent so a day can be both at once and still
+   read as two separate facts (a stronger signal than the small dot alone,
+   which stays as a secondary cue next to the day number). */
+.cp-day.has-journal {
+  background: var(--good-soft);
+  border-color: oklch(80% 0.05 155);
+}
+.cp-day.has-journal.today {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: var(--accent);
+}
+.cp-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cp-day-num {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ink);
+  text-decoration: none;
+}
+.cp-day.today .cp-day-num {
+  color: var(--accent);
+}
+.cp-day-num:hover {
+  color: var(--accent);
+}
+.cp-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.cp-task {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 5px;
+  text-decoration: none;
+  color: var(--ink);
+  overflow: hidden;
+  min-width: 0; /* flex items also default to a content-based min-width */
+}
+.cp-task:hover {
+  background: oklch(94% 0.012 75);
+}
+.cp-task-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cp-task-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.cp-task.done .cp-task-text {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+}
+.cp-more-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: left;
+  padding: 2px 4px;
+}
+.cp-more-btn:hover {
+  color: var(--accent);
+}
+
+/* Calendar page's year overview (click the month/year label) — 12 plain
+   mini-months, deliberately no task/journal data. */
+.cp-year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.cp-year-month {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--paper-card);
+}
+.cp-year-month-head {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 0 0 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--hairline);
+}
+.cp-year-month-head:hover {
+  color: var(--accent);
+}
+.cp-year-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  margin-bottom: 2px;
+}
+.cp-year-weekdays span {
+  font-size: 8.5px;
+  text-align: center;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+.cp-year-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.cp-year-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  color: var(--ink);
+  border-radius: 4px;
+}
+.cp-year-day.blank {
+  visibility: hidden;
+}
+/* Same journal-entry signal as the month view's .cp-day.has-journal;
+   ordered before .today so a day that's both still reads as "today". */
+.cp-year-day.has-journal {
+  background: var(--good-soft);
+}
+.cp-year-day.today {
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
 }
 
 /* Main */

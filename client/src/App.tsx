@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppShell from './components/AppShell';
+import CalendarPage from './pages/CalendarPage';
 import DashboardPage from './pages/DashboardPage';
 import JournalDayPage from './pages/JournalDayPage';
 import JournalYearPage from './pages/JournalYearPage';
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="journal" element={<Navigate to={`/journal/${yearOf(today)}/${today}`} replace />} />
         <Route path="journal/:year" element={<JournalYearPage />} />
         <Route path="journal/:year/:date" element={<JournalDayPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -137,6 +137,10 @@ export interface CalendarTaskMark {
   taskId: string;
   projectSlug: string;
   projectColor: string;
+  /** Task title — lets a full calendar view (CalendarPage) print the task
+   * itself, not just a dot; CalendarSidebar ignores this field. */
+  text: string;
+  status: TaskStatus;
   /** 'due' = the task is due that day; 'linked' = that day's journal entry
    * links to the task. A task can appear for both reasons on different days,
    * or dedup to a single 'due' mark if both are true the same day. */
@@ -170,21 +174,21 @@ export function queryCalendarMonth(workspacePath: string, year: string, month: s
 
     const dueRows = db
       .prepare(
-        `SELECT t.due AS date, t.id, t.project_slug, p.color AS project_color
+        `SELECT t.due AS date, t.id, t.project_slug, p.color AS project_color, t.text, t.status
          FROM tasks t JOIN projects p ON p.slug = t.project_slug
          WHERE t.due BETWEEN ? AND ?`,
       )
-      .all(from, to) as { date: string; id: string; project_slug: string; project_color: string }[];
+      .all(from, to) as { date: string; id: string; project_slug: string; project_color: string; text: string; status: TaskStatus }[];
 
     const linkedRows = db
       .prepare(
-        `SELECT l.date, l.task_id AS id, t.project_slug, p.color AS project_color
+        `SELECT l.date, l.task_id AS id, t.project_slug, p.color AS project_color, t.text, t.status
          FROM journal_task_links l
          JOIN tasks t ON t.id = l.task_id
          JOIN projects p ON p.slug = t.project_slug
          WHERE l.date BETWEEN ? AND ?`,
       )
-      .all(from, to) as { date: string; id: string; project_slug: string; project_color: string }[];
+      .all(from, to) as { date: string; id: string; project_slug: string; project_color: string; text: string; status: TaskStatus }[];
 
     const days = new Map<string, CalendarDay>();
     const dayOf = (date: string): CalendarDay => {
@@ -198,12 +202,26 @@ export function queryCalendarMonth(workspacePath: string, year: string, month: s
 
     for (const row of journalRows) dayOf(row.date).hasJournalEntry = true;
     for (const row of dueRows) {
-      dayOf(row.date).tasks.push({ taskId: row.id, projectSlug: row.project_slug, projectColor: row.project_color, reason: 'due' });
+      dayOf(row.date).tasks.push({
+        taskId: row.id,
+        projectSlug: row.project_slug,
+        projectColor: row.project_color,
+        text: row.text,
+        status: row.status,
+        reason: 'due',
+      });
     }
     for (const row of linkedRows) {
       const day = dayOf(row.date);
       if (!day.tasks.some((m) => m.taskId === row.id)) {
-        day.tasks.push({ taskId: row.id, projectSlug: row.project_slug, projectColor: row.project_color, reason: 'linked' });
+        day.tasks.push({
+          taskId: row.id,
+          projectSlug: row.project_slug,
+          projectColor: row.project_color,
+          text: row.text,
+          status: row.status,
+          reason: 'linked',
+        });
       }
     }
 

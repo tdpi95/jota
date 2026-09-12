@@ -4,7 +4,7 @@ Tracks implementation of [PLAN.md](PLAN.md). Update this file as milestones star
 
 Each milestone's detailed build notes (design decisions, gotchas, "Verified live" narratives) live under [docs/progress-notes/](docs/progress-notes/), one file per milestone (or per milestone group, where several were built in one pass) — linked from each checklist line below. Read this file for status; open a specific note file only when you need that milestone's history (picking it back up, or checking why a decision was made).
 
-## Status: Milestones 1-17 and 19 (Localization) done; milestone 18 (Polish) in progress
+## Status: Milestones 1-17, 19 (Localization), and 20 (Calendar page) done; milestone 18 (Polish) in progress
 
 ## Scaffold done so far
 - [x] Root `package.json` (npm workspaces: server, client, electron) + `.gitignore`
@@ -36,6 +36,7 @@ Each milestone's detailed build notes (design decisions, gotchas, "Verified live
 - [x] **17. Daily reminder** — tray icon, `loginItem.ts`, `reminder.ts` scheduler, native notification. See [Milestone 17 notes](docs/progress-notes/milestone-17.md).
 - [ ] **18. Polish** — in progress. Done: task drag-and-drop on the Kanban columns, project create/edit in a `Modal`, a custom-color swatch, a projects tag filter, [README.md](README.md) rewritten to match actual status, auto-refresh after an out-of-band vault change, a git-not-found notice + MCP agent-setup instructions on Settings, an "open workspace folder" button per workspace row, task-checklist (sub-tasks) support end-to-end (grammar, service, REST, MCP, UI) (see [Milestone 18 notes](docs/progress-notes/milestone-18.md)). Still outstanding: first-run state, loading/error states, backup job, basic `electron-builder` config.
 - [x] **19. Localization (i18n)** — started at the user's request ahead of milestone 18's remaining items. `language` preference (registry field + `GET/PUT /api/preferences/language`), `react-i18next` client scaffold (`client/src/i18n/`), `main.tsx` resolving the stored language before first render, a Language picker on `/settings`, every page/component converted to `t()`, `lib/date.ts`'s month/weekday names localized, and the Electron tray/daily-reminder strings (`electron/src/i18n.ts`, wired into `tray.ts`/`reminder.ts`/`main.ts`). Verify: `npx tsc --noEmit` clean (server/client/electron), `npm run build -w client` clean, `npm test -w server` (92 tests) passing, `en.json`/`vi.json` structurally identical (166 leaf keys each). See [Milestone 19 notes](docs/progress-notes/milestone-19.md).
+- [x] **20. Frontend Calendar page** — started at the user's request ahead of milestone 18's remaining items, same as milestone 19. A new `/calendar` route (`CalendarPage.tsx`): a full-page month grid listing task titles per day (distinct from `CalendarSidebar`'s compact dots), a due/journal toggle, a journal-entry background highlight (also added to `CalendarSidebar`, replacing its old dot), and a year overview for fast month-picking. See [Milestone 20 notes](docs/progress-notes/milestone-20.md).
 
 ## Key decisions log
 (Full rationale is in PLAN.md; this is a quick index so a future session doesn't re-litigate them.)

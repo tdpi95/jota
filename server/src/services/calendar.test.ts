@@ -40,9 +40,12 @@ test('getCalendarMonth marks days with a non-empty journal entry, a due task, or
   assert.equal(byDate['2026-09-15'].tasks[0].taskId, dueTask.id);
   assert.equal(byDate['2026-09-15'].tasks[0].reason, 'due');
   assert.equal(byDate['2026-09-15'].tasks[0].projectColor, project.frontmatter.color);
+  assert.equal(byDate['2026-09-15'].tasks[0].text, 'Ship it');
+  assert.equal(byDate['2026-09-15'].tasks[0].status, 'todo');
 
   assert.equal(byDate['2026-09-12'].tasks[0].taskId, linkedTask.id);
   assert.equal(byDate['2026-09-12'].tasks[0].reason, 'linked');
+  assert.equal(byDate['2026-09-12'].tasks[0].text, 'Write notes');
 
   // Days outside the queried month are never returned.
   assert.ok(!('2026-10-01' in byDate));

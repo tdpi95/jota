@@ -25,6 +25,12 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
     </svg>
   ),
+  calendar: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  ),
   settings: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
@@ -59,6 +65,7 @@ export default function AppShell() {
           <NavItem to="/" end label={t('appShell.nav.dashboard')} icon="dashboard" />
           <NavItem to="/projects" label={t('appShell.nav.projects')} icon="projects" />
           <NavItem to="/journal" label={t('appShell.nav.journal')} icon="journal" />
+          <NavItem to="/calendar" label={t('appShell.nav.calendar')} icon="calendar" />
           <NavItem to="/settings" label={t('appShell.nav.settings')} icon="settings" />
         </nav>
         <CalendarSidebar />
