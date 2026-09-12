@@ -96,6 +96,15 @@ async function createWindow(port: number): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    // Packaged Mac/Windows builds get their icon from the app bundle/exe
+    // resource (electron/build/icon.png, once electron-builder packaging is
+    // wired up) — this is what shows the window/taskbar icon in dev and on
+    // Linux, where Electron has no bundle to read an icon from otherwise.
+    icon: path.join(__dirname, 'assets', 'icon.png'),
+    // Hides the default File/Edit/View/Window/Help bar (the app has its own
+    // nav — AppShell's sidebar) without removing it outright: Alt still
+    // reveals it on Windows/Linux, and macOS's menu bar is untouched.
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

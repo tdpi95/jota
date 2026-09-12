@@ -9,12 +9,11 @@ already use.
 Ships as an **Electron desktop app**, with AI-agent access (Claude Code,
 Claude Desktop, or any other MCP client) via a built-in **MCP server**,
 git-backed versioning as an undo mechanism for any edit — human or agent —
-and optional git-remote sync. Available in English and Vietnamese.
+and optional git-remote sync.
 
-> **Status: feature-complete, polish in progress.** Every core milestone
-> (markdown core, backend, MCP server, frontend, Electron shell, daily
-> reminder, localization) is built and working end-to-end. What's left is
-> polish — see [Status](#status) below.
+## Name
+
+**poco** — "a little," in Spanish/Italian/Portuguese — is what this app actually is under the hood: a lot of small, self-contained pieces rather than one big system. A task is one line in a plain file. A day is one small journal entry. A project is just another file, not a row locked inside a database. There's no server to run, no account to create, no monolith to back up — just small, modular, markdown micro-entries, added a little at a time.
 
 ## Why
 
@@ -22,8 +21,7 @@ Existing markdown-based tools (Obsidian, Logseq, Dendron, org-mode/org-journal,
 Foam, SilverBullet) all get close, but none match "one task file per project,
 one journal file per day, grouped by year" without heavy plugin configuration
 or accepting a different file-per-unit convention. `poco` is built around
-that exact layout from the ground up. Full design rationale lives in
-[PLAN.md](PLAN.md).
+that exact layout from the ground up.
 
 ## Features
 
@@ -61,19 +59,6 @@ that exact layout from the ground up. Full design rationale lives in
   and reminder time are configurable in Settings.
 - **Localization**: English and Vietnamese, switchable instantly in Settings,
   covering the full UI plus the Electron tray menu and reminder notification.
-
-## Status
-
-Tracked in [PROGRESS.md](PROGRESS.md) against the milestone list in
-[PLAN.md](PLAN.md). Short version: milestones 1–17 and 19 (localization) are
-done and verified (each against its own Verify step, not just "code
-written"). Milestone 18 (Polish) is in progress — task drag-and-drop, the
-project modal, a custom color picker, and a projects tag filter are done;
-first-run state, loading/error states, a backup job, and `electron-builder`
-packaging config are still outstanding.
-
-Read [CLAUDE.md](CLAUDE.md) if you're picking this project up in an AI coding
-session — it's the working-conventions guide for this repo.
 
 ## Requirements
 
@@ -164,16 +149,6 @@ poco/
   design/     # UI prototype (Claude Design canvas source)
   vault/      # a convenience default/dev workspace — not a hardcoded runtime path
 ```
-
-## Documentation
-
-- [PLAN.md](PLAN.md) — the full design doc: storage format, backend
-  architecture, MCP tools, git-backed backup/sync, Electron shell, daily
-  reminder, localization, milestones.
-- [PROGRESS.md](PROGRESS.md) — what's actually built vs. planned, milestone
-  notes, and the key-decisions log.
-- [CLAUDE.md](CLAUDE.md) — working conventions for AI coding sessions on
-  this repo.
 
 ## License
 
