@@ -214,4 +214,43 @@ export function setLanguagePreference(language: 'en' | 'vi', homeDir: string = o
   return language;
 }
 
+/**
+ * The app-wide UI color theme (PLAN.md "Theming") — same shape and reasoning
+ * as `getLanguagePreference` above: one value for the whole app, no
+ * Electron-side consumer (the tray icon and OS notifications aren't styled
+ * by this app's CSS), so unlike `language` there's nothing else that needs
+ * to read this outside the client itself. `undefined` normalizes to
+ * `'light'`.
+ */
+export function getThemePreference(homeDir: string = os.homedir()): 'light' | 'dark' {
+  return readRegistry(homeDir).theme ?? 'light';
+}
+
+export function setThemePreference(theme: 'light' | 'dark', homeDir: string = os.homedir()): 'light' | 'dark' {
+  const registry = readRegistry(homeDir);
+  registry.theme = theme;
+  writeRegistry(registry, homeDir);
+  return theme;
+}
+
+/**
+ * The app-wide UI accent color palette (PLAN.md "Theming"). `undefined`
+ * normalizes to `'default'` — the single accent color this app shipped
+ * with before this preference existed, so an existing install's appearance
+ * doesn't change on upgrade until the user opts into a different palette.
+ */
+export function getAccentPalettePreference(homeDir: string = os.homedir()): 'default' | 'green' | 'blue' | 'violet' {
+  return readRegistry(homeDir).accentPalette ?? 'default';
+}
+
+export function setAccentPalettePreference(
+  accentPalette: 'default' | 'green' | 'blue' | 'violet',
+  homeDir: string = os.homedir(),
+): 'default' | 'green' | 'blue' | 'violet' {
+  const registry = readRegistry(homeDir);
+  registry.accentPalette = accentPalette;
+  writeRegistry(registry, homeDir);
+  return accentPalette;
+}
+
 export type { WorkspaceEntry };

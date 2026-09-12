@@ -50,4 +50,41 @@ router.put('/language', (req, res, next) => {
   }
 });
 
+// App-wide UI theme + accent palette (PLAN.md "Theming") — same shape as
+// /language above; read/written directly over HTTP, no Electron bridge
+// needed (a color theme touches no OS-level API either).
+router.get('/theme', (_req, res) => {
+  res.json({ theme: workspaceService.getThemePreference() });
+});
+
+router.put('/theme', (req, res, next) => {
+  try {
+    const { theme } = req.body ?? {};
+    if (theme !== 'light' && theme !== 'dark') {
+      res.status(400).json({ error: "theme must be 'light' or 'dark'" });
+      return;
+    }
+    res.json({ theme: workspaceService.setThemePreference(theme) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/accent-palette', (_req, res) => {
+  res.json({ accentPalette: workspaceService.getAccentPalettePreference() });
+});
+
+router.put('/accent-palette', (req, res, next) => {
+  try {
+    const { accentPalette } = req.body ?? {};
+    if (!['default', 'green', 'blue', 'violet'].includes(accentPalette)) {
+      res.status(400).json({ error: "accentPalette must be one of 'default', 'green', 'blue', 'violet'" });
+      return;
+    }
+    res.json({ accentPalette: workspaceService.setAccentPalettePreference(accentPalette) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

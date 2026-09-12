@@ -6,6 +6,7 @@ import * as api from '../api/client';
 import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
 import { getPocoBridge, type ReminderSettings } from '../lib/pocoBridge';
+import { ACCENT_PALETTE_SWATCH, ACCENT_PALETTES, applyAccentPalette, applyTheme, THEMES, type AccentPalette, type ThemeMode } from '../lib/theme';
 import type { PullResult } from '../types';
 
 const DEFAULT_REMINDER: ReminderSettings = { enabled: true, time: '20:00' };
@@ -32,6 +33,31 @@ export default function SettingsPage() {
     mutationFn: (language: SupportedLanguage) => api.setLanguagePreference(language),
     onSuccess: (_data, language) => {
       void i18n.changeLanguage(language);
+    },
+  });
+
+  // --- Theme + accent palette (PLAN.md "Theming") ---
+  // Same pattern as language above; seeded from the `data-theme`/
+  // `data-palette` attributes main.tsx already applied to `<html>` before
+  // this page could ever mount, so there's no separate loading state here
+  // either — mutating just re-applies the attribute (instant switch) and
+  // updates the local copy used to highlight the active button.
+  const [theme, setThemeState] = useState<ThemeMode>(() => (document.documentElement.getAttribute('data-theme') as ThemeMode) || 'light');
+  const setThemeMutation = useMutation({
+    mutationFn: (next: ThemeMode) => api.setThemePreference(next),
+    onSuccess: (_data, next) => {
+      applyTheme(next);
+      setThemeState(next);
+    },
+  });
+  const [accentPalette, setAccentPaletteState] = useState<AccentPalette>(
+    () => (document.documentElement.getAttribute('data-palette') as AccentPalette) || 'default',
+  );
+  const setAccentPaletteMutation = useMutation({
+    mutationFn: (next: AccentPalette) => api.setAccentPalettePreference(next),
+    onSuccess: (_data, next) => {
+      applyAccentPalette(next);
+      setAccentPaletteState(next);
     },
   });
 
@@ -217,6 +243,45 @@ export default function SettingsPage() {
               onClick={() => setLanguageMutation.mutate(lang)}
             >
               {t(`settings.language.${lang}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="section-title">{t('settings.theme.sectionTitle')}</div>
+        <div className="lang-picker" role="radiogroup" aria-label={t('settings.theme.sectionTitle') ?? undefined}>
+          {THEMES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="radio"
+              aria-checked={theme === mode}
+              className={`ws-row-btn ${theme === mode ? 'is-active' : ''}`}
+              disabled={setThemeMutation.isPending}
+              onClick={() => setThemeMutation.mutate(mode)}
+            >
+              {t(`settings.theme.${mode}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="section-title">{t('settings.palette.sectionTitle')}</div>
+        <div className="palette-picker" role="radiogroup" aria-label={t('settings.palette.sectionTitle') ?? undefined}>
+          {ACCENT_PALETTES.map((palette) => (
+            <button
+              key={palette}
+              type="button"
+              role="radio"
+              aria-checked={accentPalette === palette}
+              className={`ws-row-btn ${accentPalette === palette ? 'is-active' : ''}`}
+              disabled={setAccentPaletteMutation.isPending}
+              onClick={() => setAccentPaletteMutation.mutate(palette)}
+            >
+              <span className="palette-dot" style={{ background: ACCENT_PALETTE_SWATCH[palette] }} />
+              {t(`settings.palette.${palette}`)}
             </button>
           ))}
         </div>

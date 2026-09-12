@@ -62,6 +62,17 @@ export interface WorkspaceRegistry {
    * default to apply, so this always normalizes to a concrete value rather
    * than staying `null`. */
   language?: 'en' | 'vi';
+  /** UI color theme — app-wide, not per-workspace, same reasoning as
+   * `language` above (PLAN.md "Theming": a personal display preference, not
+   * vault content). `undefined` normalizes to `'light'` in
+   * `services/workspaces.ts`'s `getThemePreference`. */
+  theme?: 'light' | 'dark';
+  /** UI accent color family — app-wide, not per-workspace, same reasoning as
+   * `theme` above. `'default'` is the original single accent color this app
+   * shipped with (kept as the default so existing installs don't change
+   * appearance on upgrade); `undefined` normalizes to `'default'` in
+   * `services/workspaces.ts`'s `getAccentPalettePreference`. */
+  accentPalette?: 'default' | 'green' | 'blue' | 'violet';
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

@@ -3,21 +3,114 @@
    (Projects/Tasks UI, Journal UI, Calendar sidebar, Dashboard v2, History
    panel, Workspace switcher + Settings/Sync panel) actually need. */
 
+/* Theming (PLAN.md "Theming", milestone 21): every color in this file is one
+   of these custom properties (or an alpha variant of one) — a component
+   rule must never hardcode a color literal, the same discipline this file
+   already held for --accent/--good/--danger. `--accent-hue` is the one
+   value `[data-palette]` below overrides; every accent-family token derives
+   its hue from it (not a literal), which is the whole point of using oklch
+   here — swapping the hue alone keeps the same lightness/chroma feel across
+   palettes. `[data-theme="dark"]` overrides every other token for the dark
+   variant, still referencing `var(--accent-hue)` so a palette choice
+   applies identically in both themes. Both attributes are set on <html> by
+   `client/src/lib/theme.ts`, resolved before first render in `main.tsx`. */
 :root {
+  color-scheme: light;
+  --accent-hue: 45; /* "default" palette — the original single accent color */
+
   --paper: oklch(97.3% 0.012 75);
   --paper-card: oklch(99% 0.006 75);
   --ink: oklch(24% 0.02 75);
   --ink-muted: oklch(48% 0.02 75);
   --hairline: oklch(87% 0.015 75);
-  --accent: oklch(58% 0.15 45);
-  --accent-hover: oklch(52% 0.15 45);
-  --accent-soft: oklch(93% 0.03 45);
+  --accent: oklch(58% 0.15 var(--accent-hue));
+  --accent-hover: oklch(52% 0.15 var(--accent-hue));
+  --accent-soft: oklch(93% 0.03 var(--accent-hue));
+  --accent-border: oklch(80% 0.05 var(--accent-hue));
   --good: oklch(55% 0.11 155);
   --good-soft: oklch(93% 0.03 155);
   --danger: oklch(55% 0.17 25);
   --danger-soft: oklch(93% 0.04 25);
   --today-fg: oklch(45% 0.14 80);
   --today-bg: oklch(93% 0.05 85);
+
+  /* Text/icon color for content sitting directly on a *solid* accent/good/
+     danger fill (buttons, the "today" markers, a done status dot) — kept
+     separate from --accent/--good/--danger themselves because dark theme
+     brightens those for legibility against the dark page background, which
+     in turn ruins white-on-fill contrast (measured ~2.5:1, below WCAG AA)
+     even though it's exactly right at ~4.5:1 in light theme. Only the dark
+     override below needs to change this. */
+  --accent-contrast: white;
+  --good-contrast: white;
+  --danger-contrast: white;
+
+  /* Muted neutral surfaces (hover/active backgrounds, badge/count chips) —
+     three steps, darkest to lightest of the three: --surface-hover (the
+     lightest touch, e.g. a plain nav-item hover) through --surface-muted
+     (badge/count backgrounds). --border-muted covers hover borders and
+     dashed placeholder borders alike. */
+  --surface-hover: oklch(95% 0.01 75);
+  --surface-active: oklch(94% 0.012 75);
+  --surface-muted: oklch(93% 0.012 75);
+  --border-muted: oklch(78% 0.02 75);
+  --overlay-backdrop: oklch(20% 0.02 75 / 45%);
+  --shadow-color-soft: oklch(20% 0.02 75 / 0.14);
+  --shadow-color-strong: oklch(20% 0.02 75 / 0.25);
+  --drag-over-bg: oklch(93% 0.012 75 / 60%);
+}
+
+/* Accent palettes (PLAN.md "Theming") — "default" is the original color
+   this app shipped with (no override needed, it's :root's own value
+   above), so only the three added palettes need a rule. Lightness/chroma
+   stay exactly what :root already used for --accent; only the hue moves. */
+[data-palette='green'] {
+  --accent-hue: 145;
+}
+[data-palette='blue'] {
+  --accent-hue: 250;
+}
+[data-palette='violet'] {
+  --accent-hue: 305;
+}
+
+/* Dark theme (PLAN.md "Theming") — every neutral/semantic token gets a dark
+   counterpart; --accent-hue is deliberately not touched here so whichever
+   palette is active carries over unchanged. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: oklch(22% 0.012 75);
+  --paper-card: oklch(27% 0.012 75);
+  --ink: oklch(94% 0.008 75);
+  --ink-muted: oklch(70% 0.012 75);
+  --hairline: oklch(38% 0.014 75);
+  --accent: oklch(70% 0.15 var(--accent-hue));
+  --accent-hover: oklch(76% 0.15 var(--accent-hue));
+  --accent-soft: oklch(30% 0.06 var(--accent-hue));
+  --accent-border: oklch(45% 0.08 var(--accent-hue));
+  --good: oklch(68% 0.13 155);
+  --good-soft: oklch(28% 0.05 155);
+  --danger: oklch(68% 0.17 25);
+  --danger-soft: oklch(30% 0.07 25);
+  --today-fg: oklch(75% 0.14 80);
+  --today-bg: oklch(30% 0.06 85);
+
+  /* White text on a solid accent/good/danger fill drops to ~2.5:1 contrast
+     against these brightened dark-theme fills (measured) — reusing the
+     dark theme's own near-black --paper reads at ~6.1-8.3:1 instead. */
+  --accent-contrast: var(--paper);
+  --good-contrast: var(--paper);
+  --danger-contrast: var(--paper);
+
+  --surface-hover: oklch(32% 0.012 75);
+  --surface-active: oklch(34% 0.012 75);
+  --surface-muted: oklch(36% 0.012 75);
+  --border-muted: oklch(42% 0.016 75);
+  --overlay-backdrop: oklch(10% 0.01 75 / 60%);
+  --shadow-color-soft: oklch(0% 0 0 / 0.35);
+  --shadow-color-strong: oklch(0% 0 0 / 0.5);
+  --drag-over-bg: oklch(36% 0.012 75 / 60%);
 }
 
 * {
@@ -34,6 +127,14 @@ a {
 }
 a:hover {
   color: var(--accent-hover);
+}
+/* Native text-selection highlight — otherwise the browser/OS default (an
+   unthemed blue), the one visual left untouched by data-theme/data-palette.
+   Text color is left alone (inherits var(--ink), already theme-correct);
+   --accent-soft has enough contrast against it in both themes to read as a
+   selection wash rather than needing its own dedicated color. */
+::selection {
+  background: var(--accent-soft);
 }
 button,
 input,
@@ -103,7 +204,7 @@ textarea {
   background: var(--paper-card);
   border: 1px solid var(--hairline);
   border-radius: 12px;
-  box-shadow: 0 10px 28px oklch(20% 0.02 75 / 0.14);
+  box-shadow: 0 10px 28px var(--shadow-color-soft);
   padding: 6px;
   z-index: 30;
 }
@@ -161,7 +262,7 @@ textarea {
   border-radius: 7px;
   border: none;
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -196,7 +297,7 @@ textarea {
   text-decoration: none;
 }
 .nav-item:hover {
-  background: oklch(95% 0.01 75);
+  background: var(--surface-hover);
   color: var(--ink);
 }
 .nav-item.active {
@@ -227,7 +328,7 @@ textarea {
   display: flex;
 }
 .cal-header button:hover {
-  background: oklch(95% 0.01 75);
+  background: var(--surface-hover);
   color: var(--ink);
 }
 .cal-label {
@@ -270,17 +371,19 @@ textarea {
   padding: 2px 0;
 }
 .cal-day:hover {
-  background: oklch(94% 0.012 75);
+  background: var(--surface-active);
 }
 /* A day with a non-empty journal entry gets a soft wash, same signal as
    CalendarPage's full-grid highlight — placed before .today/.selected so
-   those stronger states still win the background when a day is both. */
+   those stronger states still win the background when a day is both.
+   Uses the accent family (not a fixed semantic color) so this tracks
+   whichever palette is active, same as everything else accent-colored. */
 .cal-day.has-journal {
-  background: var(--good-soft);
+  background: var(--accent-soft);
 }
 .cal-day.today {
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-weight: 700;
 }
 .cal-day.selected {
@@ -345,7 +448,7 @@ textarea {
   text-align: left;
 }
 .cp-label:hover {
-  background: oklch(94% 0.012 75);
+  background: var(--surface-active);
   color: var(--accent);
 }
 .cp-today-btn {
@@ -393,13 +496,16 @@ textarea {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
-/* A day with a non-empty journal entry gets a soft wash + border tint,
-   distinct from .today's accent so a day can be both at once and still
-   read as two separate facts (a stronger signal than the small dot alone,
-   which stays as a secondary cue next to the day number). */
+/* A day with a non-empty journal entry gets a soft wash + border tint (the
+   accent family, same as .today just at lower intensity, so this tracks
+   whichever palette is active rather than being a fixed color) — a day
+   that's both still reads as two separate facts because .today below
+   layers a full-strength solid border/box-shadow on top of this soft one
+   (a stronger signal than the small dot alone, which stays as a secondary
+   cue next to the day number). */
 .cp-day.has-journal {
-  background: var(--good-soft);
-  border-color: oklch(80% 0.05 155);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
 }
 .cp-day.has-journal.today {
   box-shadow: inset 0 0 0 1px var(--accent);
@@ -442,7 +548,7 @@ textarea {
   min-width: 0; /* flex items also default to a content-based min-width */
 }
 .cp-task:hover {
-  background: oklch(94% 0.012 75);
+  background: var(--surface-active);
 }
 .cp-task-dot {
   width: 6px;
@@ -534,14 +640,15 @@ textarea {
 .cp-year-day.blank {
   visibility: hidden;
 }
-/* Same journal-entry signal as the month view's .cp-day.has-journal;
-   ordered before .today so a day that's both still reads as "today". */
+/* Same journal-entry signal as the month view's .cp-day.has-journal (the
+   accent family, tracks the active palette); ordered before .today so a
+   day that's both still reads as "today". */
 .cp-year-day.has-journal {
-  background: var(--good-soft);
+  background: var(--accent-soft);
 }
 .cp-year-day.today {
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-weight: 700;
 }
 
@@ -589,7 +696,7 @@ textarea {
   border-radius: 9px;
   border: none;
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-weight: 700;
   font-size: 12.5px;
   cursor: pointer;
@@ -612,7 +719,7 @@ textarea {
   border-radius: 9px;
   border: none;
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-weight: 700;
   font-size: 12.5px;
   cursor: pointer;
@@ -664,7 +771,7 @@ textarea {
   display: flex;
 }
 .icon-btn:hover {
-  background: oklch(93% 0.012 75);
+  background: var(--surface-muted);
   color: var(--ink);
 }
 
@@ -752,7 +859,7 @@ textarea {
   margin-bottom: 14px;
 }
 .bucket-title .count {
-  background: oklch(93% 0.012 75);
+  background: var(--surface-muted);
   padding: 1px 8px;
   border-radius: 20px;
   font-size: 10.5px;
@@ -783,7 +890,7 @@ textarea {
   border: 1px solid var(--hairline);
 }
 .task-row:hover {
-  border-color: oklch(78% 0.02 75);
+  border-color: var(--border-muted);
 }
 .status-btn {
   flex-shrink: 0;
@@ -798,7 +905,7 @@ textarea {
   justify-content: center;
   margin-top: 1px;
   padding: 0;
-  color: white;
+  color: var(--good-contrast); /* the st-done checkmark's stroke color, against its var(--good) fill below */
 }
 .status-btn:hover {
   border-color: var(--accent);
@@ -893,19 +1000,19 @@ textarea {
   color: var(--today-fg);
 }
 .due-badge.later {
-  background: oklch(93% 0.01 75);
+  background: var(--surface-muted);
   color: var(--ink-muted);
 }
 .due-badge.none {
   background: transparent;
   color: var(--ink-muted);
-  border: 1px dashed oklch(78% 0.015 75);
+  border: 1px dashed var(--border-muted);
 }
 .tag-pill {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 20px;
-  background: oklch(93% 0.01 75);
+  background: var(--surface-muted);
   color: var(--ink-muted);
   display: inline-flex;
   align-items: center;
@@ -936,7 +1043,7 @@ textarea {
   border-radius: 20px;
   font-weight: 700;
   font-family: 'IBM Plex Mono', monospace;
-  background: oklch(93% 0.01 75);
+  background: var(--surface-muted);
   color: var(--ink-muted);
 }
 .task-checklist {
@@ -1151,7 +1258,7 @@ textarea {
   padding: 0 2px;
 }
 .count {
-  background: oklch(93% 0.012 75);
+  background: var(--surface-muted);
   padding: 1px 8px;
   border-radius: 20px;
   font-size: 10.5px;
@@ -1176,7 +1283,7 @@ textarea {
   border-radius: 10px;
   border: none;
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-weight: 700;
   font-size: 12.5px;
   cursor: pointer;
@@ -1392,7 +1499,7 @@ textarea {
 }
 .linked-remove {
   border: none;
-  background: oklch(93% 0.012 75);
+  background: var(--surface-muted);
   border-radius: 50%;
   width: 16px;
   height: 16px;
@@ -1408,7 +1515,7 @@ textarea {
   color: var(--danger);
 }
 .add-link-btn {
-  border: 1px dashed oklch(78% 0.015 75);
+  border: 1px dashed var(--border-muted);
   background: transparent;
   border-radius: 20px;
   padding: 6px 13px;
@@ -1432,7 +1539,7 @@ textarea {
   background: var(--paper-card);
   border: 1px solid var(--hairline);
   border-radius: 12px;
-  box-shadow: 0 10px 28px oklch(20% 0.02 75 / 0.14);
+  box-shadow: 0 10px 28px var(--shadow-color-soft);
   padding: 10px;
   z-index: 15;
 }
@@ -1540,6 +1647,23 @@ textarea {
 .lang-picker .ws-row-btn {
   margin-left: 0;
 }
+.palette-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.palette-picker .ws-row-btn {
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.palette-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 .ws-rows-list {
   display: flex;
   flex-direction: column;
@@ -1580,9 +1704,15 @@ textarea {
 .ws-row-btn:disabled {
   cursor: default;
 }
+/* "Currently selected/active" toggle state — Settings' Language/Theme/
+   Palette pickers, a workspace row's Active indicator, CalendarPage's
+   due/journal mode toggle. Accent family (tracks the active palette), not
+   --good: this means "selected", never "succeeded/done" (that's
+   .status-btn.st-done/.journal-year-row.has-body, which do stay a fixed
+   green — see PLAN.md "Theming"). */
 .ws-row-btn.is-active {
-  background: var(--good-soft);
-  color: var(--good);
+  background: var(--accent-soft);
+  color: var(--accent);
   border-color: transparent;
 }
 .sync-panel {
@@ -1754,7 +1884,7 @@ textarea {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: oklch(20% 0.02 75 / 45%);
+  background: var(--overlay-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1765,7 +1895,7 @@ textarea {
   background: var(--paper-card);
   border: 1px solid var(--hairline);
   border-radius: 14px;
-  box-shadow: 0 20px 60px oklch(20% 0.02 75 / 25%);
+  box-shadow: 0 20px 60px var(--shadow-color-strong);
   width: 100%;
   max-width: 560px;
   max-height: calc(100vh - 48px);
@@ -1865,7 +1995,7 @@ textarea {
   opacity: 0.4;
 }
 .pd-column.drag-over .task-list {
-  background: oklch(93% 0.012 75 / 60%);
+  background: var(--drag-over-bg);
   border-radius: 12px;
 }
 .drop-indicator {

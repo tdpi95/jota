@@ -20,6 +20,18 @@
       "en": "English",
       "vi": "Tiếng Việt"
     },
+    "theme": {
+      "sectionTitle": "Giao diện",
+      "light": "Sáng",
+      "dark": "Tối"
+    },
+    "palette": {
+      "sectionTitle": "Màu nhấn",
+      "default": "Mặc định",
+      "green": "Xanh lá",
+      "blue": "Xanh dương",
+      "violet": "Tím"
+    },
     "workspaces": {
       "sectionTitle": "Không gian làm việc",
       "empty": "Chưa có không gian làm việc nào.",

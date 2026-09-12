@@ -20,6 +20,18 @@
       "en": "English",
       "vi": "Tiếng Việt"
     },
+    "theme": {
+      "sectionTitle": "Theme",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "palette": {
+      "sectionTitle": "Accent color",
+      "default": "Default",
+      "green": "Green",
+      "blue": "Blue",
+      "violet": "Violet"
+    },
     "workspaces": {
       "sectionTitle": "Workspaces",
       "empty": "No workspaces yet.",

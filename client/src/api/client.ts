@@ -20,6 +20,7 @@ import type {
   Workspace,
   WorkspaceSyncConfig,
 } from '../types';
+import type { AccentPalette, ThemeMode } from '../lib/theme';
 
 class ApiError extends Error {
   constructor(
@@ -267,6 +268,24 @@ export function getLanguagePreference(): Promise<{ language: 'en' | 'vi' }> {
 
 export function setLanguagePreference(language: 'en' | 'vi'): Promise<{ language: 'en' | 'vi' }> {
   return request('/preferences/language', { method: 'PUT', body: JSON.stringify({ language }) });
+}
+
+// App-wide UI theme + accent palette (PLAN.md "Theming") — same reasoning
+// as language above: plain preferences, no Electron bridge needed.
+export function getThemePreference(): Promise<{ theme: ThemeMode }> {
+  return request('/preferences/theme');
+}
+
+export function setThemePreference(theme: ThemeMode): Promise<{ theme: ThemeMode }> {
+  return request('/preferences/theme', { method: 'PUT', body: JSON.stringify({ theme }) });
+}
+
+export function getAccentPalettePreference(): Promise<{ accentPalette: AccentPalette }> {
+  return request('/preferences/accent-palette');
+}
+
+export function setAccentPalettePreference(accentPalette: AccentPalette): Promise<{ accentPalette: AccentPalette }> {
+  return request('/preferences/accent-palette', { method: 'PUT', body: JSON.stringify({ accentPalette }) });
 }
 
 // --- System (Settings' git-notice + Agent access section) ---

@@ -7,17 +7,21 @@ import path from 'node:path';
 import { readRegistry, writeRegistry } from '../lib/workspaces.js';
 import {
   addWorkspace,
+  getAccentPalettePreference,
   getActiveWorkspace,
   getLanguagePreference,
   getLaunchAtLoginPreference,
   getReminderSettings,
+  getThemePreference,
   listWorkspaces,
   markReminderFired,
   openWorkspace,
   removeWorkspace,
+  setAccentPalettePreference,
   setLanguagePreference,
   setLaunchAtLoginPreference,
   setReminderSettings,
+  setThemePreference,
 } from './workspaces.js';
 
 // Every test gets its own scratch $HOME so ~/.poco/config.json never touches
@@ -175,4 +179,25 @@ test('language preference defaults to en and persists an explicit choice', () =>
 
   setLanguagePreference('en', homeDir);
   assert.equal(getLanguagePreference(homeDir), 'en');
+});
+
+test('theme preference defaults to light and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getThemePreference(homeDir), 'light');
+
+  setThemePreference('dark', homeDir);
+  assert.equal(getThemePreference(homeDir), 'dark');
+
+  setThemePreference('light', homeDir);
+  assert.equal(getThemePreference(homeDir), 'light');
+});
+
+test('accent palette preference defaults to default and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getAccentPalettePreference(homeDir), 'default');
+
+  for (const palette of ['green', 'blue', 'violet', 'default'] as const) {
+    setAccentPalettePreference(palette, homeDir);
+    assert.equal(getAccentPalettePreference(homeDir), palette);
+  }
 });
