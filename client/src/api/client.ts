@@ -296,9 +296,13 @@ export function checkGitAvailable(): Promise<{ available: boolean }> {
   return request('/system/git-available');
 }
 
-/** Absolute path to this app's own standalone MCP server entrypoint, for
- * building copy-pasteable agent config snippets. */
-export function getMcpInfo(): Promise<{ entryPath: string }> {
+/** How to launch this app's own standalone MCP server entrypoint, for
+ * building copy-pasteable agent config snippets. `args` is already
+ * complete (includes the entrypoint path, or — for a packaged Linux
+ * AppImage, where that path isn't stable across restarts — just a
+ * relaunch flag) — the full invocation is exactly `command` then `args`,
+ * nothing else to append. See server/src/lib/mcpInfo.ts. */
+export function getMcpInfo(): Promise<{ command: string; args: string[] }> {
   return request('/system/mcp-info');
 }
 

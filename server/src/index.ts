@@ -6,6 +6,7 @@
 import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import type { Server } from 'node:http';
+import path from 'node:path';
 
 import { HttpError } from './lib/httpError.js';
 import calendarRouter from './routes/calendar.js';
@@ -46,6 +47,23 @@ export function createApp() {
   app.use('/api/reports', reportsRouter);
   app.use('/api/preferences', preferencesRouter);
   app.use('/api/system', systemRouter);
+
+  // Packaged app only: the Electron main process points this at the built
+  // client (`client/dist`, copied into `resourcesPath/client/dist` by
+  // electron-builder — see electron/electron-builder.yml and main.ts's
+  // `spawnServer`). In dev, Vite's own dev server serves the client instead
+  // and this is unset, so none of this runs.
+  const clientDistDir = process.env.CLIENT_DIST_DIR;
+  if (clientDistDir) {
+    app.use(express.static(clientDistDir));
+    // SPA fallback: a hard refresh (or the packaged window's initial load)
+    // on a client-side route like /projects/foo has no matching static
+    // file — hand it index.html so react-router can take over, exactly
+    // like Vite's dev server already does for the same paths.
+    app.get(/^\/(?!api\/).*/, (_req, res) => {
+      res.sendFile(path.join(clientDistDir, 'index.html'));
+    });
+  }
 
   app.use(handleServiceError);
   return app;

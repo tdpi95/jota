@@ -148,15 +148,25 @@ host (Claude Code, Claude Desktop, ...). See [PLAN.md](PLAN.md) for the full
 tool list and [PROGRESS.md](PROGRESS.md)'s "Milestone 10 notes" for how
 workspace targeting works.
 
-### Build the packaged desktop app
+### Build a standalone desktop app
 
 ```bash
-npm run build -w electron
+npm run package
 ```
 
-Basic `electron-builder` packaging config is still outstanding (tracked
-under milestone 18 in [PROGRESS.md](PROGRESS.md)) — for now, `npm run dev`
-is the supported way to run the app.
+Builds the server, the client, and the Electron shell, then runs
+`electron-builder` to produce a standalone Linux `AppImage` in `release/`
+(`release/Poco-<version>.AppImage`) — a single executable file, no install
+step, no Node/npm required on the machine running it. Double-click it (or
+`chmod +x` and run it from a terminal) like any other desktop app; it still
+prompts for a workspace folder on first run, same as `npm run dev`.
+
+Only a Linux target is configured today (`electron/electron-builder.yml`) —
+Windows/macOS installers (platform-native icons, code signing) are tracked
+as still outstanding under milestone 18 in [PROGRESS.md](PROGRESS.md). If
+you need an unpacked build to poke at (no `.AppImage` bundling step), run
+`npm run build -w electron && npx electron-builder --dir` from
+[electron/](electron/) instead.
 
 ## Project structure
 

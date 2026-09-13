@@ -157,6 +157,15 @@ export default function SettingsPage() {
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [launchAtLogin, setLaunchAtLoginValue] = useState<boolean | null>(null);
 
+  // --- "Add to applications menu" (Electron, Linux AppImage only) ---
+  // `canAddDesktopEntry` starts `false` (not `null`) specifically so the
+  // whole section stays hidden — rather than flashing in, then out — for
+  // the common case (macOS, Windows, dev, or a non-AppImage Linux build)
+  // where the bridge resolves `false`.
+  const [canAddDesktopEntry, setCanAddDesktopEntry] = useState(false);
+  const [desktopEntryInstalled, setDesktopEntryInstalledValue] = useState<boolean | null>(null);
+  const [desktopEntryError, setDesktopEntryError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!bridge) return;
     // Falls back to PLAN.md's own stated default for a newly-added
@@ -167,6 +176,10 @@ export default function SettingsPage() {
     // rather than showing nothing.
     bridge.getReminderSettings().then(setReminder).catch(() => setReminder(DEFAULT_REMINDER));
     bridge.getLaunchAtLogin().then(setLaunchAtLoginValue).catch(() => setLaunchAtLoginValue(null));
+    bridge.canCreateDesktopEntry().then((canAdd) => {
+      setCanAddDesktopEntry(canAdd);
+      if (canAdd) bridge.isDesktopEntryInstalled().then(setDesktopEntryInstalledValue).catch(() => setDesktopEntryInstalledValue(false));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -183,12 +196,31 @@ export default function SettingsPage() {
     bridge.setLaunchAtLogin(enabled).catch(() => setLaunchAtLoginValue((prev) => !prev));
   }
 
+  function commitDesktopEntryInstalled(enabled: boolean) {
+    if (!bridge) return;
+    setDesktopEntryInstalledValue(enabled);
+    setDesktopEntryError(null);
+    bridge.setDesktopEntryInstalled(enabled).catch(() => {
+      setDesktopEntryInstalledValue((prev) => !prev);
+      setDesktopEntryError(t('settings.desktopEntry.saveFailed'));
+    });
+  }
+
   const syncStatus = statusQuery.data;
   const syncConfigured = syncStatus?.remoteUrl != null;
 
   // --- Agent access (MCP) — config snippets for MCP hosts ---
+  // command/args come from the server (lib/mcpInfo.ts) already complete —
+  // dev: `npx tsx <entryPath>`; a plain compiled/prod run: `node
+  // <entryPath>`; a packaged Linux AppImage: the AppImage's own (stable)
+  // path plus a relaunch flag, *not* an entry path, since that path lives
+  // under a fresh temp mount on every launch and can't be saved by an MCP
+  // host across restarts. The fallback below (shown only until the query
+  // resolves) matches the dev shape, the more common case while this
+  // section is actually being looked at.
   const mcpInfoQuery = useQuery({ queryKey: ['system', 'mcp-info'], queryFn: api.getMcpInfo });
-  const mcpEntryPath = mcpInfoQuery.data?.entryPath ?? '/path/to/poco/server/src/mcp/index.ts';
+  const mcpCommand = mcpInfoQuery.data?.command ?? 'npx';
+  const mcpArgs = mcpInfoQuery.data?.args ?? ['tsx', '/path/to/poco/server/src/mcp/index.ts'];
   const mcpWorkspacePath = active?.path ?? '/path/to/your/workspace';
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -205,14 +237,17 @@ export default function SettingsPage() {
   }
 
   const claudeDesktopSnippet = JSON.stringify(
-    { mcpServers: { poco: { command: 'npx', args: ['tsx', mcpEntryPath], env: { POCO_WORKSPACE: mcpWorkspacePath } } } },
+    { mcpServers: { poco: { command: mcpCommand, args: mcpArgs, env: { POCO_WORKSPACE: mcpWorkspacePath } } } },
     null,
     2,
   );
-  const codexSnippet = ['[mcp_servers.poco]', 'command = "npx"', `args = ["tsx", "${mcpEntryPath}"]`, `env = { POCO_WORKSPACE = "${mcpWorkspacePath}" }`].join(
-    '\n',
-  );
-  const claudeCodeCommand = `claude mcp add poco -e POCO_WORKSPACE=${mcpWorkspacePath} -- npx tsx ${mcpEntryPath}`;
+  const codexSnippet = [
+    '[mcp_servers.poco]',
+    `command = "${mcpCommand}"`,
+    `args = [${mcpArgs.map((arg) => `"${arg}"`).join(', ')}]`,
+    `env = { POCO_WORKSPACE = "${mcpWorkspacePath}" }`,
+  ].join('\n');
+  const claudeCodeCommand = `claude mcp add poco -e POCO_WORKSPACE=${mcpWorkspacePath} -- ${mcpCommand} ${mcpArgs.join(' ')}`;
 
   return (
     <div>
@@ -504,6 +539,23 @@ export default function SettingsPage() {
               {t('settings.launchAtLogin.label')}
             </label>
           </div>
+
+          {canAddDesktopEntry && (
+            <div className="form-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <input
+                type="checkbox"
+                id="desktop-entry-installed"
+                checked={desktopEntryInstalled ?? false}
+                disabled={desktopEntryInstalled === null}
+                onChange={(e) => commitDesktopEntryInstalled(e.target.checked)}
+                style={{ width: 'auto' }}
+              />
+              <label htmlFor="desktop-entry-installed" style={{ textTransform: 'none', fontSize: 12.5, letterSpacing: 0 }}>
+                {t('settings.desktopEntry.label')}
+              </label>
+            </div>
+          )}
+          {desktopEntryError && <div className="field-error">{desktopEntryError}</div>}
         </div>
       )}
 

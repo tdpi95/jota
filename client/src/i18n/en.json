@@ -68,6 +68,10 @@
       "sectionTitle": "Desktop app",
       "label": "Launch at login"
     },
+    "desktopEntry": {
+      "label": "Add to applications menu",
+      "saveFailed": "Couldn't update the applications menu entry."
+    },
     "desktopOnlyNotice": "The daily reminder and launch-at-login toggle are only available in the desktop app.",
     "git": {
       "notFoundNotice": "Git wasn't found on this machine — undo history and remote sync won't work until it's installed.",

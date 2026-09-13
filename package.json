@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "dev": "concurrently -n client,electron -c green,magenta -k \"npm run dev -w client\" \"wait-on http://localhost:5173 && npm run dev -w electron\"",
-    "test": "npm run test -w server"
+    "test": "npm run test -w server",
+    "package": "npm run build -w server && npm run build -w client && npm run package -w electron"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

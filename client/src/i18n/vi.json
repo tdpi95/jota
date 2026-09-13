@@ -68,6 +68,10 @@
       "sectionTitle": "Ứng dụng desktop",
       "label": "Khởi động cùng hệ thống"
     },
+    "desktopEntry": {
+      "label": "Thêm vào menu ứng dụng",
+      "saveFailed": "Không thể cập nhật mục trong menu ứng dụng."
+    },
     "desktopOnlyNotice": "Nhắc nhở hằng ngày và tùy chọn khởi động cùng hệ thống chỉ khả dụng trên ứng dụng desktop.",
     "git": {
       "notFoundNotice": "Không tìm thấy Git trên máy này — lịch sử hoàn tác và đồng bộ từ xa sẽ không hoạt động cho đến khi được cài đặt.",

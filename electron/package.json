@@ -2,10 +2,14 @@
   "name": "poco-electron",
   "private": true,
   "version": "0.1.0",
+  "description": "poco — a local-first, markdown-backed daily-tasks and journal app",
+  "author": "poco",
   "main": "dist/main.js",
+  "desktopName": "poco.desktop",
   "scripts": {
     "dev": "npm run build && electron .",
-    "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/assets','dist/assets',{recursive:true})\""
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/assets','dist/assets',{recursive:true})\"",
+    "package": "npm run build && electron-builder --linux AppImage"
   },
   "dependencies": {
     "tree-kill": "^1.2.2"
