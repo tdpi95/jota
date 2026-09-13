@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 512, "h": 512 },
+    { "file": "DirectionB.dc.html", "x": 592, "y": 0, "w": 512, "h": 512 },
+    { "file": "DirectionC.dc.html", "x": 1184, "y": 0, "w": 512, "h": 512 }
+  ],
+  "annotations": [
+    { "id": "note-a", "x": 0, "y": -110, "w": 480, "text": "A — Stacked Tiles: little layered paper tiles in poco's own palette, literalizing \"modular micro-entries.\" Friendly and abstract; doesn't reference tasks/journal directly." },
+    { "id": "note-b", "x": 592, "y": -110, "w": 480, "text": "B — Folded Note: a task note with a checkmark badge, tied straight to what the app does. More literal; reads closer to other note/task-app icons." },
+    { "id": "note-c", "x": 1184, "y": -110, "w": 480, "text": "C — Geometric \"p\": a clean, ownable glyph mark. Scales best to tiny sizes (favicon, tray); most abstract, no task/modularity hint." }
+  ],
+  "launch": { "view": "canvas" }
+}
