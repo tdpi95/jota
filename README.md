@@ -11,6 +11,20 @@ Claude Desktop, or any other MCP client) via a built-in **MCP server**,
 git-backed versioning as an undo mechanism for any edit — human or agent —
 and optional git-remote sync.
 
+## Screenshots
+
+| Dashboard | Project (Kanban) |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Project kanban board](docs/screenshots/project-kanban.png) |
+
+| Journal entry | Calendar |
+|---|---|
+| ![Journal entry with linked tasks and git history](docs/screenshots/journal.png) | ![Full-page calendar](docs/screenshots/calendar.png) |
+
+| Settings | Dark theme |
+|---|---|
+| ![Settings — theme, accent, workspaces, sync, MCP](docs/screenshots/settings.png) | ![Dashboard in dark theme](docs/screenshots/dark-theme.png) |
+
 ## Name
 
 **poco** — "a little," in Spanish/Italian/Portuguese — is what this app actually is under the hood: a lot of small, self-contained pieces rather than one big system. A task is one line in a plain file. A day is one small journal entry. A project is just another file, not a row locked inside a database. There's no server to run, no account to create, no monolith to back up — just small, modular, markdown micro-entries, added a little at a time.
@@ -29,17 +43,22 @@ that exact layout from the ground up.
   `.md` file on your disk. A `node:sqlite` index is a derived, always-rebuildable
   cache — never a place data lives that isn't also in the files. Delete it,
   reopen the app, get identical results.
-- **Rich tasks**: description, creation time, tags, due date, and automatic
-  time-tracking — move a task to "doing" and the clock starts, no manual timer.
-  Drag-and-drop between Todo/Doing/Done columns.
+- **Rich tasks**: description, creation time, tags, due date, sub-tasks
+  (checklists), and automatic time-tracking — move a task to "doing" and the
+  clock starts, no manual timer. Drag-and-drop between Todo/Doing/Done
+  columns.
 - **Projects** carry a description, tags, and a color (from a preset palette
   or any custom hex) shown as calendar marks and badges.
 - **Journal entries** can link to the tasks you worked on that day, with a
   searchable task picker.
 - **Dashboard**: today/overdue/this-week task buckets across all projects,
   recent projects, quick-add, and a task/tag search popup.
-- **Calendar sidebar**: month grid marking due dates and journal entries,
-  click-through to any day.
+- **Calendar**: a compact sidebar month grid (marks due dates and journal
+  entries, click-through to any day) plus a full-page Calendar view listing
+  task titles per day, with a due/journal toggle and a year overview for
+  fast month-picking.
+- **Theming**: light/dark theme and a choice of accent-color palettes
+  (Default, Green, Blue, Violet), switchable instantly in Settings.
 - **Multiple workspaces**, Obsidian-style — point the app at any folder via
   a native folder picker, switch between registered workspaces anytime.
 - **Git-backed history**: every workspace is its own git repo, auto-committed
