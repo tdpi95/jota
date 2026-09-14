@@ -3,6 +3,46 @@
    (Projects/Tasks UI, Journal UI, Calendar sidebar, Dashboard v2, History
    panel, Workspace switcher + Settings/Sync panel) actually need. */
 
+/* JetBrains Mono — the app's one monospace typeface (badges/IDs/hashes,
+   the journal editor). Embedded (not just named and left to the OS to
+   resolve, like Newsreader/Manrope still are) so it renders identically
+   regardless of what's installed on the machine: files live in
+   client/public/fonts/jetbrains-mono/ (Vite copies `public/` verbatim into
+   `dist/`, which is exactly what both the dev server and the packaged
+   Electron app serve — see electron-builder.yml's client/dist
+   extraResource), served as static files, no bundler/webfont-loader
+   involved. SIL Open Font License — OFL.txt ships alongside the .woff2
+   files. Only the four weights/styles this app actually uses (regular/
+   bold/italic/bold-italic) are included, not the full 16-weight family. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono/JetBrainsMono-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono/JetBrainsMono-BoldItalic.woff2') format('woff2');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Theming (PLAN.md "Theming", milestone 21): every color in this file is one
    of these custom properties (or an alpha variant of one) — a component
    rule must never hardcode a color literal, the same discipline this file
@@ -58,6 +98,37 @@
   --shadow-color-soft: oklch(20% 0.02 75 / 0.14);
   --shadow-color-strong: oklch(20% 0.02 75 / 0.25);
   --drag-over-bg: oklch(93% 0.012 75 / 60%);
+
+  /* Markdown source syntax-highlight tokens (journal body editor, PLAN.md
+     "Journal editor" — VS Code-style coloring of the raw markdown, not an
+     Obsidian-style hide-the-marks rendering). --md-mark covers all plain
+     syntax punctuation (#, *, _, `, >, -, [], fence markers) so it reads as
+     dimmed structure rather than content, matching how VS Code de-emphasizes
+     markdown markup. --md-code is a fixed hue independent of --accent-hue
+     (same reasoning as --good/--danger below) so inline code/code blocks
+     stay visually distinct from links even when an accent palette is
+     switched. No dedicated list-marker token: the bullet/number character
+     is styled via --md-mark like other punctuation (see MarkdownEditor.tsx
+     for why a `list`-tagged rule can't be scoped to just the marker).
+     --md-heading is accent-family (not --ink) so headings stand out from
+     plain bold text, which stays --ink (MarkdownEditor.tsx keeps t.strong
+     and heading1-6 as separate rules specifically so this doesn't tint
+     every bold word too). --md-code-bg is a translucent --ink wash, not an
+     opaque --surface-muted fill: the fenced-code-block line background
+     (MarkdownEditor.tsx's codeBlockBackground) paints as part of .cm-line,
+     which CodeMirror stacks *above* its selection-highlight layer (a
+     .cm-layer sibling with negative z-index) — an opaque line background
+     fully hid the selection highlight underneath it. Translucent lets the
+     selection color show through, blended, instead of erasing it; it also
+     reads much less loud against the dark theme's near-black page than a
+     solid muted-surface fill did. */
+  --md-mark: var(--ink-muted);
+  --md-heading: var(--accent);
+  --md-link: var(--accent);
+  --md-url: var(--ink-muted);
+  --md-quote: var(--ink-muted);
+  --md-code: oklch(52% 0.14 350);
+  --md-code-bg: oklch(24% 0.02 75 / 6%);
 }
 
 /* Accent palettes (PLAN.md "Theming") — "default" is the original color
@@ -111,6 +182,14 @@
   --shadow-color-soft: oklch(0% 0 0 / 0.35);
   --shadow-color-strong: oklch(0% 0 0 / 0.5);
   --drag-over-bg: oklch(36% 0.012 75 / 60%);
+
+  --md-mark: var(--ink-muted);
+  --md-heading: var(--accent);
+  --md-link: var(--accent);
+  --md-url: var(--ink-muted);
+  --md-quote: var(--ink-muted);
+  --md-code: oklch(72% 0.14 350);
+  --md-code-bg: oklch(94% 0.008 75 / 8%);
 }
 
 * {
@@ -227,7 +306,7 @@ textarea {
 }
 .ws-item .path {
   margin-left: auto;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10.5px;
   color: var(--ink-muted);
   overflow: hidden;
@@ -253,7 +332,7 @@ textarea {
   border-radius: 7px;
   border: 1px solid var(--hairline);
   font-size: 11.5px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   background: var(--paper);
   color: var(--ink);
 }
@@ -335,7 +414,7 @@ textarea {
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 .cal-weekdays {
   display: grid;
@@ -436,7 +515,7 @@ textarea {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   min-width: 110px;
   /* a <button>, not a <span> — clicking it opens the year overview */
   border: none;
@@ -532,7 +611,7 @@ textarea {
 .cp-day-num {
   font-size: 12px;
   font-weight: 700;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   color: var(--ink);
   text-decoration: none;
 }
@@ -714,7 +793,7 @@ textarea {
 .page-sub {
   font-size: 12px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   margin-top: 4px;
 }
 .page-action {
@@ -889,7 +968,7 @@ textarea {
   padding: 1px 8px;
   border-radius: 20px;
   font-size: 10.5px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 /* Task rows (Dashboard/Project-detail shared) */
@@ -1000,7 +1079,7 @@ textarea {
   gap: 5px;
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 .project-dot {
   width: 7px;
@@ -1013,7 +1092,7 @@ textarea {
   padding: 2px 8px;
   border-radius: 20px;
   font-weight: 700;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   border: none;
   cursor: pointer;
 }
@@ -1068,7 +1147,7 @@ textarea {
   padding: 2px 8px;
   border-radius: 20px;
   font-weight: 700;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   background: var(--surface-muted);
   color: var(--ink-muted);
 }
@@ -1094,7 +1173,7 @@ textarea {
   gap: 4px;
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 .task-actions {
   display: flex;
@@ -1184,7 +1263,7 @@ textarea {
   gap: 12px;
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   flex-shrink: 0;
 }
 .project-counts b {
@@ -1288,7 +1367,7 @@ textarea {
   padding: 1px 8px;
   border-radius: 20px;
   font-size: 10.5px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 .add-task-row {
   display: flex;
@@ -1472,28 +1551,100 @@ textarea {
   margin: 14px 0 4px;
   align-items: center;
 }
+/* .journal-body is now the CodeMirror wrapper (MarkdownEditor), not a
+   textarea directly — resize/scroll/border/background live on this outer
+   div exactly as they did on the old textarea, while the CM-owned internals
+   (.cm-editor/.cm-scroller/.cm-content) are reset to inherit them below.
+   See MarkdownEditor.tsx for the syntax-highlighting setup. */
 .journal-body {
   width: 100%;
   min-height: 230px;
   border: 1px solid var(--hairline);
   border-radius: 14px;
   background: var(--paper-card);
-  padding: 20px;
-  font-family: 'Newsreader', Georgia, serif;
-  font-size: 15px;
-  line-height: 1.75;
-  color: var(--ink);
+  overflow: auto;
   resize: vertical;
   margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink);
 }
-.journal-body::placeholder {
+.journal-body .cm-content {
+  padding: 20px;
+}
+
+/* Generic CodeMirror-wrapper reset shared by any .md-editor instance
+   (currently only the journal body) — undoes CodeMirror's own default
+   theme (monospace font, 1.4 line-height, dotted focus outline) so the
+   editor inherits its container's font/size/color instead. */
+.md-editor .cm-editor {
+  height: 100%;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+}
+.md-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.md-editor .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+  overflow: auto;
+}
+.md-editor .cm-content {
+  caret-color: var(--ink);
+}
+/* CodeMirror's drawSelection() extension (used for a themeable selection
+   instead of relying on browser chrome) draws its own selection layer and
+   suppresses the native ::selection this app themes everywhere else (see
+   that rule below) — it ships its own hardcoded light-grey background
+   (#d9d9d9/#d7d4f0) that knows nothing about this app's [data-theme='dark'],
+   so dark theme's near-white --ink text ended up on a background nearly as
+   light as the text itself. Reusing --accent-soft here instead matches the
+   rest of the app's selection color exactly, in both themes, and !important
+   is needed because CodeMirror injects its own stylesheet at runtime (after
+   this one loads) with several chained classes — normal specificity/source
+   order can't be relied on to win against it. */
+.md-editor .cm-selectionBackground {
+  background: var(--accent-soft) !important;
+}
+.md-editor .cm-placeholder {
   color: var(--ink-muted);
-  font-family: 'Manrope', sans-serif;
+  font-family: inherit;
+  font-style: normal;
+}
+.md-editor.is-disabled .cm-editor {
+  opacity: 0.6;
+}
+/* Fenced/indented code block band (MarkdownEditor.tsx's codeBlockBackground
+   line-decoration plugin) — a full-line background spanning the empty
+   space to the right of short lines too, not just the characters. Kept
+   entirely separate from .cm-inline-code below (a different plugin, scoped
+   to InlineCode nodes only) — both used to come from one HighlightStyle
+   rule keyed on the `monospace` tag, which can't tell a fenced block's text
+   apart from an inline code span, so the two backgrounds stacked visibly
+   wherever a fenced block's per-character background sat on top of its own
+   line's background. */
+.md-editor .cm-line.cm-code-block-line {
+  background: var(--md-code-bg);
+}
+.md-editor .cm-line.cm-code-block-start {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+.md-editor .cm-line.cm-code-block-end {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+.md-editor .cm-inline-code {
+  background: var(--md-code-bg);
+  border-radius: 3px;
 }
 .journal-save-status {
   font-size: 11px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   margin-top: 8px;
 }
 .linked-section {
@@ -1623,7 +1774,7 @@ textarea {
   border-color: var(--accent);
 }
 .journal-year-row .date {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   color: var(--ink-muted);
   width: 220px;
@@ -1671,7 +1822,7 @@ textarea {
   margin-bottom: 6px;
 }
 .journal-list-entry-date {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
@@ -1771,7 +1922,7 @@ textarea {
   font-family: 'Newsreader', Georgia, serif;
 }
 .ws-row .path {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10.5px;
   color: var(--ink-muted);
   margin-top: 2px;
@@ -1825,7 +1976,7 @@ textarea {
   padding: 9px 11px;
   border-radius: 8px;
   border: 1px solid var(--hairline);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   background: var(--paper);
   color: var(--ink);
@@ -1836,7 +1987,7 @@ textarea {
   gap: 14px;
   font-size: 11.5px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   margin-bottom: 14px;
 }
 .sync-counts b {
@@ -1850,7 +2001,7 @@ textarea {
   font-size: 11.5px;
   color: var(--ink-muted);
   margin-top: 12px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 /* Notice banner (e.g. Settings' "git not found") */
@@ -1902,7 +2053,7 @@ textarea {
   border: 1px solid var(--hairline);
   border-radius: 8px;
   padding: 12px 14px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
   line-height: 1.5;
   overflow-x: auto;
@@ -1944,7 +2095,7 @@ textarea {
 .history-date {
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   margin-top: 2px;
 }
 .history-actions {
@@ -1958,7 +2109,7 @@ textarea {
   border-radius: 8px;
   background: var(--paper);
   border: 1px solid var(--hairline);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   line-height: 1.55;
   overflow-x: auto;

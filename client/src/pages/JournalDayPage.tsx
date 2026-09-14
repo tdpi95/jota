@@ -5,12 +5,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import HistoryPanel from '../components/HistoryPanel';
-import MarkdownTextarea from '../components/MarkdownTextarea';
+import MarkdownEditor from '../components/MarkdownEditor';
 import TagInput from '../components/TagInput';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
 import type { IndexedTask } from '../types';
 
-const AUTOSAVE_DELAY_MS = 800;
+// Every autosave is also a git commit (PLAN.md: every write is committed,
+// that's the undo mechanism) — 800ms fired on almost every normal
+// mid-sentence thinking pause while journaling, producing a commit per
+// pause. 4s only fires on a genuine "stopped typing for a while" pause;
+// the unmount-flush effect below still saves immediately on navigate-away
+// regardless of this delay, so nothing is lost by waiting longer here.
+const AUTOSAVE_DELAY_MS = 4000;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface LinkedTaskInfo {
@@ -197,11 +203,11 @@ function JournalDayPageInner({ date }: { date: string }) {
         <TagInput value={tags} onChange={handleTagsChange} placeholder={t('journalDay.tagPlaceholder')} />
       </div>
 
-      <MarkdownTextarea
+      <MarkdownEditor
         className="journal-body"
         placeholder={t('journalDay.bodyPlaceholder')}
         value={body}
-        onChange={(e) => handleBodyChange(e.target.value)}
+        onChange={handleBodyChange}
         disabled={entryQuery.isLoading}
       />
       <div className="journal-save-status">
