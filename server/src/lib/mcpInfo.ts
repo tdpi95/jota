@@ -43,6 +43,12 @@ export interface McpLaunchInfo {
    * (or, for the AppImage case, just the relaunch flag) where relevant, so
    * callers never need to append anything else. */
   args: string[];
+  /** Extra env vars (beyond `POCO_WORKSPACE`, which callers already add
+   * themselves from the active workspace) the launched command actually
+   * needs to start reliably. Only the AppImage case populates this today —
+   * see below — every other shape is a plain Node process with nothing
+   * extra to add. */
+  env?: Record<string, string>;
 }
 
 /**
@@ -55,11 +61,40 @@ export interface McpLaunchInfo {
 export function getMcpLaunchInfo(callerModuleUrl: string, env: NodeJS.ProcessEnv = process.env): McpLaunchInfo {
   const appImagePath = env.APPIMAGE;
   if (appImagePath) {
-    return { command: appImagePath, args: [APPIMAGE_MCP_SERVER_FLAG] };
+    return { command: appImagePath, args: [APPIMAGE_MCP_SERVER_FLAG], env: appImageDisplayEnv(env) };
   }
 
   const callerDir = path.dirname(fileURLToPath(callerModuleUrl));
   const isCompiled = callerModuleUrl.endsWith('.js');
   const entryPath = path.resolve(callerDir, '..', 'mcp', isCompiled ? 'index.js' : 'index.ts');
   return isCompiled ? { command: 'node', args: [entryPath] } : { command: 'npx', args: ['tsx', entryPath] };
+}
+
+// The AppImage case (only) re-invokes this app's own Electron binary
+// (`--poco-mcp-server`, above) rather than a plain Node script — and
+// launching Electron normally always boots its native Chromium layer
+// first, *before* main.ts's own JS even gets to check that flag, no matter
+// how short-lived or window-less that particular invocation turns out to
+// be. That native init needs a real display/session-bus connection to
+// complete; without one it doesn't just skip GUI setup, it segfaults
+// outright (confirmed live: `Missing X server or $DISPLAY` →
+// `aura/env.cc: The platform failed to initialize. Exiting.`, then a
+// crash) rather than falling back to headless. Several MCP hosts spawn
+// child processes with a stripped environment that drops exactly these
+// two vars even when running on a machine that has a perfectly good
+// display (observed with Claude Desktop on Linux) — so the self-serve
+// snippet carries them along explicitly rather than assuming the host
+// will pass through whatever this server process itself was started
+// with. `DISPLAY`/`DBUS_SESSION_BUS_ADDRESS` are read from *this* embedded
+// server's own env (it was launched by the real, currently-running
+// Electron app, which by definition already has a working display session
+// right now) and only included if actually present — an all-Wayland
+// session with no `DISPLAY`, or one without a user dbus session, still
+// generates a usable snippet rather than one with a literal `"undefined"`
+// string baked in.
+function appImageDisplayEnv(env: NodeJS.ProcessEnv): Record<string, string> | undefined {
+  const extra: Record<string, string> = {};
+  if (env.DISPLAY) extra.DISPLAY = env.DISPLAY;
+  if (env.DBUS_SESSION_BUS_ADDRESS) extra.DBUS_SESSION_BUS_ADDRESS = env.DBUS_SESSION_BUS_ADDRESS;
+  return Object.keys(extra).length > 0 ? extra : undefined;
 }

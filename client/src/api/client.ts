@@ -301,8 +301,12 @@ export function checkGitAvailable(): Promise<{ available: boolean }> {
  * complete (includes the entrypoint path, or — for a packaged Linux
  * AppImage, where that path isn't stable across restarts — just a
  * relaunch flag) — the full invocation is exactly `command` then `args`,
- * nothing else to append. See server/src/lib/mcpInfo.ts. */
-export function getMcpInfo(): Promise<{ command: string; args: string[] }> {
+ * nothing else to append. `env`, when present, holds extra vars (beyond
+ * `POCO_WORKSPACE`, which callers already add themselves) the command
+ * actually needs to start reliably — only the AppImage case populates
+ * this (`DISPLAY`/`DBUS_SESSION_BUS_ADDRESS`, milestone 18 part 20). See
+ * server/src/lib/mcpInfo.ts. */
+export function getMcpInfo(): Promise<{ command: string; args: string[]; env?: Record<string, string> }> {
   return request('/system/mcp-info');
 }
 

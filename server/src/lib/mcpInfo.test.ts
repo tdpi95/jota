@@ -33,6 +33,7 @@ test('$APPIMAGE set (packaged AppImage) ignores the ephemeral resourcesPath enti
 
   assert.equal(info.command, '/home/user/Applications/Poco-1.0.0.AppImage');
   assert.deepEqual(info.args, [APPIMAGE_MCP_SERVER_FLAG]);
+  assert.equal(info.env, undefined);
 });
 
 test('$APPIMAGE takes priority even over a .ts caller URL — the AppImage case can never actually be dev, but the check is env-first regardless', () => {
@@ -40,4 +41,40 @@ test('$APPIMAGE takes priority even over a .ts caller URL — the AppImage case 
 
   assert.equal(info.command, '/opt/Poco.AppImage');
   assert.deepEqual(info.args, [APPIMAGE_MCP_SERVER_FLAG]);
+});
+
+// Milestone 18 part 20: launching the AppImage always boots Electron's
+// native layer first (even for this headless relaunch flag), which
+// segfaults without a real display/session-bus connection — and some MCP
+// hosts (observed: Claude Desktop on Linux) spawn child processes with a
+// stripped env that drops both even on a machine that has them. So the
+// AppImage branch carries $DISPLAY/$DBUS_SESSION_BUS_ADDRESS along in its
+// own `env`, read from this embedded server's *own* environment (it was
+// launched by the real, currently-running Electron app).
+
+test('$APPIMAGE with both $DISPLAY and $DBUS_SESSION_BUS_ADDRESS set carries both along in env', () => {
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+    DISPLAY: ':0',
+    DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
+  });
+
+  assert.deepEqual(info.env, { DISPLAY: ':0', DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus' });
+});
+
+test('$APPIMAGE with only $DISPLAY set (no dbus session) carries just that one along, not a literal "undefined"', () => {
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+    DISPLAY: ':1',
+  });
+
+  assert.deepEqual(info.env, { DISPLAY: ':1' });
+});
+
+test('$APPIMAGE with neither set (e.g. an all-Wayland session with no X display env) omits env entirely', () => {
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+  });
+
+  assert.equal(info.env, undefined);
 });

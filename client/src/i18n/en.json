@@ -80,7 +80,9 @@
     "agentAccess": {
       "sectionTitle": "Agent access (MCP)",
       "intro": "Any MCP-capable AI agent (Claude Desktop, Claude Code, Codex, etc.) can read and edit this workspace's tasks and journal through poco's built-in MCP server. Add it to your agent's config, pointed at the entrypoint below.",
-      "noActiveWorkspaceNote": "Open a workspace above to get its real path filled in below — for now these examples show a placeholder.",
+      "activeWorkspaceNote": "These snippets target whichever workspace poco currently has open — right now that's {{path}}.",
+      "noActiveWorkspaceNote": "No workspace is open in poco right now — open one above, or the agent won't have a workspace to target unless you add POCO_WORKSPACE yourself (see below).",
+      "pinWorkspaceNote": "Want an agent to always target this workspace, even after you switch to another one in poco (or to run it without opening poco's window at all)? Add \"POCO_WORKSPACE\": \"{{path}}\" to the command's env.",
       "claudeDesktopLabel": "Claude Desktop — claude_desktop_config.json",
       "codexLabel": "Codex CLI — ~/.codex/config.toml",
       "claudeCodeLabel": "Using Claude Code instead?",

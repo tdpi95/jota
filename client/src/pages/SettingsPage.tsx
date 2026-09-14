@@ -222,6 +222,22 @@ export default function SettingsPage() {
   const mcpCommand = mcpInfoQuery.data?.command ?? 'npx';
   const mcpArgs = mcpInfoQuery.data?.args ?? ['tsx', '/path/to/poco/server/src/mcp/index.ts'];
   const mcpWorkspacePath = active?.path ?? '/path/to/your/workspace';
+  // Extra env the command itself needs to start reliably — only the
+  // packaged-AppImage case has any (DISPLAY/DBUS_SESSION_BUS_ADDRESS,
+  // milestone 18 part 20: launching the AppImage always boots Electron's
+  // native layer first, even for this headless relaunch flag, which
+  // segfaults without a real display/session-bus connection, and some MCP
+  // hosts spawn child processes with a stripped env that drops both even on
+  // a machine that has them). Deliberately does *not* default to including
+  // POCO_WORKSPACE (milestone 18 part 21): the MCP server itself already
+  // falls back to whichever workspace poco currently has open when it's
+  // unset (server/src/mcp/index.ts's resolveWorkspacePath), so hardcoding
+  // today's active path into the saved config would silently pin the agent
+  // to it even after switching workspaces in the app later — the section
+  // below instead explains POCO_WORKSPACE as an opt-in for anyone who wants
+  // an agent pinned to one workspace regardless of what's open.
+  const mcpEnv = mcpInfoQuery.data?.env ?? {};
+  const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   function copySnippet(key: string, text: string) {
@@ -237,7 +253,7 @@ export default function SettingsPage() {
   }
 
   const claudeDesktopSnippet = JSON.stringify(
-    { mcpServers: { poco: { command: mcpCommand, args: mcpArgs, env: { POCO_WORKSPACE: mcpWorkspacePath } } } },
+    { mcpServers: { poco: { command: mcpCommand, args: mcpArgs, ...(hasMcpEnv ? { env: mcpEnv } : {}) } } },
     null,
     2,
   );
@@ -245,9 +261,19 @@ export default function SettingsPage() {
     '[mcp_servers.poco]',
     `command = "${mcpCommand}"`,
     `args = [${mcpArgs.map((arg) => `"${arg}"`).join(', ')}]`,
-    `env = { POCO_WORKSPACE = "${mcpWorkspacePath}" }`,
+    ...(hasMcpEnv
+      ? [`env = { ${Object.entries(mcpEnv)
+          .map(([key, value]) => `${key} = "${value}"`)
+          .join(', ')} }`]
+      : []),
   ].join('\n');
-  const claudeCodeCommand = `claude mcp add poco -e POCO_WORKSPACE=${mcpWorkspacePath} -- ${mcpCommand} ${mcpArgs.join(' ')}`;
+  const claudeCodeCommand = [
+    'claude mcp add poco',
+    ...Object.entries(mcpEnv).map(([key, value]) => `-e ${key}=${value}`),
+    '--',
+    mcpCommand,
+    ...mcpArgs,
+  ].join(' ');
 
   return (
     <div>
@@ -455,7 +481,16 @@ export default function SettingsPage() {
       <div className="settings-section">
         <div className="section-title">{t('settings.agentAccess.sectionTitle')}</div>
         <p className="mcp-intro">{t('settings.agentAccess.intro')}</p>
-        {!active && <p className="empty-note" style={{ marginBottom: 16 }}>{t('settings.agentAccess.noActiveWorkspaceNote')}</p>}
+        {active ? (
+          <p className="empty-note" style={{ marginBottom: 8 }}>
+            {t('settings.agentAccess.activeWorkspaceNote', { path: mcpWorkspacePath })}
+          </p>
+        ) : (
+          <p className="empty-note" style={{ marginBottom: 8 }}>{t('settings.agentAccess.noActiveWorkspaceNote')}</p>
+        )}
+        <p className="empty-note" style={{ marginBottom: 16 }}>
+          {t('settings.agentAccess.pinWorkspaceNote', { path: mcpWorkspacePath })}
+        </p>
 
         <div className="mcp-snippet">
           <div className="mcp-snippet-head">
