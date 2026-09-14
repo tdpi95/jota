@@ -68,6 +68,10 @@
       "sectionTitle": "Ứng dụng desktop",
       "label": "Khởi động cùng hệ thống"
     },
+    "desktopEntry": {
+      "label": "Thêm vào menu ứng dụng",
+      "saveFailed": "Không thể cập nhật mục trong menu ứng dụng."
+    },
     "desktopOnlyNotice": "Nhắc nhở hằng ngày và tùy chọn khởi động cùng hệ thống chỉ khả dụng trên ứng dụng desktop.",
     "git": {
       "notFoundNotice": "Không tìm thấy Git trên máy này — lịch sử hoàn tác và đồng bộ từ xa sẽ không hoạt động cho đến khi được cài đặt.",
@@ -76,7 +80,9 @@
     "agentAccess": {
       "sectionTitle": "Quyền truy cập của agent (MCP)",
       "intro": "Bất kỳ AI agent nào hỗ trợ MCP (Claude Desktop, Claude Code, Codex, v.v.) đều có thể đọc và chỉnh sửa công việc cũng như nhật ký của không gian làm việc này thông qua máy chủ MCP tích hợp sẵn của poco. Thêm nó vào cấu hình agent của bạn, trỏ đến điểm khởi chạy bên dưới.",
-      "noActiveWorkspaceNote": "Mở một không gian làm việc ở trên để điền đường dẫn thực vào bên dưới — hiện tại các ví dụ này chỉ hiển thị giá trị giữ chỗ.",
+      "activeWorkspaceNote": "Các đoạn cấu hình này nhắm đến không gian làm việc mà poco đang mở — hiện tại đó là {{path}}.",
+      "noActiveWorkspaceNote": "Hiện không có không gian làm việc nào đang mở trong poco — hãy mở một cái ở trên, nếu không agent sẽ không có không gian làm việc để nhắm đến trừ khi bạn tự thêm POCO_WORKSPACE (xem bên dưới).",
+      "pinWorkspaceNote": "Muốn agent luôn nhắm đến không gian làm việc này, kể cả khi bạn chuyển sang không gian khác trong poco (hoặc muốn chạy mà không cần mở cửa sổ poco)? Hãy thêm \"POCO_WORKSPACE\": \"{{path}}\" vào env của lệnh.",
       "claudeDesktopLabel": "Claude Desktop — claude_desktop_config.json",
       "codexLabel": "Codex CLI — ~/.codex/config.toml",
       "claudeCodeLabel": "Dùng Claude Code thay thế?",
@@ -106,6 +112,9 @@
     "openJournalEntry": "Mở mục nhật ký — {{date}}",
     "showMore": "+{{count}} nữa",
     "showFewer": "Ẩn bớt",
+    "showAllJournal": "Xem tất cả nhật ký",
+    "hideAllJournal": "Ẩn danh sách nhật ký",
+    "journalListHint": "Tất cả nhật ký, mới nhất trước.",
     "pickMonth": "Chọn một tháng.",
     "yearOverview": "Xem theo năm",
     "previousYear": "Năm trước",
@@ -280,5 +289,14 @@
     "addTask": "+ Thêm việc",
     "searchPlaceholder": "Tìm việc…",
     "noMatchingTasks": "Không có việc nào khớp."
+  },
+  "journalEntriesList": {
+    "yearTitle": "Nhật ký — {{year}}",
+    "monthTitle": "Nhật ký — {{month}}",
+    "loading": "Đang tải…",
+    "empty": "Chưa có nhật ký nào ở đây.",
+    "noBody": "Chưa có nội dung.",
+    "expand": "Xem toàn bộ",
+    "collapse": "Thu gọn"
   }
 }

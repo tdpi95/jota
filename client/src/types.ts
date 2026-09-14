@@ -69,6 +69,14 @@ export interface JournalEntrySummary {
   tags: string[];
 }
 
+/** `GET /api/journal/:year/full` — same as `JournalEntrySummary` plus the
+ * actual body text, for views (CalendarPage's "show all journal entries"
+ * list) that need to preview/expand content rather than just a has-entry
+ * dot. */
+export interface JournalEntryFull extends JournalEntrySummary {
+  body: string;
+}
+
 /** `lib/index/queries.ts`'s `IndexedTask` — the shape aggregate endpoints
  * (`/api/tasks/open`, `/api/tasks/search`) return: a `Task` with the owning
  * project's slug/name/color joined in, so list views don't need a second

@@ -1,0 +1,142 @@
+# electron-builder config (PLAN.md "Packaging" / PROGRESS.md milestone 18).
+# Run via `npm run package -w electron` (root) or `npm run package` from
+# this directory — both build server+client+electron first, then invoke
+# electron-builder against this file.
+#
+# Basic config only, per PLAN.md: proves the app packages and runs
+# standalone on this dev machine's platform (Linux). Windows/macOS
+# installer polish (platform-native icons, code signing, notarization) is
+# explicitly out of scope here — see PROGRESS.md's milestone 18 notes.
+appId: com.poco.app
+productName: Poco
+# package.json pins "electron": "^44.3.0" (a range, for normal npm installs)
+# but electron-builder needs an exact version to know which prebuilt
+# Electron binary to download/reuse — kept in sync with the installed
+# node_modules/electron version above.
+electronVersion: 44.3.0
+directories:
+  output: ../release
+  buildResources: build
+
+# Only electron/'s own compiled output + its own (tiny — just tree-kill)
+# node_modules go in via electron-builder's default file handling. The
+# server and client are separate npm workspaces electron-builder doesn't
+# know about, so they're copied explicitly below instead.
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  # The Express server, compiled — main.ts's spawnServer() runs
+  # resources/server/dist/index.js directly under Electron's own Node
+  # runtime (ELECTRON_RUN_AS_NODE=1).
+  - from: ../server/dist
+    to: server/dist
+  # The built client (vite build) — server/src/index.ts serves this
+  # statically when CLIENT_DIST_DIR is set (main.ts sets it in prod).
+  - from: ../client/dist
+    to: client/dist
+  # server/'s own package.json — its only load-bearing field here is
+  # "type": "module", which lets Node identify resources/server/dist/*.js
+  # as ESM immediately instead of guessing from syntax (a harmless but
+  # noisy MODULE_TYPELESS_PACKAGE_JSON warning otherwise, since resources/
+  # has no package.json of its own for Node to find by walking up from
+  # server/dist).
+  - from: ../server/package.json
+    to: server/package.json
+  # The server's runtime dependencies (express, cors, gray-matter,
+  # date-fns, zod, @modelcontextprotocol/sdk, ...). This is an npm
+  # workspaces monorepo, so everything is hoisted into the *root*
+  # node_modules rather than server/node_modules — copied here as
+  # resources/node_modules, which Node's module resolution finds by
+  # walking up from resources/server/dist (same trick as any node_modules
+  # lookup). Excludes packages that are dev-only or belong to a different
+  # workspace (client's UI libs are already baked into client/dist's
+  # bundle; Electron/electron-builder/typescript/vite/tsx are build-time
+  # only) — trimmed for size, not because keeping them would break
+  # anything. A real production-only dependency prune (e.g. a clean
+  # `npm ci --omit=dev` install scoped to just server/) is left as future
+  # polish, same as PLAN.md defers per-OS installer polish.
+  - from: ../node_modules
+    to: node_modules
+    filter:
+      - '**/*'
+      - '!.bin/electron*'
+      - '!electron/**'
+      - '!electron-builder/**'
+      - '!electron-*/**'
+      - '!app-builder-bin/**'
+      - '!app-builder-lib/**'
+      - '!builder-util/**'
+      - '!builder-util-runtime/**'
+      - '!7zip-bin/**'
+      - '!dmg-builder/**'
+      - '!typescript/**'
+      - '!vite/**'
+      - '!@vitejs/**'
+      - '!tsx/**'
+      - '!concurrently/**'
+      - '!wait-on/**'
+      - '!react/**'
+      - '!react-dom/**'
+      - '!react-router*/**'
+      - '!@tanstack/**'
+      - '!i18next*/**'
+      - '!react-i18next/**'
+      - '!@types/**'
+      # vite 8's own build-time toolchain (bundler/CSS/transform engines) —
+      # hoisted as their own top-level packages rather than nested under
+      # vite/, so they need their own excludes. None of this is required to
+      # *run* the already-built client/dist.
+      - '!esbuild/**'
+      - '!@esbuild/**'
+      - '!rolldown/**'
+      - '!@rolldown/**'
+      - '!lightningcss*/**'
+      - '!rollup/**'
+      - '!@rollup/**'
+      # concurrently/wait-on's own dependency tree (checked with `npm ls` —
+      # each confirmed to only be reachable through one of those two dev
+      # tools, never through server's own dependencies).
+      - '!rxjs/**'
+      - '!axios/**'
+      - '!joi/**'
+      # electron-builder's own dependency tree (native-rebuild tooling,
+      # Windows code-signing helpers, etc.) — needed to *build* a package,
+      # never to run one.
+      - '!jiti/**'
+      - '!postject/**'
+      - '!node-gyp/**'
+      - '!tar/**'
+      - '!undici/**'
+      - '!@electron/**'
+      - '!@electron-internal/**'
+      - '!@peculiar/**'
+      - '!pkijs/**'
+
+linux:
+  target: AppImage
+  # electron-builder's Linux default is the npm package name
+  # ("poco-electron", this workspace's package.json "name" — kept as-is
+  # since renaming it would ripple into other tooling) rather than
+  # productName, unlike every other platform. Overridden here purely
+  # cosmetically, so the installed icon file/binary/.desktop id all read
+  # "poco" instead of the internal workspace name.
+  executableName: poco
+  # The existing 512×512 app icon (already used for the dev BrowserWindow) —
+  # electron-builder resizes it into the full hicolor icon theme set and
+  # wires it up as both the AppImage's own .DirIcon and the bundled
+  # .desktop entry's Icon= (confirmed by extracting a built AppImage with
+  # --appimage-extract and diffing the embedded PNG against this file).
+  icon: src/assets/icon.png
+  category: Office
+  # Paired with package.json's "desktopName": without this, the installed
+  # .desktop file (and the StartupWMClass Electron itself derives from the
+  # very same package.json field at runtime) fall back to a generated name
+  # electron-builder warned wouldn't necessarily match — some window
+  # managers/taskbars group a running window's icon by matching its
+  # WM_CLASS to an installed .desktop entry, so a mismatch there can show a
+  # generic icon in the taskbar/dock even though the AppImage itself embeds
+  # the right one. Silences the "electron uses desktopName as app_id ..."
+  # warning `npm run package` printed before this was added.
+  syncDesktopName: true

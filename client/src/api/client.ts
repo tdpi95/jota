@@ -11,6 +11,7 @@ import type {
   HistoryCommit,
   IndexedTask,
   JournalEntry,
+  JournalEntryFull,
   JournalEntrySummary,
   ProjectSummary,
   PullResult,
@@ -174,6 +175,13 @@ export function listJournalYear(year: string): Promise<{ entries: JournalEntrySu
   return request(`/journal/${encodeURIComponent(year)}`);
 }
 
+/** Same year, body text included — backs CalendarPage's "show all journal
+ * entries" list. Heavier than `listJournalYear` (reads every file in the
+ * year off disk), so only fetch this when that list is actually open. */
+export function listJournalYearFull(year: string): Promise<{ entries: JournalEntryFull[] }> {
+  return request(`/journal/${encodeURIComponent(year)}/full`);
+}
+
 export function getJournalEntry(year: string, date: string): Promise<{ entry: JournalEntry }> {
   return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}`);
 }
@@ -288,6 +296,26 @@ export function setAccentPalettePreference(accentPalette: AccentPalette): Promis
   return request('/preferences/accent-palette', { method: 'PUT', body: JSON.stringify({ accentPalette }) });
 }
 
+// CalendarPage's due/journal toggle — same reasoning as language/theme
+// above: a plain preference, no Electron bridge needed.
+export function getCalendarModePreference(): Promise<{ calendarMode: 'due' | 'journal' }> {
+  return request('/preferences/calendar-mode');
+}
+
+export function setCalendarModePreference(calendarMode: 'due' | 'journal'): Promise<{ calendarMode: 'due' | 'journal' }> {
+  return request('/preferences/calendar-mode', { method: 'PUT', body: JSON.stringify({ calendarMode }) });
+}
+
+// CalendarPage's month/year granularity — same reasoning as calendar-mode
+// above.
+export function getCalendarGranularityPreference(): Promise<{ calendarGranularity: 'month' | 'year' }> {
+  return request('/preferences/calendar-granularity');
+}
+
+export function setCalendarGranularityPreference(calendarGranularity: 'month' | 'year'): Promise<{ calendarGranularity: 'month' | 'year' }> {
+  return request('/preferences/calendar-granularity', { method: 'PUT', body: JSON.stringify({ calendarGranularity }) });
+}
+
 // --- System (Settings' git-notice + Agent access section) ---
 
 /** Whether the `git` CLI is available on this machine — undo history and
@@ -296,9 +324,17 @@ export function checkGitAvailable(): Promise<{ available: boolean }> {
   return request('/system/git-available');
 }
 
-/** Absolute path to this app's own standalone MCP server entrypoint, for
- * building copy-pasteable agent config snippets. */
-export function getMcpInfo(): Promise<{ entryPath: string }> {
+/** How to launch this app's own standalone MCP server entrypoint, for
+ * building copy-pasteable agent config snippets. `args` is already
+ * complete (includes the entrypoint path, or — for a packaged Linux
+ * AppImage, where that path isn't stable across restarts — just a
+ * relaunch flag) — the full invocation is exactly `command` then `args`,
+ * nothing else to append. `env`, when present, holds extra vars (beyond
+ * `POCO_WORKSPACE`, which callers already add themselves) the command
+ * actually needs to start reliably — only the AppImage case populates
+ * this (`DISPLAY`/`DBUS_SESSION_BUS_ADDRESS`, milestone 18 part 20). See
+ * server/src/lib/mcpInfo.ts. */
+export function getMcpInfo(): Promise<{ command: string; args: string[]; env?: Record<string, string> }> {
   return request('/system/mcp-info');
 }
 

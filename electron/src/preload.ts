@@ -24,6 +24,15 @@ export interface PocoBridge {
    * Resolves `true` on success, `false` if the OS reported an error (e.g. the
    * folder was moved/deleted since it was registered) — never rejects. */
   openWorkspaceFolder: (path: string) => Promise<boolean>;
+  /** `false` on macOS/Windows and in dev — only a packaged Linux AppImage
+   * has anything for `setDesktopEntryInstalled` to point at (see
+   * electron/src/desktopEntry.ts). Settings hides the whole control rather
+   * than show one that would just throw when this is `false`. */
+  canCreateDesktopEntry: () => Promise<boolean>;
+  isDesktopEntryInstalled: () => Promise<boolean>;
+  /** Adds or removes the `~/.local/share/applications` entry + icon.
+   * Rejects if `canCreateDesktopEntry()` is `false`. */
+  setDesktopEntryInstalled: (enabled: boolean) => Promise<void>;
 }
 
 const pocoBridge: PocoBridge = {
@@ -33,6 +42,9 @@ const pocoBridge: PocoBridge = {
   getReminderSettings: () => ipcRenderer.invoke('poco:get-reminder-settings'),
   setReminderSettings: (settings) => ipcRenderer.invoke('poco:set-reminder-settings', settings),
   openWorkspaceFolder: (path) => ipcRenderer.invoke('poco:open-workspace-folder', path),
+  canCreateDesktopEntry: () => ipcRenderer.invoke('poco:can-create-desktop-entry'),
+  isDesktopEntryInstalled: () => ipcRenderer.invoke('poco:is-desktop-entry-installed'),
+  setDesktopEntryInstalled: (enabled) => ipcRenderer.invoke('poco:set-desktop-entry-installed', enabled),
 };
 
 contextBridge.exposeInMainWorld('poco', pocoBridge);

@@ -454,6 +454,19 @@ textarea {
 .cp-today-btn {
   margin-left: 8px;
 }
+.cp-show-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+/* Pressed state while the inline journal-entries section below is open —
+   same "selected" convention as .ws-row-btn.is-active. */
+.cp-show-all-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
 .cp-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -636,9 +649,12 @@ textarea {
   font-size: 9.5px;
   color: var(--ink);
   border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
 }
 .cp-year-day.blank {
   visibility: hidden;
+  cursor: default;
 }
 /* Same journal-entry signal as the month view's .cp-day.has-journal (the
    accent family, tracks the active palette); ordered before .today so a
@@ -650,6 +666,16 @@ textarea {
   background: var(--accent);
   color: var(--accent-contrast);
   font-weight: 700;
+}
+/* A day cell is now a Link to that day's journal entry (like the month
+   view's .cp-day-num) — a plain hover highlight so that's discoverable,
+   layered after .has-journal/.today so it still shows on top of either. */
+.cp-year-day:hover {
+  background: var(--surface-active);
+  color: var(--accent);
+}
+.cp-year-day.today:hover {
+  color: var(--accent-contrast);
 }
 
 /* Main */
@@ -1613,6 +1639,67 @@ textarea {
 }
 .journal-year-row.has-body .empty-dot {
   background: var(--good);
+}
+
+/* "Show all journal entries" section (CalendarPage, both month and year
+   granularity) — a toggled view in place of the grid, not layered on top of
+   it or a popup; reuses .tag-pill/.empty-note/.page-sub, just its own list
+   and per-entry clamp/expand. */
+.journal-list-section-title {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+.journal-list-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.journal-list-entry {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+}
+.journal-list-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.journal-list-entry-date {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+.journal-list-entry-date:hover {
+  color: var(--accent);
+}
+.journal-list-entry-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+  margin: 0 0 4px;
+}
+/* Clamped until its own expand button is clicked (CLAMP_CHARS/CLAMP_LINES
+   in JournalEntriesModal decide which entries get this at all). */
+.journal-list-entry-body.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.journal-list-entry-empty {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  font-style: italic;
+  margin: 0;
 }
 
 .md-textarea {

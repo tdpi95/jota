@@ -73,6 +73,18 @@ export interface WorkspaceRegistry {
    * appearance on upgrade); `undefined` normalizes to `'default'` in
    * `services/workspaces.ts`'s `getAccentPalettePreference`. */
   accentPalette?: 'default' | 'green' | 'blue' | 'violet';
+  /** CalendarPage's due/journal toggle — app-wide, not per-workspace, same
+   * reasoning as `theme` above (a personal display preference, not vault
+   * content). `undefined` normalizes to `'due'` in
+   * `services/workspaces.ts`'s `getCalendarModePreference` — `'due'` is what
+   * the toggle already defaulted to before this preference existed. */
+  calendarMode?: 'due' | 'journal';
+  /** CalendarPage's month/year granularity — app-wide, not per-workspace,
+   * same reasoning as `calendarMode` above. `undefined` normalizes to
+   * `'month'` in `services/workspaces.ts`'s `getCalendarGranularityPreference`
+   * — `'month'` is what the page already defaulted to before this
+   * preference existed. */
+  calendarGranularity?: 'month' | 'year';
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

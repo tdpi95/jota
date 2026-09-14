@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import * as api from '../api/client';
+import JournalEntriesList from '../components/JournalEntriesList';
 import { formatDateLong, monthShortLabel, todayStr } from '../lib/date';
 import type { CalendarDay, CalendarTaskMark } from '../types';
 
@@ -23,6 +24,7 @@ interface Cell {
 interface YearDayCell {
   key: string;
   blank: boolean;
+  date?: string;
   label?: string;
   isToday?: boolean;
   hasJournalEntry?: boolean;
@@ -54,7 +56,9 @@ const MODE_ICONS: Record<ViewMode, React.ReactNode> = {
  * line up at the same height. `journalDates` (every date in the year with a
  * non-empty journal entry, from the single `GET /api/journal/:year` call —
  * much cheaper than the month view's per-month due/linked-task query) marks
- * the same days the month view highlights, just without task detail. */
+ * the same days the month view highlights, just without task detail. Each
+ * non-blank cell still carries its own `date` so it can link straight to
+ * that day's journal entry, same as the month view's day cells. */
 function buildYearMonthCells(year: number, month: number, today: string, journalDates: Set<string>): YearDayCell[] {
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -62,7 +66,7 @@ function buildYearMonthCells(year: number, month: number, today: string, journal
   for (let i = 0; i < firstWeekday; i++) cells.push({ key: `lead-${i}`, blank: true });
   for (let d = 1; d <= daysInMonth; d++) {
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    cells.push({ key: date, blank: false, label: String(d), isToday: date === today, hasJournalEntry: journalDates.has(date) });
+    cells.push({ key: date, blank: false, date, label: String(d), isToday: date === today, hasJournalEntry: journalDates.has(date) });
   }
   while (cells.length < 42) cells.push({ key: `trail-${cells.length}`, blank: true });
   return cells;
@@ -103,6 +107,42 @@ export default function CalendarPage() {
   const [mode, setMode] = useState<ViewMode>('due');
   const [granularity, setGranularity] = useState<Granularity>('month');
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [showJournalList, setShowJournalList] = useState(false);
+
+  // Persists across restarts (`~/.poco/config.json` via
+  // `GET/PUT /api/preferences/calendar-mode`) — fetched once on mount and
+  // applied on top of the `'due'` default above; a real user choice always
+  // wins once it arrives, so this only ever moves the toggle away from
+  // 'due', never flickers back to it.
+  const { data: calendarModeData } = useQuery({
+    queryKey: ['calendarModePreference'],
+    queryFn: () => api.getCalendarModePreference(),
+  });
+  useEffect(() => {
+    if (calendarModeData) setMode(calendarModeData.calendarMode);
+  }, [calendarModeData]);
+  const setCalendarModeMutation = useMutation({ mutationFn: (next: ViewMode) => api.setCalendarModePreference(next) });
+  function changeMode(next: ViewMode) {
+    setMode(next);
+    setCalendarModeMutation.mutate(next);
+  }
+
+  // Same persistence shape as calendarMode above, just for month-vs-year
+  // granularity (`GET/PUT /api/preferences/calendar-granularity`).
+  const { data: calendarGranularityData } = useQuery({
+    queryKey: ['calendarGranularityPreference'],
+    queryFn: () => api.getCalendarGranularityPreference(),
+  });
+  useEffect(() => {
+    if (calendarGranularityData) setGranularity(calendarGranularityData.calendarGranularity);
+  }, [calendarGranularityData]);
+  const setCalendarGranularityMutation = useMutation({
+    mutationFn: (next: Granularity) => api.setCalendarGranularityPreference(next),
+  });
+  function changeGranularity(next: Granularity) {
+    setGranularity(next);
+    setCalendarGranularityMutation.mutate(next);
+  }
 
   const yearStr = String(view.year);
   const monthStr = String(view.month + 1).padStart(2, '0');
@@ -145,7 +185,7 @@ export default function CalendarPage() {
   }
 
   function goToToday() {
-    setGranularity('month');
+    changeGranularity('month');
     setView({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 });
   }
 
@@ -180,9 +220,11 @@ export default function CalendarPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">{t('calendarPage.title')}</h1>
-          <div className="page-sub">{granularity === 'year' ? t('calendarPage.pickMonth') : t(`calendarPage.mode.${mode}Hint`)}</div>
+          <div className="page-sub">
+            {showJournalList ? t('calendarPage.journalListHint') : granularity === 'year' ? t('calendarPage.pickMonth') : t(`calendarPage.mode.${mode}Hint`)}
+          </div>
         </div>
-        {granularity === 'month' && (
+        {granularity === 'month' && !showJournalList && (
           <div className="cp-view-toggle" role="radiogroup" aria-label={t('calendarPage.mode.sectionTitle') ?? undefined}>
             {(['due', 'journal'] as const).map((m) => (
               <button
@@ -191,7 +233,7 @@ export default function CalendarPage() {
                 role="radio"
                 aria-checked={mode === m}
                 className={`ws-row-btn cp-mode-btn ${mode === m ? 'is-active' : ''}`}
-                onClick={() => setMode(m)}
+                onClick={() => changeMode(m)}
               >
                 {MODE_ICONS[m]}
                 {t(`calendarPage.mode.${m}`)}
@@ -215,7 +257,7 @@ export default function CalendarPage() {
         <button
           type="button"
           className="cp-label"
-          onClick={() => setGranularity(granularity === 'year' ? 'month' : 'year')}
+          onClick={() => changeGranularity(granularity === 'year' ? 'month' : 'year')}
           title={t('calendarPage.yearOverview') ?? undefined}
         >
           {granularity === 'year' ? view.year : `${monthShortLabel(view.month, language)} ${view.year}`}
@@ -233,9 +275,17 @@ export default function CalendarPage() {
         <button type="button" className="btn-secondary cp-today-btn" onClick={goToToday}>
           {t('calendarPage.today')}
         </button>
+        <button
+          type="button"
+          className={`btn-secondary cp-show-all-btn ${showJournalList ? 'is-active' : ''}`}
+          onClick={() => setShowJournalList((s) => !s)}
+        >
+          {MODE_ICONS.journal}
+          {t(showJournalList ? 'calendarPage.hideAllJournal' : 'calendarPage.showAllJournal')}
+        </button>
       </div>
 
-      {granularity === 'year' && (
+      {granularity === 'year' && !showJournalList && (
         <div className="cp-year-grid">
           {Array.from({ length: 12 }, (_, m) => m).map((m) => (
             <div key={m} className="cp-year-month">
@@ -244,7 +294,7 @@ export default function CalendarPage() {
                 className="cp-year-month-head"
                 onClick={() => {
                   setView({ year: view.year, month: m });
-                  setGranularity('month');
+                  changeGranularity('month');
                 }}
               >
                 {monthShortLabel(m, language)}
@@ -255,24 +305,30 @@ export default function CalendarPage() {
                 ))}
               </div>
               <div className="cp-year-days">
-                {buildYearMonthCells(view.year, m, today, journalDates).map((c) => (
-                  <span
-                    key={c.key}
-                    className={`cp-year-day ${c.blank ? 'blank' : ''} ${c.hasJournalEntry ? 'has-journal' : ''} ${c.isToday ? 'today' : ''}`}
-                  >
-                    {!c.blank && c.label}
-                  </span>
-                ))}
+                {buildYearMonthCells(view.year, m, today, journalDates).map((c) =>
+                  c.blank ? (
+                    <span key={c.key} className="cp-year-day blank" />
+                  ) : (
+                    <Link
+                      key={c.key}
+                      to={`/journal/${c.date!.slice(0, 4)}/${c.date}`}
+                      className={`cp-year-day ${c.hasJournalEntry ? 'has-journal' : ''} ${c.isToday ? 'today' : ''}`}
+                      title={t('calendarPage.openJournalEntry', { date: formatDateLong(c.date!, language) }) ?? undefined}
+                    >
+                      {c.label}
+                    </Link>
+                  ),
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {granularity === 'month' && isLoading && <p className="page-sub">{t('calendarPage.loading')}</p>}
-      {granularity === 'month' && isError && <p className="field-error">{t('calendarPage.failedToLoad')}</p>}
+      {granularity === 'month' && !showJournalList && isLoading && <p className="page-sub">{t('calendarPage.loading')}</p>}
+      {granularity === 'month' && !showJournalList && isError && <p className="field-error">{t('calendarPage.failedToLoad')}</p>}
 
-      {granularity === 'month' && !isLoading && !isError && (
+      {granularity === 'month' && !showJournalList && !isLoading && !isError && (
         <>
           <div className="cp-weekdays">
             {weekdayLabels.map((label, i) => (
@@ -325,6 +381,18 @@ export default function CalendarPage() {
             })}
           </div>
         </>
+      )}
+
+      {showJournalList && (
+        <JournalEntriesList
+          title={
+            granularity === 'year'
+              ? (t('journalEntriesList.yearTitle', { year: view.year }) ?? '')
+              : (t('journalEntriesList.monthTitle', { month: `${monthShortLabel(view.month, language)} ${view.year}` }) ?? '')
+          }
+          year={yearStr}
+          monthFilter={granularity === 'month' ? monthStr : undefined}
+        />
       )}
     </div>
   );
