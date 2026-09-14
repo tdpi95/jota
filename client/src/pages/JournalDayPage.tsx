@@ -11,12 +11,15 @@ import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
 import type { IndexedTask } from '../types';
 
 // Every autosave is also a git commit (PLAN.md: every write is committed,
-// that's the undo mechanism) — 800ms fired on almost every normal
+// that's the undo mechanism) — a short delay fires on almost every normal
 // mid-sentence thinking pause while journaling, producing a commit per
-// pause. 4s only fires on a genuine "stopped typing for a while" pause;
-// the unmount-flush effect below still saves immediately on navigate-away
+// pause. User-configurable via Settings (`autosaveIntervalPreference`
+// below), defaulting to 30s server-side; this is only the value shown
+// before that preference has loaded, so it must match that default exactly
+// or the debounce would visibly jump once the real value arrives. The
+// unmount-flush effect below still saves immediately on navigate-away
 // regardless of this delay, so nothing is lost by waiting longer here.
-const AUTOSAVE_DELAY_MS = 4000;
+const DEFAULT_AUTOSAVE_DELAY_MS = 30_000;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface LinkedTaskInfo {
@@ -42,6 +45,15 @@ function JournalDayPageInner({ date }: { date: string }) {
   const queryClient = useQueryClient();
 
   const entryQuery = useQuery({ queryKey: ['journalEntry', date], queryFn: () => api.getJournalEntry(year, date) });
+  // Settings-configurable (`SettingsPage`'s Autosave section) — read fresh
+  // on every mount rather than bootstrapped app-wide like theme/language,
+  // since this only affects a debounce timer, not anything rendered before
+  // this page exists. Kept in a ref (not state) purely so `scheduleSave`
+  // below always reads the latest value without needing to be redefined
+  // (and its pending `setTimeout` rescheduled) every time the query resolves.
+  const autosaveIntervalQuery = useQuery({ queryKey: ['autosaveIntervalPreference'], queryFn: api.getAutosaveIntervalPreference });
+  const autosaveDelayMsRef = useRef(DEFAULT_AUTOSAVE_DELAY_MS);
+  autosaveDelayMsRef.current = autosaveIntervalQuery.data ? autosaveIntervalQuery.data.autosaveIntervalSeconds * 1000 : DEFAULT_AUTOSAVE_DELAY_MS;
   // All projects (with their tasks embedded) — read directly from the
   // project files, not the index, so linked-task chip titles/colors are
   // never stale (PLAN.md "which reads go where"). There's no standalone
@@ -50,7 +62,13 @@ function JournalDayPageInner({ date }: { date: string }) {
 
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  // 'unsaved' (waiting out the debounce) is distinct from 'saving' (the PUT
+  // is actually in flight) — the debounce timer resets on every keystroke,
+  // so while actively composing with pauses shorter than the configured
+  // interval it never fires at all; labeling that whole stretch "Saving…"
+  // read as permanently stuck once the interval grew past a couple of
+  // seconds, even though nothing had actually started saving yet.
+  const [saveState, setSaveState] = useState<'idle' | 'unsaved' | 'saving' | 'saved'>('idle');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -91,12 +109,13 @@ function JournalDayPageInner({ date }: { date: string }) {
 
   function scheduleSave(nextBody: string, nextTags: string[]) {
     dirtyRef.current = true;
-    setSaveState('saving');
+    setSaveState('unsaved');
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       dirtyRef.current = false;
+      setSaveState('saving');
       saveMutation.mutate({ body: nextBody, tags: nextTags });
-    }, AUTOSAVE_DELAY_MS);
+    }, autosaveDelayMsRef.current);
   }
 
   function handleBodyChange(next: string) {
@@ -211,6 +230,7 @@ function JournalDayPageInner({ date }: { date: string }) {
         disabled={entryQuery.isLoading}
       />
       <div className="journal-save-status">
+        {saveState === 'unsaved' && t('journalDay.unsaved')}
         {saveState === 'saving' && t('journalDay.saving')}
         {saveState === 'saved' && t('journalDay.saved')}
       </div>

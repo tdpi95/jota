@@ -61,6 +61,42 @@ export default function SettingsPage() {
     },
   });
 
+  // --- Autosave interval (PLAN.md "Journal editor") ---
+  // Same plain-app-wide-preference pattern as language/theme above (no
+  // Electron bridge — a debounce duration touches no OS-level API), but
+  // unlike those, this one needs real client-side bounds validation before
+  // ever hitting the API (a bare number input has no built-in "must be an
+  // integer in range" enforcement the way a radiogroup of fixed options
+  // does). `draft` is a string, not a number, so a field the user is
+  // actively clearing/retyping doesn't flash a "0" or NaN error mid-edit;
+  // it only ever gets validated/submitted on blur.
+  const AUTOSAVE_INTERVAL_MIN = 1;
+  const AUTOSAVE_INTERVAL_MAX = 300;
+  const autosaveIntervalQuery = useQuery({ queryKey: ['autosaveIntervalPreference'], queryFn: api.getAutosaveIntervalPreference });
+  const [autosaveDraft, setAutosaveDraft] = useState('');
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
+  useEffect(() => {
+    if (autosaveIntervalQuery.data) setAutosaveDraft(String(autosaveIntervalQuery.data.autosaveIntervalSeconds));
+  }, [autosaveIntervalQuery.data]);
+  const setAutosaveIntervalMutation = useMutation({
+    mutationFn: (seconds: number) => api.setAutosaveIntervalPreference(seconds),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['autosaveIntervalPreference'], data);
+      setAutosaveError(null);
+    },
+    onError: () => setAutosaveError(t('settings.autosave.saveFailed')),
+  });
+  function commitAutosaveInterval() {
+    const parsed = Number(autosaveDraft);
+    const current = autosaveIntervalQuery.data?.autosaveIntervalSeconds;
+    if (!Number.isInteger(parsed) || parsed < AUTOSAVE_INTERVAL_MIN || parsed > AUTOSAVE_INTERVAL_MAX) {
+      setAutosaveError(t('settings.autosave.invalidValue', { min: AUTOSAVE_INTERVAL_MIN, max: AUTOSAVE_INTERVAL_MAX }));
+      if (current !== undefined) setAutosaveDraft(String(current));
+      return;
+    }
+    if (parsed !== current) setAutosaveIntervalMutation.mutate(parsed);
+  }
+
   const activeQuery = useQuery({ queryKey: ['workspace', 'active'], queryFn: api.getActiveWorkspace });
   const workspacesQuery = useQuery({ queryKey: ['workspaces'], queryFn: api.listWorkspaces });
   const active = activeQuery.data?.workspace ?? null;
@@ -558,6 +594,28 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <div className="settings-section">
+        <div className="section-title">{t('settings.autosave.sectionTitle')}</div>
+        <div className="sync-panel" style={{ maxWidth: 340 }}>
+          <div className="sync-field">
+            <label>{t('settings.autosave.intervalLabel')}</label>
+            <input
+              type="number"
+              min={AUTOSAVE_INTERVAL_MIN}
+              max={AUTOSAVE_INTERVAL_MAX}
+              step={1}
+              value={autosaveDraft}
+              onChange={(e) => setAutosaveDraft(e.target.value)}
+              onBlur={commitAutosaveInterval}
+              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+              disabled={autosaveIntervalQuery.isLoading}
+            />
+          </div>
+          <p className="empty-note" style={{ marginTop: 8 }}>{t('settings.autosave.helperText')}</p>
+          {autosaveError && <div className="field-error">{autosaveError}</div>}
+        </div>
+      </div>
 
       {bridge && (
         <div className="settings-section">

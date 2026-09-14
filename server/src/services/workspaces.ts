@@ -290,4 +290,29 @@ export function setCalendarGranularityPreference(
   return calendarGranularity;
 }
 
+/** Bounds for `autosaveIntervalSeconds` — shared with `routes/preferences.ts`'s
+ * validation so the two never drift apart. 1s floor (anything shorter isn't
+ * really a "pause before saving" any more); 300s (5min) ceiling, past which
+ * this stops being autosave and starts being "did it even save".
+ */
+export const AUTOSAVE_INTERVAL_MIN_SECONDS = 1;
+export const AUTOSAVE_INTERVAL_MAX_SECONDS = 300;
+
+/**
+ * The journal editor's autosave debounce, in seconds (PLAN.md "Journal
+ * editor") — app-wide, not per-workspace, same shape and reasoning as
+ * `getCalendarModePreference` above. `undefined` normalizes to `30`, this
+ * preference's shipped default (previously a hardcoded 4-second constant).
+ */
+export function getAutosaveIntervalPreference(homeDir: string = os.homedir()): number {
+  return readRegistry(homeDir).autosaveIntervalSeconds ?? 30;
+}
+
+export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number, homeDir: string = os.homedir()): number {
+  const registry = readRegistry(homeDir);
+  registry.autosaveIntervalSeconds = autosaveIntervalSeconds;
+  writeRegistry(registry, homeDir);
+  return autosaveIntervalSeconds;
+}
+
 export type { WorkspaceEntry };

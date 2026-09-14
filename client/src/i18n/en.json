@@ -64,6 +64,13 @@
       "timeLabel": "Time",
       "saveFailed": "Couldn't save reminder settings."
     },
+    "autosave": {
+      "sectionTitle": "Autosave",
+      "intervalLabel": "Save journal entries after (seconds)",
+      "helperText": "Every autosave is also a history entry — a longer interval means fewer of them.",
+      "saveFailed": "Couldn't save autosave settings.",
+      "invalidValue": "Must be a whole number between {{min}} and {{max}} seconds."
+    },
     "launchAtLogin": {
       "sectionTitle": "Desktop app",
       "label": "Launch at login"
@@ -282,6 +289,7 @@
     "today": "Today",
     "tagPlaceholder": "Add tag…",
     "bodyPlaceholder": "Write about today…",
+    "unsaved": "Unsaved changes",
     "saving": "Saving…",
     "saved": "Saved",
     "linkedTasks": "Linked tasks",

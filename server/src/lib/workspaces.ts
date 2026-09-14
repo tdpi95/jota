@@ -85,6 +85,15 @@ export interface WorkspaceRegistry {
    * — `'month'` is what the page already defaulted to before this
    * preference existed. */
   calendarGranularity?: 'month' | 'year';
+  /** Journal body autosave debounce, in seconds — app-wide, not
+   * per-workspace, same reasoning as `theme` above (a personal editing
+   * preference, not vault content). Every autosave is also a git commit
+   * (this app's undo mechanism), so this is really "how long a pause in
+   * typing before it's worth a commit" — see PLAN.md's "Journal editor".
+   * `undefined` normalizes to `30` in `services/workspaces.ts`'s
+   * `getAutosaveIntervalPreference`, the default this preference shipped
+   * with (previously a hardcoded 4-second constant with no user control). */
+  autosaveIntervalSeconds?: number;
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

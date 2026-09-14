@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Compartment, EditorState, RangeSetBuilder } from '@codemirror/state';
+import { Annotation, Compartment, EditorState, RangeSetBuilder } from '@codemirror/state';
 import { Decoration, drawSelection, dropCursor, EditorView, keymap, placeholder as placeholderExt, ViewPlugin } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -125,6 +125,17 @@ const inlineCodeBackground = ViewPlugin.fromClass(
   { decorations: (plugin) => plugin.decorations },
 );
 
+// Marks a transaction as a programmatic value-sync (the effect below,
+// pushing an externally-changed `value` prop into the CM doc) rather than
+// real user input — the updateListener checks for this to avoid calling
+// `onChange` for a change the caller itself just supplied. Without it, every
+// external `value` update (e.g. the journal entry finishing its initial
+// fetch) round-tripped back through `onChange` indistinguishably from a real
+// edit, which JournalDayPage's autosave couldn't tell apart from the user
+// actually typing — scheduling a real (and pointless) autosave on every
+// page load.
+const externalValueSync = Annotation.define<boolean>();
+
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -178,7 +189,9 @@ export default function MarkdownEditor({ value, onChange, placeholder, disabled,
           placeholderExt(placeholder ?? ''),
           editableCompartment.of([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) onChangeRef.current(update.state.doc.toString());
+            if (!update.docChanged) return;
+            if (update.transactions.some((tr) => tr.annotation(externalValueSync))) return;
+            onChangeRef.current(update.state.doc.toString());
           }),
         ],
       }),
@@ -201,7 +214,7 @@ export default function MarkdownEditor({ value, onChange, placeholder, disabled,
     if (!view) return;
     const current = view.state.doc.toString();
     if (current === value) return;
-    view.dispatch({ changes: { from: 0, to: current.length, insert: value } });
+    view.dispatch({ changes: { from: 0, to: current.length, insert: value }, annotations: externalValueSync.of(true) });
   }, [value]);
 
   useEffect(() => {

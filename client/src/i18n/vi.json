@@ -64,6 +64,13 @@
       "timeLabel": "Giờ",
       "saveFailed": "Không thể lưu cài đặt nhắc nhở."
     },
+    "autosave": {
+      "sectionTitle": "Tự động lưu",
+      "intervalLabel": "Lưu nhật ký sau (giây)",
+      "helperText": "Mỗi lần tự động lưu cũng tạo một mục lịch sử — khoảng thời gian dài hơn nghĩa là ít mục hơn.",
+      "saveFailed": "Không thể lưu cài đặt tự động lưu.",
+      "invalidValue": "Phải là số nguyên từ {{min}} đến {{max}} giây."
+    },
     "launchAtLogin": {
       "sectionTitle": "Ứng dụng desktop",
       "label": "Khởi động cùng hệ thống"
@@ -282,6 +289,7 @@
     "today": "Hôm nay",
     "tagPlaceholder": "Thêm thẻ…",
     "bodyPlaceholder": "Viết về hôm nay…",
+    "unsaved": "Có thay đổi chưa lưu",
     "saving": "Đang lưu…",
     "saved": "Đã lưu",
     "linkedTasks": "Việc hôm nay",

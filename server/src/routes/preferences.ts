@@ -125,4 +125,26 @@ router.put('/calendar-granularity', (req, res, next) => {
   }
 });
 
+// Journal editor's autosave debounce, in seconds (PLAN.md "Journal editor")
+// — same shape as /calendar-mode above, no Electron bridge needed. Bounds
+// come from services/workspaces.ts so the route and the preference itself
+// never drift out of sync.
+router.get('/autosave-interval', (_req, res) => {
+  res.json({ autosaveIntervalSeconds: workspaceService.getAutosaveIntervalPreference() });
+});
+
+router.put('/autosave-interval', (req, res, next) => {
+  try {
+    const { autosaveIntervalSeconds } = req.body ?? {};
+    const { AUTOSAVE_INTERVAL_MIN_SECONDS: min, AUTOSAVE_INTERVAL_MAX_SECONDS: max } = workspaceService;
+    if (typeof autosaveIntervalSeconds !== 'number' || !Number.isInteger(autosaveIntervalSeconds) || autosaveIntervalSeconds < min || autosaveIntervalSeconds > max) {
+      res.status(400).json({ error: `autosaveIntervalSeconds must be an integer between ${min} and ${max}` });
+      return;
+    }
+    res.json({ autosaveIntervalSeconds: workspaceService.setAutosaveIntervalPreference(autosaveIntervalSeconds) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

@@ -9,6 +9,7 @@ import {
   addWorkspace,
   getAccentPalettePreference,
   getActiveWorkspace,
+  getAutosaveIntervalPreference,
   getCalendarGranularityPreference,
   getCalendarModePreference,
   getLanguagePreference,
@@ -20,6 +21,7 @@ import {
   openWorkspace,
   removeWorkspace,
   setAccentPalettePreference,
+  setAutosaveIntervalPreference,
   setCalendarGranularityPreference,
   setCalendarModePreference,
   setLanguagePreference,
@@ -226,4 +228,15 @@ test('calendar granularity preference defaults to month and persists an explicit
 
   setCalendarGranularityPreference('month', homeDir);
   assert.equal(getCalendarGranularityPreference(homeDir), 'month');
+});
+
+test('autosave interval preference defaults to 30 seconds and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getAutosaveIntervalPreference(homeDir), 30);
+
+  setAutosaveIntervalPreference(60, homeDir);
+  assert.equal(getAutosaveIntervalPreference(homeDir), 60);
+
+  setAutosaveIntervalPreference(5, homeDir);
+  assert.equal(getAutosaveIntervalPreference(homeDir), 5);
 });

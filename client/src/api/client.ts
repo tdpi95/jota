@@ -316,6 +316,16 @@ export function setCalendarGranularityPreference(calendarGranularity: 'month' | 
   return request('/preferences/calendar-granularity', { method: 'PUT', body: JSON.stringify({ calendarGranularity }) });
 }
 
+// Journal editor's autosave debounce, in seconds (PLAN.md "Journal editor")
+// — same shape as calendar-granularity above.
+export function getAutosaveIntervalPreference(): Promise<{ autosaveIntervalSeconds: number }> {
+  return request('/preferences/autosave-interval');
+}
+
+export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number): Promise<{ autosaveIntervalSeconds: number }> {
+  return request('/preferences/autosave-interval', { method: 'PUT', body: JSON.stringify({ autosaveIntervalSeconds }) });
+}
+
 // --- System (Settings' git-notice + Agent access section) ---
 
 /** Whether the `git` CLI is available on this machine — undo history and
