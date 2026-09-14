@@ -101,6 +101,7 @@
     "nav": {
       "dashboard": "Tổng quan",
       "projects": "Dự án",
+      "notes": "Ghi chú",
       "journal": "Nhật ký",
       "calendar": "Lịch",
       "settings": "Cài đặt"
@@ -245,7 +246,8 @@
   },
   "projectsList": {
     "title": "Dự án",
-    "projectCount": "{{count}} dự án",
+    "projectCount_one": "{{count}} dự án",
+    "projectCount_other": "{{count}} dự án",
     "newProject": "+ Dự án mới",
     "newProjectModalTitle": "Dự án mới",
     "createProject": "Tạo dự án",
@@ -306,5 +308,36 @@
     "noBody": "Chưa có nội dung.",
     "expand": "Xem toàn bộ",
     "collapse": "Thu gọn"
+  },
+  "notesList": {
+    "title": "Ghi chú",
+    "noteCount_one": "{{count}} ghi chú",
+    "noteCount_other": "{{count}} ghi chú",
+    "newNote": "+ Ghi chú mới",
+    "untitled": "Ghi chú chưa có tên",
+    "searchPlaceholder": "Tìm ghi chú…",
+    "clear": "Xóa bộ lọc",
+    "loading": "Đang tải ghi chú…",
+    "empty": "Chưa có ghi chú nào — tạo một ghi chú để bắt đầu.",
+    "noMatches": "Không có ghi chú nào khớp."
+  },
+  "noteDetail": {
+    "allNotes": "← Tất cả ghi chú",
+    "titlePlaceholder": "Ghi chú chưa có tên",
+    "tagPlaceholder": "Thêm thẻ…",
+    "bodyPlaceholder": "Bắt đầu viết…",
+    "timestamps": "Tạo lúc {{created}} · Cập nhật {{updated}}",
+    "unsaved": "Có thay đổi chưa lưu",
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu",
+    "delete": "Xóa ghi chú",
+    "confirmDelete": "Xóa \"{{title}}\"?",
+    "loading": "Đang tải ghi chú…",
+    "viewMode": {
+      "sectionTitle": "Chế độ xem",
+      "edit": "Soạn thảo",
+      "preview": "Xem trước"
+    },
+    "previewEmpty": "Chưa có nội dung để xem trước."
   }
 }

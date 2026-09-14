@@ -116,15 +116,16 @@ export function writeRegistry(registry: WorkspaceRegistry, homeDir: string = os.
 }
 
 /**
- * Creates `.poco/{cache,backups}`, `projects/`, `journal/` under a workspace
- * root if they don't already exist, and makes sure `.poco/` is gitignored
- * within that workspace (it's a cache, not content — PLAN.md "Workspaces").
- * Idempotent: safe to call on every add *and* every open, so a workspace
- * that was copied/moved without its `.poco/` dir self-heals.
+ * Creates `.poco/{cache,backups}`, `projects/`, `journal/`, `notes/` under a
+ * workspace root if they don't already exist, and makes sure `.poco/` is
+ * gitignored within that workspace (it's a cache, not content — PLAN.md
+ * "Workspaces"). Idempotent: safe to call on every add *and* every open, so
+ * a workspace that was copied/moved without its `.poco/` dir self-heals.
  */
 export function scaffoldWorkspaceDirs(workspacePath: string): void {
   fs.mkdirSync(path.join(workspacePath, 'projects'), { recursive: true });
   fs.mkdirSync(path.join(workspacePath, 'journal'), { recursive: true });
+  fs.mkdirSync(path.join(workspacePath, 'notes'), { recursive: true });
   fs.mkdirSync(path.join(workspacePath, '.poco', 'cache'), { recursive: true });
   fs.mkdirSync(path.join(workspacePath, '.poco', 'backups'), { recursive: true });
   ensureGitignoreEntry(workspacePath, '.poco/');

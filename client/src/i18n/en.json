@@ -101,6 +101,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "projects": "Projects",
+      "notes": "Notes",
       "journal": "Journal",
       "calendar": "Calendar",
       "settings": "Settings"
@@ -245,7 +246,8 @@
   },
   "projectsList": {
     "title": "Projects",
-    "projectCount": "{{count}} projects",
+    "projectCount_one": "{{count}} project",
+    "projectCount_other": "{{count}} projects",
     "newProject": "+ New project",
     "newProjectModalTitle": "New project",
     "createProject": "Create project",
@@ -306,5 +308,36 @@
     "noBody": "No entry written.",
     "expand": "Show full entry",
     "collapse": "Show less"
+  },
+  "notesList": {
+    "title": "Notes",
+    "noteCount_one": "{{count}} note",
+    "noteCount_other": "{{count}} notes",
+    "newNote": "+ New note",
+    "untitled": "Untitled note",
+    "searchPlaceholder": "Search notes…",
+    "clear": "Clear",
+    "loading": "Loading notes…",
+    "empty": "No notes yet — create one to get started.",
+    "noMatches": "No notes match."
+  },
+  "noteDetail": {
+    "allNotes": "← All notes",
+    "titlePlaceholder": "Untitled note",
+    "tagPlaceholder": "Add tag…",
+    "bodyPlaceholder": "Start writing…",
+    "timestamps": "Created {{created}} · Updated {{updated}}",
+    "unsaved": "Unsaved changes",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "delete": "Delete note",
+    "confirmDelete": "Delete \"{{title}}\"?",
+    "loading": "Loading note…",
+    "viewMode": {
+      "sectionTitle": "View",
+      "edit": "Edit",
+      "preview": "Preview"
+    },
+    "previewEmpty": "Nothing to preview yet."
   }
 }

@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import { HttpError } from '../lib/httpError.js';
 import * as journalService from '../services/journal.js';
+import * as noteService from '../services/notes.js';
 import * as projectService from '../services/projects.js';
 import * as taskService from '../services/tasks.js';
 
@@ -241,5 +242,66 @@ export function registerTools(server: McpServer, workspacePath: string): void {
     },
     ({ projectSlug, status, dateRange }) =>
       wrap(() => taskService.getTaskSummary(workspacePath, { projectSlug, status, from: dateRange?.from, to: dateRange?.to })),
+  );
+
+  server.registerTool(
+    'create_note',
+    {
+      title: 'Create note',
+      description: 'Creates a new note. The filename slug is derived from the title once, at creation, and never changes.',
+      inputSchema: {
+        title: z.string(),
+        tags: z.array(z.string()).optional(),
+        body: z.string().optional().describe('Freeform markdown body.'),
+      },
+    },
+    ({ title, tags, body }) => wrap(() => noteService.createNote(workspacePath, { title, tags, body }, 'mcp:create_note')),
+  );
+
+  server.registerTool(
+    'update_note',
+    {
+      title: 'Update note',
+      description: "Updates a note's title/tags/body. Fields left out keep their existing value.",
+      inputSchema: {
+        slug: z.string(),
+        title: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        body: z.string().optional(),
+      },
+    },
+    ({ slug, title, tags, body }) => wrap(() => noteService.updateNote(workspacePath, slug, { title, tags, body }, 'mcp:update_note')),
+  );
+
+  server.registerTool(
+    'delete_note',
+    {
+      title: 'Delete note',
+      description: 'Permanently removes a note.',
+      inputSchema: { slug: z.string() },
+    },
+    ({ slug }) =>
+      wrap(() => {
+        noteService.deleteNote(workspacePath, slug, 'mcp:delete_note');
+        return { deleted: slug };
+      }),
+  );
+
+  server.registerTool(
+    'get_note',
+    { title: 'Get note', description: 'One note by slug, full body included.', inputSchema: { slug: z.string() } },
+    ({ slug }) => wrap(() => noteService.getNote(workspacePath, slug)),
+  );
+
+  server.registerTool(
+    'list_notes',
+    {
+      title: 'List notes',
+      description:
+        "Every note's metadata (title, tags, created/updated), most-recently-updated first — no body, use get_note for " +
+        'that. Pass `query` to instead do a case-insensitive substring search over title/tags (never body text).',
+      inputSchema: { query: z.string().optional() },
+    },
+    ({ query }) => wrap(() => (query ? noteService.searchNotes(workspacePath, query) : noteService.listNotes(workspacePath))),
   );
 }

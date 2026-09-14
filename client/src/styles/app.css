@@ -1307,6 +1307,245 @@ textarea {
   overflow: hidden;
 }
 
+/* Notes list (/notes) — same row layout as .projects-list/.project-row,
+   minus the color tab (notes have no color) and task counts (replaced by a
+   last-updated timestamp). */
+.notes-search-input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--paper-card);
+  color: var(--ink);
+  font-size: 12.5px;
+  min-width: 200px;
+}
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.note-row:hover {
+  border-color: var(--accent);
+}
+.note-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.note-title {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+.note-updated {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Note detail (/notes/:slug) — title is an inline editable input rather
+   than a static heading (JournalDayPage's date, by contrast, isn't
+   editable); tags/body/save-status reuse .journal-tags/.journal-body/
+   .journal-save-status as-is, same MarkdownEditor component. */
+.note-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.note-title-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 23px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 4px 0;
+}
+.note-title-input:focus {
+  outline: none;
+}
+.note-title-input::placeholder {
+  color: var(--ink-muted);
+}
+
+/* Edit/Preview segmented toggle — same .ws-row-btn/.is-active pattern as
+   CalendarPage's due/journal mode toggle (.cp-view-toggle), just its own
+   wrapper name. Right-aligned (unlike .cp-view-toggle, which sits in a
+   space-between page header) since this one sits alone above the body,
+   with nothing else on its row to push against. Icon-only buttons
+   (VIEW_MODE_ICONS) rather than text labels — tooltip/aria-label carry the
+   name instead. */
+.note-view-toggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.note-view-toggle .ws-row-btn {
+  margin-left: 0;
+}
+.note-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+}
+
+/* Rendered markdown preview (NoteDetailPage's Preview mode) — the one place
+   in this app that renders markdown to real HTML rather than just
+   syntax-coloring it (contrast MarkdownEditor, PLAN.md "Journal editor").
+   Reuses .journal-body for the shared box chrome (border/background/
+   min-height); typography below reuses the same --md-* tokens
+   MarkdownEditor's HighlightStyle uses, so headings/links/code/quotes read
+   as the same colors in both Edit and Preview. */
+/* Compound selector (not just `.note-preview`) so this reliably wins over
+   .journal-body's own font-family/font-size/line-height/resize regardless
+   of the two rules' source order — two single-class selectors have equal
+   specificity, and relying on "whichever is declared later wins" is fragile
+   the moment either block moves. */
+.journal-body.note-preview {
+  padding: 20px;
+  resize: none;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.note-preview-empty {
+  color: var(--ink-muted);
+  font-style: italic;
+}
+.note-preview > *:first-child {
+  margin-top: 0;
+}
+.note-preview > *:last-child {
+  margin-bottom: 0;
+}
+.note-preview h1,
+.note-preview h2,
+.note-preview h3,
+.note-preview h4,
+.note-preview h5,
+.note-preview h6 {
+  color: var(--md-heading);
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 20px 0 10px;
+}
+.note-preview h1 {
+  font-size: 26px;
+}
+.note-preview h2 {
+  font-size: 21px;
+}
+.note-preview h3 {
+  font-size: 17px;
+}
+.note-preview h4,
+.note-preview h5,
+.note-preview h6 {
+  font-size: 14.5px;
+}
+.note-preview p {
+  margin: 0 0 14px;
+}
+.note-preview a {
+  color: var(--md-link);
+}
+.note-preview strong {
+  font-weight: 700;
+}
+.note-preview em {
+  font-style: italic;
+}
+.note-preview s,
+.note-preview del {
+  color: var(--md-mark);
+}
+.note-preview blockquote {
+  margin: 0 0 14px;
+  padding: 2px 16px;
+  border-left: 3px solid var(--hairline);
+  color: var(--md-quote);
+  font-style: italic;
+}
+.note-preview blockquote > *:last-child {
+  margin-bottom: 0;
+}
+.note-preview code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9em;
+  color: var(--md-code);
+  background: var(--md-code-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.note-preview pre {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--md-code-bg);
+  overflow-x: auto;
+}
+.note-preview pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.note-preview ul,
+.note-preview ol {
+  margin: 0 0 14px;
+  padding-left: 24px;
+}
+.note-preview li {
+  margin-bottom: 4px;
+}
+.note-preview hr {
+  border: none;
+  border-top: 1px solid var(--hairline);
+  margin: 20px 0;
+}
+.note-preview img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.note-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.note-preview th,
+.note-preview td {
+  border: 1px solid var(--hairline);
+  padding: 6px 10px;
+  text-align: left;
+}
+.note-preview th {
+  font-weight: 700;
+  background: var(--surface-muted);
+}
+
 /* Project detail */
 .pd-head {
   display: flex;

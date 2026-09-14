@@ -31,3 +31,20 @@ test('normalizes Date values nested in arrays', () => {
   const { data } = parseFrontmatter<{ dates: string[] }>(content);
   assert.deepEqual(data.dates, ['2026-09-10', '2026-09-11']);
 });
+
+// Regression test for NoteFrontmatter's created/updated: these are full
+// ISO8601 timestamps, not bare dates, and the same unquoted-scalar
+// auto-Date-coercion applies to them too. Slicing unconditionally to
+// YYYY-MM-DD (the original fix, written before any frontmatter field needed
+// a time-of-day) would silently drop it.
+test('an unquoted full ISO8601 timestamp keeps its time-of-day, not just the date', () => {
+  const content = ['---', 'created: 2026-09-10T09:15:00.000Z', '---', 'body'].join('\n');
+  const { data } = parseFrontmatter<{ created: string }>(content);
+  assert.equal(data.created, '2026-09-10T09:15:00.000Z');
+});
+
+test('an unquoted timestamp that lands exactly on UTC midnight still normalizes to a bare date', () => {
+  const content = ['---', 'created: 2026-09-10T00:00:00.000Z', '---', 'body'].join('\n');
+  const { data } = parseFrontmatter<{ created: string }>(content);
+  assert.equal(data.created, '2026-09-10');
+});

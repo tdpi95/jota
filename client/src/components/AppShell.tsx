@@ -19,6 +19,13 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
     </svg>
   ),
+  notes: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h6" />
+    </svg>
+  ),
   journal: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -64,6 +71,7 @@ export default function AppShell() {
         <nav className="nav">
           <NavItem to="/" end label={t('appShell.nav.dashboard')} icon="dashboard" />
           <NavItem to="/projects" label={t('appShell.nav.projects')} icon="projects" />
+          <NavItem to="/notes" label={t('appShell.nav.notes')} icon="notes" />
           <NavItem to="/journal" label={t('appShell.nav.journal')} icon="journal" />
           <NavItem to="/calendar" label={t('appShell.nav.calendar')} icon="calendar" />
           <NavItem to="/settings" label={t('appShell.nav.settings')} icon="settings" />

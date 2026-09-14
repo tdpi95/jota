@@ -9,10 +9,12 @@ import type {
   CalendarDay,
   ChecklistItem,
   HistoryCommit,
+  IndexedNote,
   IndexedTask,
   JournalEntry,
   JournalEntryFull,
   JournalEntrySummary,
+  Note,
   ProjectSummary,
   PullResult,
   SyncStatus,
@@ -209,6 +211,43 @@ export function unlinkTaskFromJournal(year: string, date: string, taskId: string
   return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}/links/${encodeURIComponent(taskId)}`, {
     method: 'DELETE',
   });
+}
+
+// --- Notes ---
+
+/** Every note's metadata (no body), most-recently-updated first — or, with
+ * `q`, a substring search over title/tags only (never body text, which the
+ * index never caches). */
+export function listNotes(q?: string): Promise<{ notes: IndexedNote[] }> {
+  return request(`/notes${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+}
+
+export function getNote(slug: string): Promise<{ note: Note }> {
+  return request(`/notes/${encodeURIComponent(slug)}`);
+}
+
+export interface CreateNoteInput {
+  title: string;
+  tags?: string[];
+  body?: string;
+}
+
+export function createNote(input: CreateNoteInput): Promise<{ note: Note }> {
+  return request('/notes', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export interface UpdateNoteInput {
+  title?: string;
+  tags?: string[];
+  body?: string;
+}
+
+export function updateNote(slug: string, input: UpdateNoteInput): Promise<{ note: Note }> {
+  return request(`/notes/${encodeURIComponent(slug)}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function deleteNote(slug: string): Promise<void> {
+  return request(`/notes/${encodeURIComponent(slug)}`, { method: 'DELETE' });
 }
 
 // --- Vault history/backup (`HistoryPanel`, milestone 15) ---
