@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -13,15 +13,14 @@ import NoteRow from '../components/NoteRow';
  * tag-pill filter) is done client-side over the full loaded list rather than
  * round-tripping to the server's `?q=` search — a personal note collection
  * is small enough that this is simpler and matches `ProjectsListPage`'s own
- * reasoning. "+ New note" skips a create form entirely: it creates an
- * untitled note immediately and navigates straight to its edit page, where
- * the title is just another editable, autosaving field — friction a form
- * popup would only add for something this disposable to start.
+ * reasoning. "+ New note" skips a create form entirely — it navigates
+ * straight to `/notes/new` (`NewNotePage`), a draft that isn't actually
+ * created (no file, no git commit) until the user's first real edit there,
+ * so clicking this and then clicking away leaves nothing behind.
  */
 export default function NotesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['notes'], queryFn: () => api.listNotes() });
   const [query, setQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<string[]>([]);
@@ -29,14 +28,6 @@ export default function NotesListPage() {
   function toggleTagFilter(tag: string) {
     setTagFilters((current) => (current.includes(tag) ? current.filter((existing) => existing !== tag) : [...current, tag]));
   }
-
-  const createMutation = useMutation({
-    mutationFn: () => api.createNote({ title: t('notesList.untitled') }),
-    onSuccess: ({ note }) => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
-      navigate(`/notes/${note.slug}`);
-    },
-  });
 
   if (isLoading) return <p className="page-sub">{t('notesList.loading')}</p>;
   if (isError) return <p className="field-error">{(error as Error).message}</p>;
@@ -56,7 +47,10 @@ export default function NotesListPage() {
           <h1 className="page-title">{t('notesList.title')}</h1>
           <div className="page-sub">{t('notesList.noteCount', { count: visible.length })}</div>
         </div>
-        <button className="page-action" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+        {/* Just navigates — nothing is created here (PLAN.md "Notes": a
+            draft at /notes/new only becomes a real file on its first
+            actual edit, not on this click). */}
+        <button className="page-action" onClick={() => navigate('/notes/new')}>
           {t('notesList.newNote')}
         </button>
       </div>

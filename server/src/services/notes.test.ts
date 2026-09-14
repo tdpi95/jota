@@ -50,6 +50,19 @@ test('createNote auto-disambiguates a colliding title instead of erroring', () =
   assert.equal(third.slug, 'meeting-notes-3');
 });
 
+test('createNote never assigns the reserved "new" slug — the client draft route at /notes/new', () => {
+  const ws = scratchWorkspace();
+  const note = createNote(ws, { title: 'New' });
+  assert.equal(note.slug, 'new-2');
+});
+
+test('updateNote rejects renaming onto the reserved "new" slug', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list' });
+  assert.throws(() => updateNote(ws, 'reading-list', { newSlug: 'new' }), /reserved/);
+  assert.ok(fs.existsSync(path.join(ws, 'notes', 'reading-list.md')));
+});
+
 test('getNote reads directly from disk and 404s with a did-you-mean hint for an unknown slug', () => {
   const ws = scratchWorkspace();
   createNote(ws, { title: 'Reading list' });
@@ -84,6 +97,62 @@ test('updateNote rejects clearing the title to blank', () => {
   const ws = scratchWorkspace();
   createNote(ws, { title: 'Reading list' });
   assert.throws(() => updateNote(ws, 'reading-list', { title: '  ' }), NoteServiceError);
+});
+
+test('updateNote with newSlug renames the file, keeps content, and commits a rename message', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list', tags: ['books'], body: 'first' });
+
+  const renamed = updateNote(ws, 'reading-list', { newSlug: 'my-reading-list' });
+  assert.equal(renamed.slug, 'my-reading-list');
+  assert.equal(renamed.frontmatter.title, 'Reading list'); // untouched field preserved
+  assert.equal(renamed.body.trim(), 'first'); // round-tripped through the file, trailing newline expected
+
+  assert.ok(!fs.existsSync(path.join(ws, 'notes', 'reading-list.md')));
+  assert.ok(fs.existsSync(path.join(ws, 'notes', 'my-reading-list.md')));
+  assert.equal(getHistory(ws)[0].message, '[api] rename_note reading-list -> my-reading-list');
+  assert.throws(() => getNote(ws, 'reading-list'), NoteServiceError);
+  assert.equal(getNote(ws, 'my-reading-list').frontmatter.title, 'Reading list');
+});
+
+test('updateNote sanitizes newSlug through slugify, same as creation', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list' });
+  const renamed = updateNote(ws, 'reading-list', { newSlug: 'My New Name!!' });
+  assert.equal(renamed.slug, 'my-new-name');
+});
+
+test('updateNote combines a rename with other field changes in one write', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list', body: 'first' });
+  const renamed = updateNote(ws, 'reading-list', { newSlug: 'books', title: 'Books', body: 'second' });
+  assert.equal(renamed.slug, 'books');
+  assert.equal(renamed.frontmatter.title, 'Books');
+  assert.equal(renamed.body, 'second');
+});
+
+test('updateNote newSlug that sanitizes back to the current slug is a no-op rename (still applies other fields)', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list' });
+  const result = updateNote(ws, 'reading-list', { newSlug: 'Reading List', body: 'updated' });
+  assert.equal(result.slug, 'reading-list');
+  assert.equal(result.body, 'updated');
+  assert.equal(getHistory(ws)[0].message, '[api] update_note reading-list');
+});
+
+test('updateNote rejects renaming onto an existing note rather than auto-disambiguating', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list' });
+  createNote(ws, { title: 'Grocery list' });
+  assert.throws(() => updateNote(ws, 'reading-list', { newSlug: 'grocery-list' }), /already exists/);
+  // Rejected before any write — original file untouched.
+  assert.ok(fs.existsSync(path.join(ws, 'notes', 'reading-list.md')));
+});
+
+test('updateNote rejects a newSlug that sanitizes to nothing', () => {
+  const ws = scratchWorkspace();
+  createNote(ws, { title: 'Reading list' });
+  assert.throws(() => updateNote(ws, 'reading-list', { newSlug: '!!!' }), NoteServiceError);
 });
 
 test('deleteNote removes the file and commits; getNote/updateNote 404 afterward', () => {

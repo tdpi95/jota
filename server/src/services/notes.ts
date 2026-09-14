@@ -39,6 +39,18 @@ export interface UpdateNoteInput {
   title?: string;
   tags?: string[];
   body?: string;
+  /**
+   * Renames the note's filename/slug — a deliberate, explicit action
+   * distinct from `title` (PLAN.md "Notes": the slug is otherwise assigned
+   * once at creation and never follows a later title edit, so this is the
+   * only way to fix a note stuck as `untitled-note-2.md` after the fact).
+   * Sanitized through the same `slugify()` creation uses; conflicts with an
+   * existing note reject with 409 rather than auto-suffixing — unlike
+   * creation's auto-disambiguation, a rename is a specific, deliberate
+   * target the caller chose, so silently picking a different one instead
+   * would be surprising.
+   */
+  newSlug?: string;
 }
 
 function notesDir(workspacePath: string): string {
@@ -85,11 +97,24 @@ function noteNotFoundError(workspacePath: string, slug: string): NoteServiceErro
 function uniqueSlug(workspacePath: string, title: string): string {
   const base = slugify(title) || 'note';
   const existing = new Set(listSlugs(workspacePath));
-  if (!existing.has(base)) return base;
+  const taken = (s: string) => existing.has(s) || RESERVED_SLUGS.has(s);
+  if (!taken(base)) return base;
   let n = 2;
-  while (existing.has(`${base}-${n}`)) n++;
+  while (taken(`${base}-${n}`)) n++;
   return `${base}-${n}`;
 }
+
+/**
+ * Slugs that must never be assigned to a real note — currently just `new`,
+ * reserved by the client's `/notes/new` route (a draft that doesn't exist
+ * on disk yet, per PLAN.md "Notes"). React Router ranks that literal
+ * segment over the `/notes/:slug` dynamic one regardless of order, so a
+ * note titled "New" would otherwise slugify to `new` and become permanently
+ * unreachable by direct URL, shadowed by the draft page. `uniqueSlug`
+ * treats it as always-taken so such a title falls through to `new-2`
+ * instead, the same way an actual filename collision would.
+ */
+const RESERVED_SLUGS = new Set(['new']);
 
 /** Reads and parses a note file directly from disk — never from the index,
  * per PLAN.md's "which reads go where" (single-item reads are never stale). */
@@ -99,16 +124,35 @@ export function loadNoteFile(workspacePath: string, slug: string): ParsedNoteFil
   return parseNoteFile(fs.readFileSync(filePath, 'utf8'));
 }
 
-function saveNoteFile(workspacePath: string, slug: string, parsed: ParsedNoteFile, origin: string, message: string): void {
-  const filePath = noteFilePath(workspacePath, slug);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, serializeNoteFile(parsed), 'utf8');
+/**
+ * Writes `parsed` to `targetSlug`'s file. When `targetSlug` differs from
+ * `oldSlug` this is a rename: the new file is written first, then the old
+ * one removed, and both relative paths are staged in the same commit (git
+ * detects this as a rename in `diff`/`log --follow`, same as a plain
+ * `git mv` would).
+ */
+function saveNoteFile(
+  workspacePath: string,
+  oldSlug: string,
+  targetSlug: string,
+  parsed: ParsedNoteFile,
+  origin: string,
+  message: string,
+): void {
+  const targetPath = noteFilePath(workspacePath, targetSlug);
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, serializeNoteFile(parsed), 'utf8');
+  const paths = [noteRelPath(targetSlug)];
+  if (targetSlug !== oldSlug) {
+    fs.rmSync(noteFilePath(workspacePath, oldSlug));
+    paths.push(noteRelPath(oldSlug));
+  }
   try {
     reconcileWorkspace(workspacePath);
   } catch (err) {
     console.error(`[notes] index reconcile failed for ${workspacePath}:`, (err as Error).message);
   }
-  commitChange(workspacePath, { origin, message, paths: [noteRelPath(slug)] });
+  commitChange(workspacePath, { origin, message, paths });
 }
 
 export function getNote(workspacePath: string, slug: string): Note {
@@ -124,7 +168,7 @@ export function createNote(workspacePath: string, input: CreateNoteInput, origin
   const frontmatter: NoteFrontmatter = { title, created: now, updated: now, tags: input.tags ?? [] };
   const parsed: ParsedNoteFile = { frontmatter, body: input.body ?? '' };
 
-  saveNoteFile(workspacePath, slug, parsed, origin, `create_note ${slug}`);
+  saveNoteFile(workspacePath, slug, slug, parsed, origin, `create_note ${slug}`);
   return toNote(slug, parsed);
 }
 
@@ -145,8 +189,24 @@ export function updateNote(workspacePath: string, slug: string, input: UpdateNot
   if (input.body !== undefined) parsed.body = input.body;
   parsed.frontmatter.updated = new Date().toISOString();
 
-  saveNoteFile(workspacePath, slug, parsed, origin, `update_note ${slug}`);
-  return toNote(slug, parsed);
+  let targetSlug = slug;
+  if (input.newSlug !== undefined) {
+    const sanitized = slugify(input.newSlug);
+    if (!sanitized) throw new NoteServiceError('filename cannot be empty', 400);
+    if (sanitized !== slug) {
+      if (RESERVED_SLUGS.has(sanitized)) {
+        throw new NoteServiceError(`"${sanitized}" is a reserved filename`, 409);
+      }
+      if (fs.existsSync(noteFilePath(workspacePath, sanitized))) {
+        throw new NoteServiceError(`a note with filename "${sanitized}" already exists`, 409);
+      }
+      targetSlug = sanitized;
+    }
+  }
+
+  const message = targetSlug !== slug ? `rename_note ${slug} -> ${targetSlug}` : `update_note ${slug}`;
+  saveNoteFile(workspacePath, slug, targetSlug, parsed, origin, message);
+  return toNote(targetSlug, parsed);
 }
 
 export function deleteNote(workspacePath: string, slug: string, origin = 'api'): void {

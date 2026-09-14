@@ -5,10 +5,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import HistoryPanel from '../components/HistoryPanel';
-import MarkdownEditor from '../components/MarkdownEditor';
+import NoteBodyEditor, { VIEW_MODE_ICONS } from '../components/NoteBodyEditor';
 import TagInput from '../components/TagInput';
 import { formatTimestamp } from '../lib/date';
-import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 
 // Same reasoning/default as JournalDayPage's autosave — every autosave is
 // also a git commit (the undo mechanism), so a short fixed delay would fire
@@ -17,24 +16,6 @@ import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 // preference's own server-side default (30s) or the debounce would visibly
 // jump once the real value arrives.
 const DEFAULT_AUTOSAVE_DELAY_MS = 30_000;
-
-// Pencil (edit) / eye (preview, same path HistoryPanel's "view diff" button
-// already uses) — icon-only, so each button still carries its label via
-// `title`/`aria-label` rather than visible text.
-const VIEW_MODE_ICONS: Record<'edit' | 'preview', React.ReactNode> = {
-  edit: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  ),
-  preview: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ),
-};
 
 export default function NoteDetailPage() {
   const { slug } = useParams();
@@ -57,18 +38,18 @@ function NoteDetailPageInner({ slug }: { slug: string }) {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [body, setBody] = useState('');
-  // Edit ↔ rendered-preview toggle for the body only (title/tags stay
-  // editable regardless) — a real HTML render via markdown-it, unlike
-  // MarkdownEditor's deliberate syntax-coloring-only choice for the journal
-  // body (PLAN.md "Journal editor"); notes get their own separate mode
-  // instead of reopening that decision. Renders straight off local `body`
-  // state, not the last-saved value, so switching to Preview reflects
-  // whatever's been typed even before the autosave debounce fires.
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   // Same 'unsaved' (waiting out the debounce) vs 'saving' (PUT in flight)
   // split, for the same reason as JournalDayPage: labeling the whole
   // debounce window "Saving…" reads as stuck once the interval grows.
   const [saveState, setSaveState] = useState<'idle' | 'unsaved' | 'saving' | 'saved'>('idle');
+  // Filename/slug editing — a separate, explicit action from the
+  // continuous title/tags/body autosave above: unlike those, a rename
+  // moves the actual file on disk, so it commits only when the user
+  // finishes editing (Enter/blur), not per keystroke, and surfaces its own
+  // error (e.g. a filename collision) rather than folding into `saveState`.
+  const [editingSlug, setEditingSlug] = useState(false);
+  const [slugDraft, setSlugDraft] = useState(slug);
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   // `dirty` is set only by the edit handlers below, never inferred by
   // diffing against loaded data — same race JournalDayPage's own comment
@@ -137,6 +118,39 @@ function NoteDetailPageInner({ slug }: { slug: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const renameMutation = useMutation({
+    mutationFn: (input: api.UpdateNoteInput) => api.updateNote(slug, input),
+    onSuccess: ({ note }) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      // NoteDetailPageInner is remounted (key={slug}) by this navigation,
+      // which resets all of this component's local state — no manual
+      // cleanup of editingSlug/slugDraft/slugError needed.
+      navigate(`/notes/${note.slug}`, { replace: true });
+    },
+    onError: (err) => {
+      setSlugError(err instanceof api.ApiError ? err.message : t('noteDetail.renameFailed'));
+      setEditingSlug(true); // reopen so the user can see the error and adjust
+    },
+  });
+
+  function commitSlugEdit() {
+    const nextSlug = slugDraft.trim();
+    setEditingSlug(false);
+    if (!nextSlug || nextSlug === slug) {
+      setSlugDraft(slug);
+      setSlugError(null);
+      return;
+    }
+    // Cancel any pending autosave and fold its latest values into the same
+    // rename request — the old file is about to be removed, so a separately
+    // scheduled autosave firing afterward against the old slug would 404.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    dirtyRef.current = false;
+    const latest = latestRef.current;
+    setSlugError(null);
+    renameMutation.mutate({ newSlug: nextSlug, title: latest.title, tags: latest.tags, body: latest.body });
+  }
+
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteNote(slug),
     onSuccess: () => {
@@ -185,34 +199,47 @@ function NoteDetailPageInner({ slug }: { slug: string }) {
       </div>
       <div className="page-sub">{t('noteDetail.timestamps', { created: formatTimestamp(frontmatter.created), updated: formatTimestamp(frontmatter.updated) })}</div>
 
+      <div className="note-slug-row">
+        {editingSlug ? (
+          <input
+            className="note-slug-input"
+            value={slugDraft}
+            onChange={(e) => setSlugDraft(e.target.value)}
+            onBlur={commitSlugEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              else if (e.key === 'Escape') {
+                setEditingSlug(false);
+                setSlugDraft(slug);
+                setSlugError(null);
+              }
+            }}
+            disabled={renameMutation.isPending}
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            className="note-slug-btn"
+            title={t('noteDetail.renameFile')}
+            onClick={() => {
+              setSlugDraft(slug);
+              setSlugError(null);
+              setEditingSlug(true);
+            }}
+          >
+            {VIEW_MODE_ICONS.edit}
+            <span className="note-slug-text">notes/{slug}.md</span>
+          </button>
+        )}
+        {slugError && <span className="field-error">{slugError}</span>}
+      </div>
+
       <div className="journal-tags">
         <TagInput value={tags} onChange={handleTagsChange} placeholder={t('noteDetail.tagPlaceholder')} />
       </div>
 
-      <div className="note-view-toggle" role="radiogroup" aria-label={t('noteDetail.viewMode.sectionTitle') ?? undefined}>
-        {(['edit', 'preview'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={viewMode === m}
-            title={t(`noteDetail.viewMode.${m}`)}
-            aria-label={t(`noteDetail.viewMode.${m}`)}
-            className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
-            onClick={() => setViewMode(m)}
-          >
-            {VIEW_MODE_ICONS[m]}
-          </button>
-        ))}
-      </div>
-
-      {viewMode === 'edit' ? (
-        <MarkdownEditor className="journal-body" placeholder={t('noteDetail.bodyPlaceholder')} value={body} onChange={handleBodyChange} disabled={noteQuery.isLoading} />
-      ) : body.trim() ? (
-        <div className="note-preview journal-body" dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(body) }} />
-      ) : (
-        <div className="note-preview journal-body note-preview-empty">{t('noteDetail.previewEmpty')}</div>
-      )}
+      <NoteBodyEditor body={body} onChange={handleBodyChange} disabled={noteQuery.isLoading} />
       <div className="journal-save-status">
         {saveState === 'unsaved' && t('noteDetail.unsaved')}
         {saveState === 'saving' && t('noteDetail.saving')}

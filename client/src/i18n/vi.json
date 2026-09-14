@@ -332,6 +332,9 @@
     "saved": "Đã lưu",
     "delete": "Xóa ghi chú",
     "confirmDelete": "Xóa \"{{title}}\"?",
+    "renameFile": "Đổi tên tệp",
+    "renameFailed": "Không thể đổi tên tệp.",
+    "createFailed": "Không thể tạo ghi chú.",
     "loading": "Đang tải ghi chú…",
     "viewMode": {
       "sectionTitle": "Chế độ xem",

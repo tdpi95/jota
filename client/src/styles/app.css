@@ -1387,6 +1387,43 @@ textarea {
   color: var(--ink-muted);
 }
 
+/* Filename/slug row — a rare, deliberate action (PLAN.md "Notes": the slug
+   is otherwise fixed at creation) so it's a small, muted, click-to-edit
+   affordance rather than a permanently-open field like the title above it. */
+.note-slug-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.note-slug-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+  cursor: pointer;
+  color: var(--ink-muted);
+}
+.note-slug-btn:hover {
+  color: var(--accent);
+}
+.note-slug-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.note-slug-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--hairline);
+  background: var(--paper-card);
+  color: var(--ink);
+  min-width: 180px;
+}
+
 /* Edit/Preview segmented toggle — same .ws-row-btn/.is-active pattern as
    CalendarPage's due/journal mode toggle (.cp-view-toggle), just its own
    wrapper name. Right-aligned (unlike .cp-view-toggle, which sits in a

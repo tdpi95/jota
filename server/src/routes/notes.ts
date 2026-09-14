@@ -45,8 +45,8 @@ router.get('/:slug', (req, res, next) => {
 router.patch('/:slug', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { title, tags, body } = req.body ?? {};
-    const note = noteService.updateNote(workspace.path, req.params.slug, { title, tags, body }, 'api');
+    const { title, tags, body, newSlug } = req.body ?? {};
+    const note = noteService.updateNote(workspace.path, req.params.slug, { title, tags, body, newSlug }, 'api');
     res.json({ note });
   } catch (err) {
     next(err);

@@ -297,31 +297,50 @@ test('note tools create/update/list/search/get/delete a real file, indexed and c
     })) as CallToolResult,
   );
   assert.equal(updated.frontmatter.title, 'Meeting notes (Q4 kickoff)');
-  // The slug/filename never changes even though the title did.
+  // The slug/filename never changes on a plain title edit — only `newSlug`
+  // (below) renames it.
   assert.ok(fs.existsSync(path.join(ws, 'notes', 'meeting-notes.md')));
+
+  const renamed = expectOk<{ slug: string; frontmatter: { title: string } }>(
+    (await client.callTool({
+      name: 'update_note',
+      arguments: { slug: 'meeting-notes', newSlug: 'q4-kickoff-notes' },
+    })) as CallToolResult,
+  );
+  assert.equal(renamed.slug, 'q4-kickoff-notes');
+  assert.equal(renamed.frontmatter.title, 'Meeting notes (Q4 kickoff)'); // untouched by the rename
+  assert.ok(!fs.existsSync(path.join(ws, 'notes', 'meeting-notes.md')));
+  assert.ok(fs.existsSync(path.join(ws, 'notes', 'q4-kickoff-notes.md')));
+  assert.equal(getHistory(ws)[0].message, '[mcp:update_note] rename_note meeting-notes -> q4-kickoff-notes');
+
+  const renameConflict = (await client.callTool({
+    name: 'update_note',
+    arguments: { slug: 'q4-kickoff-notes', newSlug: 'meeting-notes-2' },
+  })) as CallToolResult;
+  assert.match(expectError(renameConflict), /already exists/);
 
   const listed = expectOk<{ slug: string; title: string }[]>(
     (await client.callTool({ name: 'list_notes', arguments: {} })) as CallToolResult,
   );
   assert.deepEqual(
     listed.map((n) => n.slug).sort(),
-    ['meeting-notes', 'meeting-notes-2'],
+    ['meeting-notes-2', 'q4-kickoff-notes'],
   );
 
   const searched = expectOk<{ slug: string }[]>(
     (await client.callTool({ name: 'list_notes', arguments: { query: 'kickoff' } })) as CallToolResult,
   );
-  assert.deepEqual(searched.map((n) => n.slug), ['meeting-notes']);
+  assert.deepEqual(searched.map((n) => n.slug), ['q4-kickoff-notes']);
 
   const fetched = expectOk<{ body: string }>(
-    (await client.callTool({ name: 'get_note', arguments: { slug: 'meeting-notes' } })) as CallToolResult,
+    (await client.callTool({ name: 'get_note', arguments: { slug: 'q4-kickoff-notes' } })) as CallToolResult,
   );
   assert.match(fetched.body, /Discussed the roadmap\./);
 
-  await client.callTool({ name: 'delete_note', arguments: { slug: 'meeting-notes' } });
-  assert.ok(!fs.existsSync(path.join(ws, 'notes', 'meeting-notes.md')));
-  assert.equal(getHistory(ws)[0].message, '[mcp:delete_note] delete_note meeting-notes');
+  await client.callTool({ name: 'delete_note', arguments: { slug: 'q4-kickoff-notes' } });
+  assert.ok(!fs.existsSync(path.join(ws, 'notes', 'q4-kickoff-notes.md')));
+  assert.equal(getHistory(ws)[0].message, '[mcp:delete_note] delete_note q4-kickoff-notes');
 
-  const afterDelete = (await client.callTool({ name: 'get_note', arguments: { slug: 'meeting-notes' } })) as CallToolResult;
-  assert.match(expectError(afterDelete), /no note with slug "meeting-notes"/);
+  const afterDelete = (await client.callTool({ name: 'get_note', arguments: { slug: 'q4-kickoff-notes' } })) as CallToolResult;
+  assert.match(expectError(afterDelete), /no note with slug "q4-kickoff-notes"/);
 });

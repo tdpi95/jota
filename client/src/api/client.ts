@@ -240,6 +240,10 @@ export interface UpdateNoteInput {
   title?: string;
   tags?: string[];
   body?: string;
+  /** Renames the note's filename/slug — see server/src/services/notes.ts's
+   * `UpdateNoteInput.newSlug` doc. Rejects (409) rather than auto-suffixing
+   * if a note with that filename already exists. */
+  newSlug?: string;
 }
 
 export function updateNote(slug: string, input: UpdateNoteInput): Promise<{ note: Note }> {

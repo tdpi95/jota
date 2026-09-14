@@ -332,6 +332,9 @@
     "saved": "Saved",
     "delete": "Delete note",
     "confirmDelete": "Delete \"{{title}}\"?",
+    "renameFile": "Rename file",
+    "renameFailed": "Failed to rename the file.",
+    "createFailed": "Failed to create the note.",
     "loading": "Loading note…",
     "viewMode": {
       "sectionTitle": "View",

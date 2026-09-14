@@ -262,15 +262,20 @@ export function registerTools(server: McpServer, workspacePath: string): void {
     'update_note',
     {
       title: 'Update note',
-      description: "Updates a note's title/tags/body. Fields left out keep their existing value.",
+      description:
+        "Updates a note's title/tags/body. Fields left out keep their existing value. `newSlug` renames the note's " +
+        "filename (the slug otherwise never changes after creation) — rejects with a conflict if a note with that " +
+        'filename already exists, rather than picking a different one.',
       inputSchema: {
         slug: z.string(),
         title: z.string().optional(),
         tags: z.array(z.string()).optional(),
         body: z.string().optional(),
+        newSlug: z.string().optional(),
       },
     },
-    ({ slug, title, tags, body }) => wrap(() => noteService.updateNote(workspacePath, slug, { title, tags, body }, 'mcp:update_note')),
+    ({ slug, title, tags, body, newSlug }) =>
+      wrap(() => noteService.updateNote(workspacePath, slug, { title, tags, body, newSlug }, 'mcp:update_note')),
   );
 
   server.registerTool(
