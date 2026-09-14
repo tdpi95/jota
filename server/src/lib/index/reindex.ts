@@ -10,6 +10,7 @@ import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { parseJournalFile } from '../markdown/journal.js';
+import { parseNoteFile } from '../markdown/note.js';
 import { parseProjectFile, tasksOfProject } from '../markdown/project.js';
 import { deleteIndexDb, openIndexDb } from './db.js';
 
@@ -20,6 +21,9 @@ export interface ReconcileStats {
   journalEntriesScanned: number;
   journalEntriesReparsed: number;
   journalEntriesRemoved: number;
+  notesScanned: number;
+  notesReparsed: number;
+  notesRemoved: number;
 }
 
 export interface IndexStatus {
@@ -27,6 +31,7 @@ export interface IndexStatus {
   projectCount: number;
   taskCount: number;
   journalEntryCount: number;
+  noteCount: number;
 }
 
 function hashContent(content: string): string {
@@ -185,15 +190,67 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
   return { scanned, reparsed, removed };
 }
 
+function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: number; reparsed: number; removed: number } {
+  const notesDir = path.join(workspacePath, 'notes');
+  const files = listFiles(notesDir);
+  const seenSlugs = new Set<string>();
+  let reparsed = 0;
+
+  const getMtime = db.prepare('SELECT source_mtime FROM notes WHERE slug = ?');
+  const upsertNote = db.prepare(`
+    INSERT INTO notes (slug, title, created, updated, tags, source_mtime, source_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(slug) DO UPDATE SET
+      title = excluded.title, created = excluded.created, updated = excluded.updated,
+      tags = excluded.tags, source_mtime = excluded.source_mtime, source_hash = excluded.source_hash
+  `);
+
+  for (const file of files) {
+    const slug = file.slice(0, -'.md'.length);
+    seenSlugs.add(slug);
+    const fullPath = path.join(notesDir, file);
+    const stat = fs.statSync(fullPath);
+
+    const existing = getMtime.get(slug) as { source_mtime: number } | undefined;
+    if (existing && existing.source_mtime === stat.mtimeMs) continue; // unchanged: stat only, no parse
+
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const parsed = parseNoteFile(content);
+
+    upsertNote.run(
+      slug,
+      parsed.frontmatter.title,
+      parsed.frontmatter.created,
+      parsed.frontmatter.updated,
+      JSON.stringify(parsed.frontmatter.tags),
+      stat.mtimeMs,
+      hashContent(content),
+    );
+    reparsed++;
+  }
+
+  const indexedSlugs = (db.prepare('SELECT slug FROM notes').all() as { slug: string }[]).map((r) => r.slug);
+  const deleteNote = db.prepare('DELETE FROM notes WHERE slug = ?');
+  let removed = 0;
+  for (const slug of indexedSlugs) {
+    if (seenSlugs.has(slug)) continue;
+    deleteNote.run(slug);
+    removed++;
+  }
+
+  return { scanned: files.length, reparsed, removed };
+}
+
 /** Runs one reconciliation pass over the workspace: reparses only new/changed
- * project and journal files, and drops index rows for files that no longer
- * exist. Safe to call repeatedly — a no-op reopen with nothing changed costs
- * only `readdir`/`stat` calls. */
+ * project, journal, and note files, and drops index rows for files that no
+ * longer exist. Safe to call repeatedly — a no-op reopen with nothing
+ * changed costs only `readdir`/`stat` calls. */
 export function reconcileWorkspace(workspacePath: string): ReconcileStats {
   const db = openIndexDb(workspacePath);
   try {
     const projects = reconcileProjects(workspacePath, db);
     const journal = reconcileJournal(workspacePath, db);
+    const notes = reconcileNotes(workspacePath, db);
     db.prepare(
       `INSERT INTO index_meta (key, value) VALUES ('lastReconciledAt', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
@@ -205,6 +262,9 @@ export function reconcileWorkspace(workspacePath: string): ReconcileStats {
       journalEntriesScanned: journal.scanned,
       journalEntriesReparsed: journal.reparsed,
       journalEntriesRemoved: journal.removed,
+      notesScanned: notes.scanned,
+      notesReparsed: notes.reparsed,
+      notesRemoved: notes.removed,
     };
   } finally {
     db.close();
@@ -229,11 +289,13 @@ export function getIndexStatus(workspacePath: string): IndexStatus {
     const projectCount = (db.prepare('SELECT COUNT(*) as c FROM projects').get() as { c: number }).c;
     const taskCount = (db.prepare('SELECT COUNT(*) as c FROM tasks').get() as { c: number }).c;
     const journalEntryCount = (db.prepare('SELECT COUNT(*) as c FROM journal_entries').get() as { c: number }).c;
+    const noteCount = (db.prepare('SELECT COUNT(*) as c FROM notes').get() as { c: number }).c;
     return {
       lastReconciledAt: meta?.value ?? null,
       projectCount,
       taskCount,
       journalEntryCount,
+      noteCount,
     };
   } finally {
     db.close();

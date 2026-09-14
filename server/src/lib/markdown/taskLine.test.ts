@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { parseProjectFile, serializeProjectFile, tasksOfProject } from './project.js';
 import { parseJournalFile, serializeJournalFile } from './journal.js';
+import { parseNoteFile, serializeNoteFile } from './note.js';
 import { formatDuration, parseDuration, serializeTask } from './taskLine.js';
 import type { Task } from '../../types.js';
 
@@ -100,6 +101,27 @@ test('journal file parses frontmatter and body', () => {
   assert.equal(
     parsed.body,
     'Spent most of the day on homepage copy. Feeling good about the direction.\n\nNeed to follow up with Linh about licensing tomorrow.\n',
+  );
+});
+
+test('note file round-trips byte-for-byte (parse -> serialize)', () => {
+  const original = fixture('note-sample.md');
+  const parsed = parseNoteFile(original);
+  const reserialized = serializeNoteFile(parsed);
+  assert.strictEqual(reserialized, original);
+});
+
+test('note file parses frontmatter (full ISO8601 timestamps survive unquoted-Date coercion) and body', () => {
+  const parsed = parseNoteFile(fixture('note-sample.md'));
+  assert.deepEqual(parsed.frontmatter, {
+    title: 'Sample Note',
+    created: '2026-09-10T09:15:00.000Z',
+    updated: '2026-09-12T14:30:00.000Z',
+    tags: ['ideas', 'reading'],
+  });
+  assert.equal(
+    parsed.body,
+    'A few thoughts on the redesign.\n\nMight be worth revisiting the color palette once the calendar page ships.\n',
   );
 });
 

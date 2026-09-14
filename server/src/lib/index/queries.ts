@@ -256,3 +256,57 @@ export function queryAllTasksForReport(workspacePath: string): IndexedTask[] {
     db.close();
   }
 }
+
+export interface IndexedNote {
+  slug: string;
+  title: string;
+  /** ISO8601 UTC */
+  created: string;
+  /** ISO8601 UTC */
+  updated: string;
+  tags: string[];
+}
+
+interface NoteRow {
+  slug: string;
+  title: string;
+  created: string;
+  updated: string;
+  tags: string;
+}
+
+function mapNoteRow(row: NoteRow): IndexedNote {
+  return { slug: row.slug, title: row.title, created: row.created, updated: row.updated, tags: JSON.parse(row.tags) as string[] };
+}
+
+const NOTE_SELECT = 'SELECT slug, title, created, updated, tags FROM notes';
+
+/** Every note's metadata (no body — see below), most-recently-updated
+ * first — backs `GET /api/notes`. */
+export function queryAllNotes(workspacePath: string): IndexedNote[] {
+  const db = openIndexDb(workspacePath);
+  try {
+    const rows = db.prepare(`${NOTE_SELECT} ORDER BY updated DESC`).all() as unknown as NoteRow[];
+    return rows.map(mapNoteRow);
+  } finally {
+    db.close();
+  }
+}
+
+/** Case-insensitive substring match over title/tags, most-recently-updated
+ * first, capped at 50 — backs `GET /api/notes?q=` and the `list_notes` MCP
+ * tool. Never matches body text: like journal entries (PLAN.md "Frontend
+ * Calendar page" / `listJournalYearFull`'s reasoning), the index never
+ * caches note body — only file-direct reads (`getNote`) ever see it. */
+export function querySearchNotes(workspacePath: string, q: string): IndexedNote[] {
+  const db = openIndexDb(workspacePath);
+  try {
+    const like = `%${q}%`;
+    const rows = db
+      .prepare(`${NOTE_SELECT} WHERE title LIKE ? COLLATE NOCASE OR tags LIKE ? COLLATE NOCASE ORDER BY updated DESC LIMIT 50`)
+      .all(like, like) as unknown as NoteRow[];
+    return rows.map(mapNoteRow);
+  } finally {
+    db.close();
+  }
+}

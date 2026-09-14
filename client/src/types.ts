@@ -148,3 +148,28 @@ export interface CalendarDay {
   hasJournalEntry: boolean;
   tasks: CalendarTaskMark[];
 }
+
+export interface NoteFrontmatter {
+  title: string;
+  /** ISO8601 UTC, set once at creation and never rewritten. */
+  created: string;
+  /** ISO8601 UTC, rewritten on every write. */
+  updated: string;
+  tags: string[];
+}
+
+export interface Note {
+  slug: string;
+  frontmatter: NoteFrontmatter;
+  body: string;
+}
+
+/** `lib/index/queries.ts`'s `IndexedNote` — metadata only, no body (the
+ * index never caches note body text) — backs the notes list page. */
+export interface IndexedNote {
+  slug: string;
+  title: string;
+  created: string;
+  updated: string;
+  tags: string[];
+}

@@ -56,17 +56,22 @@ test('the tool list matches PLAN.md\'s MCP tool set', async () => {
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
     [
+      'create_note',
       'create_project',
       'create_task',
+      'delete_note',
       'delete_task',
       'get_journal_entry',
+      'get_note',
       'get_project',
       'get_task_summary',
       'link_task_to_journal',
+      'list_notes',
       'list_open_tasks',
       'list_projects',
       'search_tasks',
       'unlink_task_from_journal',
+      'update_note',
       'update_project',
       'update_task',
       'upsert_journal_entry',
@@ -258,4 +263,65 @@ test('an unwanted agent change can be cleanly reverted via the same git history 
   const onDisk = fs.readFileSync(path.join(ws, 'projects', 'website-redesign.md'), 'utf8');
   assert.match(onDisk, /- \[ \]/);
   assert.doesNotMatch(onDisk, /- \[x\]/);
+});
+
+test('note tools create/update/list/search/get/delete a real file, indexed and committed as [mcp:<tool>]', async () => {
+  const ws = scratchWorkspace();
+  const client = await connectedClient(ws);
+
+  const created = expectOk<{ slug: string; frontmatter: { title: string; tags: string[] } }>(
+    (await client.callTool({
+      name: 'create_note',
+      arguments: { title: 'Meeting notes', tags: ['work'], body: 'Discussed the roadmap.' },
+    })) as CallToolResult,
+  );
+  assert.equal(created.slug, 'meeting-notes');
+  assert.deepEqual(created.frontmatter.tags, ['work']);
+
+  const onDisk = fs.readFileSync(path.join(ws, 'notes', 'meeting-notes.md'), 'utf8');
+  assert.match(onDisk, /Discussed the roadmap\./);
+  assert.equal(getHistory(ws)[0].message, '[mcp:create_note] create_note meeting-notes');
+
+  // A same-titled second note gets a disambiguated slug rather than clobbering
+  // the first (PLAN.md "Notes": titles collide far more often than project
+  // names, so creation auto-suffixes instead of rejecting).
+  const secondCreated = expectOk<{ slug: string }>(
+    (await client.callTool({ name: 'create_note', arguments: { title: 'Meeting notes' } })) as CallToolResult,
+  );
+  assert.equal(secondCreated.slug, 'meeting-notes-2');
+
+  const updated = expectOk<{ frontmatter: { title: string; updated: string } }>(
+    (await client.callTool({
+      name: 'update_note',
+      arguments: { slug: 'meeting-notes', title: 'Meeting notes (Q4 kickoff)' },
+    })) as CallToolResult,
+  );
+  assert.equal(updated.frontmatter.title, 'Meeting notes (Q4 kickoff)');
+  // The slug/filename never changes even though the title did.
+  assert.ok(fs.existsSync(path.join(ws, 'notes', 'meeting-notes.md')));
+
+  const listed = expectOk<{ slug: string; title: string }[]>(
+    (await client.callTool({ name: 'list_notes', arguments: {} })) as CallToolResult,
+  );
+  assert.deepEqual(
+    listed.map((n) => n.slug).sort(),
+    ['meeting-notes', 'meeting-notes-2'],
+  );
+
+  const searched = expectOk<{ slug: string }[]>(
+    (await client.callTool({ name: 'list_notes', arguments: { query: 'kickoff' } })) as CallToolResult,
+  );
+  assert.deepEqual(searched.map((n) => n.slug), ['meeting-notes']);
+
+  const fetched = expectOk<{ body: string }>(
+    (await client.callTool({ name: 'get_note', arguments: { slug: 'meeting-notes' } })) as CallToolResult,
+  );
+  assert.match(fetched.body, /Discussed the roadmap\./);
+
+  await client.callTool({ name: 'delete_note', arguments: { slug: 'meeting-notes' } });
+  assert.ok(!fs.existsSync(path.join(ws, 'notes', 'meeting-notes.md')));
+  assert.equal(getHistory(ws)[0].message, '[mcp:delete_note] delete_note meeting-notes');
+
+  const afterDelete = (await client.callTool({ name: 'get_note', arguments: { slug: 'meeting-notes' } })) as CallToolResult;
+  assert.match(expectError(afterDelete), /no note with slug "meeting-notes"/);
 });

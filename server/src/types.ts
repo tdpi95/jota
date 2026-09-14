@@ -57,3 +57,12 @@ export interface JournalFrontmatter {
   /** Task ids, insertion-ordered, deduped. */
   linkedTasks: string[];
 }
+
+export interface NoteFrontmatter {
+  title: string;
+  /** ISO8601 UTC, set once at creation and never rewritten. */
+  created: string;
+  /** ISO8601 UTC, rewritten on every write. */
+  updated: string;
+  tags: string[];
+}

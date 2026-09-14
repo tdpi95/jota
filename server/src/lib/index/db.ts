@@ -65,6 +65,16 @@ CREATE TABLE IF NOT EXISTS journal_task_links (
   PRIMARY KEY (date, task_id)
 );
 
+CREATE TABLE IF NOT EXISTS notes (
+  slug TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  created TEXT NOT NULL,
+  updated TEXT NOT NULL,
+  tags TEXT NOT NULL,
+  source_mtime REAL NOT NULL,
+  source_hash TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS index_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

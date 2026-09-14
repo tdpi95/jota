@@ -5,6 +5,8 @@ import CalendarPage from './pages/CalendarPage';
 import DashboardPage from './pages/DashboardPage';
 import JournalDayPage from './pages/JournalDayPage';
 import JournalYearPage from './pages/JournalYearPage';
+import NoteDetailPage from './pages/NoteDetailPage';
+import NotesListPage from './pages/NotesListPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import ProjectsListPage from './pages/ProjectsListPage';
 import SettingsPage from './pages/SettingsPage';
@@ -19,6 +21,8 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="projects" element={<ProjectsListPage />} />
         <Route path="projects/:slug" element={<ProjectDetailPage />} />
+        <Route path="notes" element={<NotesListPage />} />
+        <Route path="notes/:slug" element={<NoteDetailPage />} />
         {/* PLAN.md: "/journal -> redirect to /journal/<year>/<today>" */}
         <Route path="journal" element={<Navigate to={`/journal/${yearOf(today)}/${today}`} replace />} />
         <Route path="journal/:year" element={<JournalYearPage />} />

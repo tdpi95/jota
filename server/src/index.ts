@@ -12,6 +12,7 @@ import { HttpError } from './lib/httpError.js';
 import calendarRouter from './routes/calendar.js';
 import indexRouter from './routes/index.js';
 import journalRouter from './routes/journal.js';
+import notesRouter from './routes/notes.js';
 import preferencesRouter from './routes/preferences.js';
 import projectsRouter from './routes/projects.js';
 import reportsRouter from './routes/reports.js';
@@ -43,6 +44,7 @@ export function createApp() {
   app.use('/api/projects/:slug/tasks', tasksRouter);
   app.use('/api/tasks', taskQueriesRouter);
   app.use('/api/journal', journalRouter);
+  app.use('/api/notes', notesRouter);
   app.use('/api/calendar', calendarRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/preferences', preferencesRouter);
