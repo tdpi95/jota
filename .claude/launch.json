@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "poco-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["concurrently", "-n", "server,client", "-k", "env PORT=4174 npm run dev -w server", "npm run dev -w client"],
+      "port": 5173
+    }
+  ]
+}

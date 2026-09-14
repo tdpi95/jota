@@ -253,4 +253,41 @@ export function setAccentPalettePreference(
   return accentPalette;
 }
 
+/**
+ * CalendarPage's due/journal toggle (see PLAN.md "Frontend Calendar page")
+ * — same shape and reasoning as `getAccentPalettePreference` above: one
+ * value for the whole app, no Electron-side consumer. `undefined` normalizes
+ * to `'due'`, the toggle's original default before this preference existed.
+ */
+export function getCalendarModePreference(homeDir: string = os.homedir()): 'due' | 'journal' {
+  return readRegistry(homeDir).calendarMode ?? 'due';
+}
+
+export function setCalendarModePreference(calendarMode: 'due' | 'journal', homeDir: string = os.homedir()): 'due' | 'journal' {
+  const registry = readRegistry(homeDir);
+  registry.calendarMode = calendarMode;
+  writeRegistry(registry, homeDir);
+  return calendarMode;
+}
+
+/**
+ * CalendarPage's month/year granularity (see PLAN.md "Frontend Calendar
+ * page") — same shape and reasoning as `getCalendarModePreference` above.
+ * `undefined` normalizes to `'month'`, the page's original default before
+ * this preference existed.
+ */
+export function getCalendarGranularityPreference(homeDir: string = os.homedir()): 'month' | 'year' {
+  return readRegistry(homeDir).calendarGranularity ?? 'month';
+}
+
+export function setCalendarGranularityPreference(
+  calendarGranularity: 'month' | 'year',
+  homeDir: string = os.homedir(),
+): 'month' | 'year' {
+  const registry = readRegistry(homeDir);
+  registry.calendarGranularity = calendarGranularity;
+  writeRegistry(registry, homeDir);
+  return calendarGranularity;
+}
+
 export type { WorkspaceEntry };

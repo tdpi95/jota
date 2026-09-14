@@ -112,6 +112,9 @@
     "openJournalEntry": "Mở mục nhật ký — {{date}}",
     "showMore": "+{{count}} nữa",
     "showFewer": "Ẩn bớt",
+    "showAllJournal": "Xem tất cả nhật ký",
+    "hideAllJournal": "Ẩn danh sách nhật ký",
+    "journalListHint": "Tất cả nhật ký, mới nhất trước.",
     "pickMonth": "Chọn một tháng.",
     "yearOverview": "Xem theo năm",
     "previousYear": "Năm trước",
@@ -286,5 +289,14 @@
     "addTask": "+ Thêm việc",
     "searchPlaceholder": "Tìm việc…",
     "noMatchingTasks": "Không có việc nào khớp."
+  },
+  "journalEntriesList": {
+    "yearTitle": "Nhật ký — {{year}}",
+    "monthTitle": "Nhật ký — {{month}}",
+    "loading": "Đang tải…",
+    "empty": "Chưa có nhật ký nào ở đây.",
+    "noBody": "Chưa có nội dung.",
+    "expand": "Xem toàn bộ",
+    "collapse": "Thu gọn"
   }
 }

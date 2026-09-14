@@ -11,6 +11,7 @@ import type {
   HistoryCommit,
   IndexedTask,
   JournalEntry,
+  JournalEntryFull,
   JournalEntrySummary,
   ProjectSummary,
   PullResult,
@@ -174,6 +175,13 @@ export function listJournalYear(year: string): Promise<{ entries: JournalEntrySu
   return request(`/journal/${encodeURIComponent(year)}`);
 }
 
+/** Same year, body text included — backs CalendarPage's "show all journal
+ * entries" list. Heavier than `listJournalYear` (reads every file in the
+ * year off disk), so only fetch this when that list is actually open. */
+export function listJournalYearFull(year: string): Promise<{ entries: JournalEntryFull[] }> {
+  return request(`/journal/${encodeURIComponent(year)}/full`);
+}
+
 export function getJournalEntry(year: string, date: string): Promise<{ entry: JournalEntry }> {
   return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}`);
 }
@@ -286,6 +294,26 @@ export function getAccentPalettePreference(): Promise<{ accentPalette: AccentPal
 
 export function setAccentPalettePreference(accentPalette: AccentPalette): Promise<{ accentPalette: AccentPalette }> {
   return request('/preferences/accent-palette', { method: 'PUT', body: JSON.stringify({ accentPalette }) });
+}
+
+// CalendarPage's due/journal toggle — same reasoning as language/theme
+// above: a plain preference, no Electron bridge needed.
+export function getCalendarModePreference(): Promise<{ calendarMode: 'due' | 'journal' }> {
+  return request('/preferences/calendar-mode');
+}
+
+export function setCalendarModePreference(calendarMode: 'due' | 'journal'): Promise<{ calendarMode: 'due' | 'journal' }> {
+  return request('/preferences/calendar-mode', { method: 'PUT', body: JSON.stringify({ calendarMode }) });
+}
+
+// CalendarPage's month/year granularity — same reasoning as calendar-mode
+// above.
+export function getCalendarGranularityPreference(): Promise<{ calendarGranularity: 'month' | 'year' }> {
+  return request('/preferences/calendar-granularity');
+}
+
+export function setCalendarGranularityPreference(calendarGranularity: 'month' | 'year'): Promise<{ calendarGranularity: 'month' | 'year' }> {
+  return request('/preferences/calendar-granularity', { method: 'PUT', body: JSON.stringify({ calendarGranularity }) });
 }
 
 // --- System (Settings' git-notice + Agent access section) ---

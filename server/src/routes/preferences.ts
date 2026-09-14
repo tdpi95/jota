@@ -87,4 +87,42 @@ router.put('/accent-palette', (req, res, next) => {
   }
 });
 
+// CalendarPage's due/journal toggle (PLAN.md "Frontend Calendar page") —
+// same shape as /theme and /accent-palette above, no Electron bridge needed.
+router.get('/calendar-mode', (_req, res) => {
+  res.json({ calendarMode: workspaceService.getCalendarModePreference() });
+});
+
+router.put('/calendar-mode', (req, res, next) => {
+  try {
+    const { calendarMode } = req.body ?? {};
+    if (calendarMode !== 'due' && calendarMode !== 'journal') {
+      res.status(400).json({ error: "calendarMode must be 'due' or 'journal'" });
+      return;
+    }
+    res.json({ calendarMode: workspaceService.setCalendarModePreference(calendarMode) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// CalendarPage's month/year granularity — same shape as /calendar-mode
+// above.
+router.get('/calendar-granularity', (_req, res) => {
+  res.json({ calendarGranularity: workspaceService.getCalendarGranularityPreference() });
+});
+
+router.put('/calendar-granularity', (req, res, next) => {
+  try {
+    const { calendarGranularity } = req.body ?? {};
+    if (calendarGranularity !== 'month' && calendarGranularity !== 'year') {
+      res.status(400).json({ error: "calendarGranularity must be 'month' or 'year'" });
+      return;
+    }
+    res.json({ calendarGranularity: workspaceService.setCalendarGranularityPreference(calendarGranularity) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

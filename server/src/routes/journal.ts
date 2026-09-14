@@ -17,6 +17,18 @@ router.get('/:year', (req, res, next) => {
   }
 });
 
+// Registered before the generic `/:year/:date` two-segment route below —
+// otherwise `/2026/full` would match there first with `date` = "full" and
+// 400 on date validation.
+router.get('/:year/full', (req, res, next) => {
+  try {
+    const workspace = workspaceService.getActiveWorkspaceOrThrow();
+    res.json({ entries: journalService.listJournalYearFull(workspace.path, req.params.year) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:year/:date', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();

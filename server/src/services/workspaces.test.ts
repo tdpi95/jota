@@ -9,6 +9,8 @@ import {
   addWorkspace,
   getAccentPalettePreference,
   getActiveWorkspace,
+  getCalendarGranularityPreference,
+  getCalendarModePreference,
   getLanguagePreference,
   getLaunchAtLoginPreference,
   getReminderSettings,
@@ -18,6 +20,8 @@ import {
   openWorkspace,
   removeWorkspace,
   setAccentPalettePreference,
+  setCalendarGranularityPreference,
+  setCalendarModePreference,
   setLanguagePreference,
   setLaunchAtLoginPreference,
   setReminderSettings,
@@ -200,4 +204,26 @@ test('accent palette preference defaults to default and persists an explicit cho
     setAccentPalettePreference(palette, homeDir);
     assert.equal(getAccentPalettePreference(homeDir), palette);
   }
+});
+
+test('calendar mode preference defaults to due and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getCalendarModePreference(homeDir), 'due');
+
+  setCalendarModePreference('journal', homeDir);
+  assert.equal(getCalendarModePreference(homeDir), 'journal');
+
+  setCalendarModePreference('due', homeDir);
+  assert.equal(getCalendarModePreference(homeDir), 'due');
+});
+
+test('calendar granularity preference defaults to month and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getCalendarGranularityPreference(homeDir), 'month');
+
+  setCalendarGranularityPreference('year', homeDir);
+  assert.equal(getCalendarGranularityPreference(homeDir), 'year');
+
+  setCalendarGranularityPreference('month', homeDir);
+  assert.equal(getCalendarGranularityPreference(homeDir), 'month');
 });

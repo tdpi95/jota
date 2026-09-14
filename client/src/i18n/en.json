@@ -112,6 +112,9 @@
     "openJournalEntry": "Open journal entry — {{date}}",
     "showMore": "+{{count}} more",
     "showFewer": "Show fewer",
+    "showAllJournal": "Show all journal entries",
+    "hideAllJournal": "Hide journal entries",
+    "journalListHint": "All journal entries, newest first.",
     "pickMonth": "Pick a month.",
     "yearOverview": "Year overview",
     "previousYear": "Previous year",
@@ -286,5 +289,14 @@
     "addTask": "+ Add task",
     "searchPlaceholder": "Search tasks…",
     "noMatchingTasks": "No matching tasks."
+  },
+  "journalEntriesList": {
+    "yearTitle": "Journal entries — {{year}}",
+    "monthTitle": "Journal entries — {{month}}",
+    "loading": "Loading…",
+    "empty": "No journal entries here.",
+    "noBody": "No entry written.",
+    "expand": "Show full entry",
+    "collapse": "Show less"
   }
 }
