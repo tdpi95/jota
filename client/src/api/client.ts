@@ -91,7 +91,8 @@ export function getProject(slug: string): Promise<{ project: ProjectSummary }> {
 export interface CreateProjectInput {
   name: string;
   description?: string;
-  tags?: string[];
+  /** Left out or blank falls back to "Default". */
+  group?: string;
   color?: string;
 }
 
@@ -102,7 +103,8 @@ export function createProject(input: CreateProjectInput): Promise<{ project: Pro
 export interface UpdateProjectInput {
   name?: string;
   description?: string;
-  tags?: string[];
+  /** Blank (not just left out) resets to "Default". */
+  group?: string;
   color?: string;
   archived?: boolean;
 }
@@ -375,6 +377,16 @@ export function getDashboardRecentProjectsOpenPreference(): Promise<{ open: bool
 
 export function setDashboardRecentProjectsOpenPreference(open: boolean): Promise<{ open: boolean }> {
   return request('/preferences/dashboard-recent-projects-open', { method: 'PUT', body: JSON.stringify({ open }) });
+}
+
+// Dashboard's group-filter selection (milestone 26 follow-up) — same shape
+// as dashboard-recent-projects-open above.
+export function getDashboardGroupFilterPreference(): Promise<{ groups: string[] }> {
+  return request('/preferences/dashboard-group-filter');
+}
+
+export function setDashboardGroupFilterPreference(groups: string[]): Promise<{ groups: string[] }> {
+  return request('/preferences/dashboard-group-filter', { method: 'PUT', body: JSON.stringify({ groups }) });
 }
 
 export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number): Promise<{ autosaveIntervalSeconds: number }> {

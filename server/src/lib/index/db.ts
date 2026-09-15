@@ -27,7 +27,13 @@ CREATE TABLE IF NOT EXISTS projects (
   created TEXT NOT NULL,
   archived INTEGER NOT NULL,
   description TEXT NOT NULL,
+  -- Vestigial: projects no longer have tags (replaced by group_name below),
+  -- but the column stays (always written as '[]') rather than attempting a
+  -- DROP COLUMN migration on every existing workspace's index for a column
+  -- nothing reads anymore — this is a derived, always-rebuildable cache, so
+  -- an unused column here is harmless.
   tags TEXT NOT NULL,
+  group_name TEXT NOT NULL DEFAULT 'Default',
   color TEXT NOT NULL,
   source_mtime REAL NOT NULL,
   source_hash TEXT NOT NULL
@@ -148,6 +154,18 @@ export function openIndexDb(workspacePath: string): DatabaseSync {
   try {
     db.exec("ALTER TABLE notes ADD COLUMN body TEXT NOT NULL DEFAULT ''");
     db.exec('UPDATE notes SET source_mtime = 0');
+  } catch {
+    // already has the column
+  }
+  // Same migration shape again for `group_name` (project groups): an index
+  // predating this field has no way to know each project's group without a
+  // reparse, so force one via the usual source_mtime reset — reconciliation
+  // then reads it straight off each file's frontmatter (defaulting to
+  // 'Default' for a file with no `group` field at all, same as a fresh
+  // parse — see lib/markdown/project.ts).
+  try {
+    db.exec("ALTER TABLE projects ADD COLUMN group_name TEXT NOT NULL DEFAULT 'Default'");
+    db.exec('UPDATE projects SET source_mtime = 0');
   } catch {
     // already has the column
   }

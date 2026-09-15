@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import { getHistory } from '../lib/vaultGit.js';
 import { ensureGitRepo } from '../lib/workspaces.js';
-import { COLOR_PALETTE, createProject, deleteProject, getProject, listProjects, updateProject } from './projects.js';
+import { COLOR_PALETTE, DEFAULT_GROUP, createProject, deleteProject, getProject, listProjects, updateProject } from './projects.js';
 
 // Mirrors PLAN.md milestone 7's verify step (the projects half): create a
 // project, confirm the file, index, and git history all agree.
@@ -27,6 +27,7 @@ test('createProject writes frontmatter, auto-assigns color, indexes, and commits
   assert.equal(project.frontmatter.name, 'Website Redesign');
   assert.equal(project.frontmatter.color, COLOR_PALETTE[0]);
   assert.equal(project.frontmatter.archived, false);
+  assert.equal(project.frontmatter.group, DEFAULT_GROUP); // defaults when not given
   assert.deepEqual(project.tasks, []);
 
   const onDisk = fs.readFileSync(path.join(ws, 'projects', 'website-redesign.md'), 'utf8');
@@ -56,16 +57,25 @@ test('createProject rejects a duplicate slug', () => {
 
 test('updateProject merges only the given fields and commits the change', () => {
   const ws = scratchWorkspace();
-  createProject(ws, { name: 'Website Redesign', tags: ['marketing'] });
+  createProject(ws, { name: 'Website Redesign', group: 'Marketing' });
 
   const updated = updateProject(ws, 'website-redesign', { description: 'New copy.', archived: true });
 
   assert.equal(updated.frontmatter.description, 'New copy.');
   assert.equal(updated.frontmatter.archived, true);
-  assert.deepEqual(updated.frontmatter.tags, ['marketing']); // untouched field preserved
+  assert.equal(updated.frontmatter.group, 'Marketing'); // untouched field preserved
 
   const history = getHistory(ws);
   assert.equal(history[0].message, '[api] update_project website-redesign');
+});
+
+test('updateProject with a blank group resets it to Default', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign', group: 'Marketing' });
+
+  const updated = updateProject(ws, 'website-redesign', { group: '  ' });
+
+  assert.equal(updated.frontmatter.group, DEFAULT_GROUP);
 });
 
 test('updateProject on an unknown slug throws a structured 404', () => {

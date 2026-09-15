@@ -166,4 +166,23 @@ router.put('/dashboard-recent-projects-open', (req, res, next) => {
   }
 });
 
+// Dashboard's group-filter selection (milestone 26 follow-up) — same shape
+// as /dashboard-recent-projects-open above.
+router.get('/dashboard-group-filter', (_req, res) => {
+  res.json({ groups: workspaceService.getDashboardGroupFilterPreference() });
+});
+
+router.put('/dashboard-group-filter', (req, res, next) => {
+  try {
+    const { groups } = req.body ?? {};
+    if (!Array.isArray(groups) || !groups.every((g) => typeof g === 'string')) {
+      res.status(400).json({ error: 'groups (string[]) is required' });
+      return;
+    }
+    res.json({ groups: workspaceService.setDashboardGroupFilterPreference(groups) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

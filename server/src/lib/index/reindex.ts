@@ -57,12 +57,13 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
   let reparsed = 0;
 
   const getMtime = db.prepare('SELECT source_mtime FROM projects WHERE slug = ?');
+  // `tags` is vestigial (see lib/index/db.ts) — always written as '[]'.
   const upsertProject = db.prepare(`
-    INSERT INTO projects (slug, name, created, archived, description, tags, color, source_mtime, source_hash)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (slug, name, created, archived, description, tags, group_name, color, source_mtime, source_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(slug) DO UPDATE SET
       name = excluded.name, created = excluded.created, archived = excluded.archived,
-      description = excluded.description, tags = excluded.tags, color = excluded.color,
+      description = excluded.description, tags = excluded.tags, group_name = excluded.group_name, color = excluded.color,
       source_mtime = excluded.source_mtime, source_hash = excluded.source_hash
   `);
   const deleteTasksForSlug = db.prepare('DELETE FROM tasks WHERE project_slug = ?');
@@ -76,9 +77,11 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
   const insertTaskFts = db.prepare(`
     INSERT INTO tasks_fts (id, project_slug, text, description, tags) VALUES (?, ?, ?, ?, ?)
   `);
-  // FTS5 mirror of the project itself (name/description/tags) — added after
-  // a follow-up ask to also search project name/description, not just
-  // task/note/journal.
+  // FTS5 mirror of the project itself (name/description) — added after a
+  // follow-up ask to also search project name/description, not just
+  // task/note/journal. `tags` (its 4th column) is vestigial, always ''
+  // (projects have no tags anymore — group filtering is a plain equality
+  // match, not full-text, so it isn't in this mirror).
   const deleteProjectFts = db.prepare('DELETE FROM projects_fts WHERE slug = ?');
   const insertProjectFts = db.prepare('INSERT INTO projects_fts (slug, name, description, tags) VALUES (?, ?, ?, ?)');
 
@@ -101,13 +104,14 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
       parsed.frontmatter.created,
       parsed.frontmatter.archived ? 1 : 0,
       parsed.frontmatter.description,
-      JSON.stringify(parsed.frontmatter.tags),
+      '[]',
+      parsed.frontmatter.group,
       parsed.frontmatter.color,
       stat.mtimeMs,
       hashContent(content),
     );
     deleteProjectFts.run(slug);
-    insertProjectFts.run(slug, parsed.frontmatter.name, parsed.frontmatter.description, JSON.stringify(parsed.frontmatter.tags));
+    insertProjectFts.run(slug, parsed.frontmatter.name, parsed.frontmatter.description, '');
     deleteTasksForSlug.run(slug);
     deleteTasksFtsForSlug.run(slug);
     for (const task of tasks) {

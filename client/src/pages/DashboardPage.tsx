@@ -115,6 +115,7 @@ export default function DashboardPage() {
   const [recentProjectsOpen, setRecentProjectsOpen] = useState(true);
   const [expandedBuckets, setExpandedBuckets] = useState<Record<string, boolean>>({});
   const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [groupFilters, setGroupFilters] = useState<string[]>([]);
 
   // Persists across restarts (`~/.poco/config.json` via
   // `GET/PUT /api/preferences/dashboard-recent-projects-open`) — same
@@ -136,6 +137,35 @@ export default function DashboardPage() {
 
   function toggleTagFilter(tag: string) {
     setTagFilters((current) => (current.includes(tag) ? current.filter((existing) => existing !== tag) : [...current, tag]));
+  }
+
+  // Persists across restarts (`~/.poco/config.json` via
+  // `GET/PUT /api/preferences/dashboard-group-filter`) — same
+  // fetch-once-and-apply-on-top-of-the-default shape as `recentProjectsOpen`
+  // just above. Unlike `recentProjectsOpen` (a simple boolean), a stored
+  // group name can go stale (its project renamed/regrouped/deleted, or a
+  // different workspace's groups) — `bucketTasks` below always intersects
+  // this against the *current* workspace's live group set before applying
+  // it, so a stale entry silently has no effect rather than zeroing out
+  // every bucket with no visible explanation.
+  const { data: groupFilterData } = useQuery({
+    queryKey: ['dashboardGroupFilterPreference'],
+    queryFn: () => api.getDashboardGroupFilterPreference(),
+  });
+  useEffect(() => {
+    if (groupFilterData) setGroupFilters(groupFilterData.groups);
+  }, [groupFilterData]);
+  const setGroupFilterMutation = useMutation({ mutationFn: (groups: string[]) => api.setDashboardGroupFilterPreference(groups) });
+  function toggleGroupFilter(group: string) {
+    setGroupFilters((current) => {
+      const next = current.includes(group) ? current.filter((existing) => existing !== group) : [...current, group];
+      setGroupFilterMutation.mutate(next);
+      return next;
+    });
+  }
+  function clearGroupFilters() {
+    setGroupFilters([]);
+    setGroupFilterMutation.mutate([]);
   }
 
   useEffect(() => {
@@ -223,10 +253,22 @@ export default function DashboardPage() {
   // toggle-pill pattern as ProjectsListPage/NotesListPage's tag filters,
   // applied to the buckets below rather than the search popup above (a
   // separate, unrelated filter over the same already-loaded task list).
-  // `allBucketTags` stays derived from every open task (not `bucketTasks`)
-  // so picking a filter never removes other tags from the pill row.
+  // `allBucketTags`/`allBucketGroups` stay derived from every open task (not
+  // `bucketTasks`) so picking a filter never removes other tags/groups from
+  // their own pill row. The group filter (PLAN.md "organize projects into
+  // groups") is a second, independent filter dimension — AND'd with the tag
+  // filter, OR'd within its own selected groups, same as the tag filter is
+  // within itself.
   const allBucketTags = [...new Set(open.flatMap((t) => t.tags))].sort();
-  const bucketTasks = tagFilters.length === 0 ? open : open.filter((t) => t.tags.some((tag) => tagFilters.includes(tag)));
+  const allBucketGroups = [...new Set(open.map((t) => t.projectGroup))].sort();
+  // Intersected against `allBucketGroups` so a persisted-but-now-stale group
+  // (renamed/regrouped/deleted since, or left over from a different
+  // workspace) silently drops out instead of matching zero tasks and
+  // blanking every bucket with no visible pill to explain why.
+  const activeGroupFilters = groupFilters.filter((g) => allBucketGroups.includes(g));
+  const bucketTasks = open
+    .filter((t) => tagFilters.length === 0 || t.tags.some((tag) => tagFilters.includes(tag)))
+    .filter((t) => activeGroupFilters.length === 0 || activeGroupFilters.includes(t.projectGroup));
 
   const overdue: IndexedTask[] = [];
   const dueToday: IndexedTask[] = [];
@@ -446,8 +488,41 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {allBucketGroups.length > 1 && (
+        <div className="tag-filter-row dashboard-tag-filter-row group-filter-row">
+          <span className="filter-facet-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            {t('dashboard.filterByGroup')}
+          </span>
+          {allBucketGroups.map((group) => (
+            <button
+              key={group}
+              type="button"
+              className={`tag-pill tag-pill-filter group-pill-filter ${groupFilters.includes(group) ? 'active' : ''}`}
+              onClick={() => toggleGroupFilter(group)}
+            >
+              {group}
+            </button>
+          ))}
+          {activeGroupFilters.length > 0 && (
+            <button type="button" className="tag-filter-clear" onClick={clearGroupFilters}>
+              {t('dashboard.clear')}
+            </button>
+          )}
+        </div>
+      )}
+
       {allBucketTags.length > 0 && (
         <div className="tag-filter-row dashboard-tag-filter-row">
+          <span className="filter-facet-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+            {t('dashboard.filterByTag')}
+          </span>
           {allBucketTags.map((tag) => (
             <button
               key={tag}

@@ -5,9 +5,7 @@ archived: false
 description: >-
   Full redesign of the marketing site, launching alongside the Q4 product
   announcement.
-tags:
-  - marketing
-  - q4
+group: Marketing
 color: '#4f86f7'
 ---
 ## Backlog

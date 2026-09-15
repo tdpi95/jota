@@ -167,7 +167,8 @@
     "nameRequired": "Name is required.",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "What is this project about?",
-    "tagsLabel": "Tags",
+    "groupLabel": "Group",
+    "groupPlaceholder": "Default",
     "colorLabel": "Color",
     "chooseColor": "Choose color {{color}}",
     "customColorTooltip": "Custom color",
@@ -242,13 +243,15 @@
     "failedToLoad": "Failed to load open tasks.",
     "buckets": {
       "doing": "Doing",
-      "today": "Today",
+      "today": "Due today",
       "overdue": "Overdue",
       "thisWeek": "This week"
     },
     "nothingDueToday": "Nothing due today.",
     "showMore": "+{{count}} more",
     "showFewer": "Show fewer",
+    "filterByGroup": "Group",
+    "filterByTag": "Tags",
     "clear": "Clear"
   },
   "projectsList": {

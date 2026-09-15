@@ -39,6 +39,12 @@ export default function ProjectDetailPage() {
     queryKey: ['project', slug],
     queryFn: () => api.getProject(slug),
   });
+  // Just for the edit form's group combobox suggestions (existing group
+  // names across every project) — same query key ProjectsListPage/Dashboard
+  // already use, so this is cache-warm rather than a fresh fetch whenever
+  // one of those was visited first.
+  const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
+  const existingGroups = [...new Set((projectsQuery.data?.projects ?? []).map((p) => p.frontmatter.group))].sort();
 
   function invalidateProject() {
     queryClient.invalidateQueries({ queryKey: ['project', slug] });
@@ -177,12 +183,8 @@ export default function ProjectDetailPage() {
                 {frontmatter.name}
                 {frontmatter.archived ? t('projectDetail.archivedSuffix') : ''}
               </h1>
-              <div className="pd-tags">
-                {frontmatter.tags.map((tag) => (
-                  <span className="tag-pill" key={tag}>
-                    {tag}
-                  </span>
-                ))}
+              <div className="pd-group">
+                <span className="tag-pill">{frontmatter.group}</span>
               </div>
             </div>
           </div>
@@ -198,7 +200,8 @@ export default function ProjectDetailPage() {
         <Modal title={t('projectDetail.editProjectModalTitle')} onClose={() => setEditing(false)}>
           <ProjectForm
             bare
-            initial={{ name: frontmatter.name, description: frontmatter.description, tags: frontmatter.tags, color: frontmatter.color, archived: frontmatter.archived }}
+            initial={{ name: frontmatter.name, description: frontmatter.description, group: frontmatter.group, color: frontmatter.color, archived: frontmatter.archived }}
+            existingGroups={existingGroups}
             showArchived
             submitLabel={t('projectDetail.saveChanges')}
             pending={updateProjectMutation.isPending}

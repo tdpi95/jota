@@ -10,10 +10,12 @@ import path from 'node:path';
 import { didYouMean } from '../lib/didYouMean.js';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
-import { parseProjectFile, serializeProjectFile, tasksOfProject, type ParsedProjectFile } from '../lib/markdown/project.js';
+import { DEFAULT_GROUP, parseProjectFile, serializeProjectFile, tasksOfProject, type ParsedProjectFile } from '../lib/markdown/project.js';
 import { slugify } from '../lib/slug.js';
 import { commitChange } from '../lib/vaultGit.js';
 import type { ProjectFrontmatter, Task } from '../types.js';
+
+export { DEFAULT_GROUP };
 
 export class ProjectServiceError extends HttpError {
   constructor(message: string, statusCode: number) {
@@ -50,14 +52,16 @@ export interface ProjectSummary {
 export interface CreateProjectInput {
   name: string;
   description?: string;
-  tags?: string[];
+  /** Left out or blank falls back to `DEFAULT_GROUP` ("Default"). */
+  group?: string;
   color?: string;
 }
 
 export interface UpdateProjectInput {
   name?: string;
   description?: string;
-  tags?: string[];
+  /** Blank (not just left out) resets to `DEFAULT_GROUP`, same as create. */
+  group?: string;
   color?: string;
   archived?: boolean;
 }
@@ -152,7 +156,7 @@ export function createProject(workspacePath: string, input: CreateProjectInput, 
     created: new Date().toISOString().slice(0, 10),
     archived: false,
     description: input.description ?? '',
-    tags: input.tags ?? [],
+    group: input.group?.trim() || DEFAULT_GROUP,
     color,
   };
   const parsed: ParsedProjectFile = { frontmatter, blocks: [] };
@@ -165,7 +169,7 @@ export function updateProject(workspacePath: string, slug: string, input: Update
   const parsed = loadProjectFile(workspacePath, slug);
   if (input.name !== undefined) parsed.frontmatter.name = input.name;
   if (input.description !== undefined) parsed.frontmatter.description = input.description;
-  if (input.tags !== undefined) parsed.frontmatter.tags = input.tags;
+  if (input.group !== undefined) parsed.frontmatter.group = input.group.trim() || DEFAULT_GROUP;
   if (input.color !== undefined) parsed.frontmatter.color = input.color;
   if (input.archived !== undefined) parsed.frontmatter.archived = input.archived;
 

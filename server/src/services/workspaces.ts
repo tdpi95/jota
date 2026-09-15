@@ -356,4 +356,20 @@ export function setDashboardRecentProjectsOpenPreference(open: boolean, homeDir:
   return open;
 }
 
+/**
+ * Dashboard's group-filter selection — app-wide, not per-workspace, same
+ * shape and reasoning as `getDashboardRecentProjectsOpenPreference` above.
+ * `undefined` normalizes to `[]` (no filter applied).
+ */
+export function getDashboardGroupFilterPreference(homeDir: string = os.homedir()): string[] {
+  return readRegistry(homeDir).dashboardGroupFilter ?? [];
+}
+
+export function setDashboardGroupFilterPreference(groups: string[], homeDir: string = os.homedir()): string[] {
+  const registry = readRegistry(homeDir);
+  registry.dashboardGroupFilter = groups;
+  writeRegistry(registry, homeDir);
+  return groups;
+}
+
 export type { WorkspaceEntry };

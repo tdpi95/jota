@@ -101,6 +101,17 @@ export interface WorkspaceRegistry {
    * expanded is what the section already defaulted to before this
    * preference existed. */
   dashboardRecentProjectsOpen?: boolean;
+  /** Dashboard's group-filter selection (PLAN.md "organize projects into
+   * groups") — app-wide, not per-workspace, same reasoning as `theme` above
+   * (a personal display preference, not vault content — group *names* are
+   * workspace content, but which ones happen to be toggled on is not). A
+   * group no longer in use by any open task in the active workspace is
+   * silently dropped by the client rather than filtering everything out, so
+   * a stale entry left over from a different workspace is harmless.
+   * `undefined` normalizes to `[]` in `services/workspaces.ts`'s
+   * `getDashboardGroupFilterPreference` — no filter is what the row already
+   * defaulted to before this preference existed. */
+  dashboardGroupFilter?: string[];
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

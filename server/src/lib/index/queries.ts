@@ -14,6 +14,9 @@ export interface IndexedTask {
   projectSlug: string;
   projectName: string;
   projectColor: string;
+  /** The owning project's group — a task has no group field of its own, it
+   * inherits this at query time (PLAN.md "Task line grammar"). */
+  projectGroup: string;
   text: string;
   status: TaskStatus;
   due: string | null;
@@ -41,6 +44,7 @@ interface TaskJoinRow {
   checklist: string;
   project_name: string;
   project_color: string;
+  project_group: string;
 }
 
 function mapTaskRow(row: TaskJoinRow): IndexedTask {
@@ -49,6 +53,7 @@ function mapTaskRow(row: TaskJoinRow): IndexedTask {
     projectSlug: row.project_slug,
     projectName: row.project_name,
     projectColor: row.project_color,
+    projectGroup: row.project_group,
     text: row.text,
     status: row.status,
     due: row.due,
@@ -65,7 +70,7 @@ function mapTaskRow(row: TaskJoinRow): IndexedTask {
 const TASK_JOIN_SELECT = `
   SELECT t.id, t.project_slug, t.text, t.status, t.due, t.created_at, t.doing_since,
          t.spent_minutes, t.done_at, t.tags, t.description, t.checklist,
-         p.name AS project_name, p.color AS project_color
+         p.name AS project_name, p.color AS project_color, p.group_name AS project_group
   FROM tasks t
   JOIN projects p ON p.slug = t.project_slug
 `;
@@ -357,7 +362,7 @@ export interface IndexedProject {
   slug: string;
   name: string;
   description: string;
-  tags: string[];
+  group: string;
   color: string;
   archived: boolean;
   created: string;
@@ -435,7 +440,7 @@ export function queryFullTextSearch(workspacePath: string, input: SearchInput): 
         .prepare(
           `SELECT t.id, t.project_slug, t.text, t.status, t.due, t.created_at, t.doing_since,
                   t.spent_minutes, t.done_at, t.tags, t.description, t.checklist,
-                  p.name AS project_name, p.color AS project_color, ${SNIPPET_EXPR('tasks_fts')} AS snippet
+                  p.name AS project_name, p.color AS project_color, p.group_name AS project_group, ${SNIPPET_EXPR('tasks_fts')} AS snippet
            FROM tasks_fts
            JOIN tasks t ON t.id = tasks_fts.id
            JOIN projects p ON p.slug = t.project_slug
@@ -489,7 +494,7 @@ export function queryFullTextSearch(workspacePath: string, input: SearchInput): 
     if (types.has('project')) {
       const rows = db
         .prepare(
-          `SELECT p.slug, p.name, p.description, p.tags, p.color, p.archived, p.created, ${SNIPPET_EXPR('projects_fts')} AS snippet
+          `SELECT p.slug, p.name, p.description, p.group_name, p.color, p.archived, p.created, ${SNIPPET_EXPR('projects_fts')} AS snippet
            FROM projects_fts
            JOIN projects p ON p.slug = projects_fts.slug
            WHERE projects_fts MATCH ?
@@ -500,7 +505,7 @@ export function queryFullTextSearch(workspacePath: string, input: SearchInput): 
         slug: string;
         name: string;
         description: string;
-        tags: string;
+        group_name: string;
         color: string;
         archived: number;
         created: string;
@@ -516,7 +521,7 @@ export function queryFullTextSearch(workspacePath: string, input: SearchInput): 
               slug: row.slug,
               name: row.name,
               description: row.description,
-              tags: JSON.parse(row.tags) as string[],
+              group: row.group_name,
               color: row.color,
               archived: row.archived === 1,
               created: row.created,

@@ -48,7 +48,7 @@ function writeProject(dir: string, slug: string, tasks: Task[], frontmatterOverr
       created: '2026-01-01',
       archived: false,
       description: '',
-      tags: [],
+      group: 'Default',
       color: '#4f86f7',
       ...frontmatterOverrides,
     },
@@ -206,7 +206,7 @@ test('openIndexDb migrates an index created before journal/note `body` was cache
   assert.match(ftsRow?.body ?? '', /Some real body text about widgets\./);
 });
 
-test('openIndexDb backfills projects_fts for an index created before it existed, even for an unchanged project file (follow-up to milestone 25)', () => {
+test('openIndexDb backfills projects_fts and group_name for an index created before either existed, even for an unchanged project file (follow-up to milestone 25 / project groups)', () => {
   const dir = scratchWorkspace();
   writeProject(dir, 'widget-warehouse', [], { name: 'Widget Warehouse', description: 'Tracks widget stock levels.' });
   const filePath = path.join(dir, 'projects', 'widget-warehouse.md');
@@ -241,9 +241,13 @@ test('openIndexDb backfills projects_fts for an index created before it existed,
   const ftsRow = db.prepare('SELECT name FROM projects_fts WHERE slug = ?').get('widget-warehouse') as
     | { name: string }
     | undefined;
+  const projectRow = db.prepare('SELECT group_name FROM projects WHERE slug = ?').get('widget-warehouse') as
+    | { group_name: string }
+    | undefined;
   db.close();
 
   assert.equal(ftsRow?.name, 'Widget Warehouse');
+  assert.equal(projectRow?.group_name, 'Default');
 });
 
 test('rebuildIndex after deleting the sqlite file reproduces identical state', () => {

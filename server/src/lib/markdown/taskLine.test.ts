@@ -28,7 +28,7 @@ test('project file parses frontmatter and every task field', () => {
     created: '2026-09-10',
     archived: false,
     description: 'Full redesign of the marketing site, launching alongside the Q4 product announcement.',
-    tags: ['marketing', 'q4'],
+    group: 'Marketing',
     color: '#4f86f7',
   });
 
@@ -257,6 +257,6 @@ test('a task with no checklist parses it as an empty array', () => {
 // need a full project file (frontmatter + body) just to exercise the line
 // grammar.
 function parseProjectFileBody(line: string) {
-  const wrapped = `---\nname: x\ncreated: '2026-01-01'\narchived: false\ndescription: ''\ntags: []\ncolor: '#000000'\n---\n${line}\n`;
+  const wrapped = `---\nname: x\ncreated: '2026-01-01'\narchived: false\ndescription: ''\ncolor: '#000000'\n---\n${line}\n`;
   return parseProjectFile(wrapped).blocks;
 }

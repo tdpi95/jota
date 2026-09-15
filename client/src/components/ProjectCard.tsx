@@ -4,8 +4,11 @@ import { Link } from 'react-router-dom';
 import type { ProjectSummary } from '../types';
 
 /**
- * One project's summary: color, name, description preview, tags, and
- * per-status task counts. Links to `/projects/:slug`.
+ * One project's summary: color, name, description preview, and per-status
+ * task counts. Links to `/projects/:slug`. The project's group isn't shown
+ * on the card itself — `/projects` renders it as a section heading instead
+ * (see ProjectsListPage), and the Dashboard's "Recent projects" grid omits
+ * it entirely as not relevant there.
  *
  * `variant="row"` (default) is the full-width list row used on `/projects`.
  * `variant="grid"` is a compact vertical card for the Dashboard's "Recent
@@ -33,16 +36,6 @@ export default function ProjectCard({ project, variant = 'row' }: { project: Pro
     </div>
   );
 
-  const tagPills = frontmatter.tags.length > 0 && (
-    <div className="project-tags">
-      {frontmatter.tags.map((tag) => (
-        <span className="tag-pill" key={tag}>
-          {tag}
-        </span>
-      ))}
-    </div>
-  );
-
   if (variant === 'grid') {
     return (
       <Link className="project-card-grid" to={`/projects/${slug}`}>
@@ -54,7 +47,6 @@ export default function ProjectCard({ project, variant = 'row' }: { project: Pro
           </span>
         </div>
         {frontmatter.description && <span className="project-desc project-desc-clamp">{frontmatter.description}</span>}
-        {tagPills}
         {counts}
       </Link>
     );
@@ -70,7 +62,6 @@ export default function ProjectCard({ project, variant = 'row' }: { project: Pro
         </span>
         {frontmatter.description && <span className="project-desc">{frontmatter.description}</span>}
       </div>
-      {tagPills}
       {counts}
     </Link>
   );

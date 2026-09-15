@@ -1232,7 +1232,24 @@ textarea {
   text-decoration: underline;
 }
 
-/* Projects list */
+/* Projects list, sectioned by group (PLAN.md "organize projects into
+   groups") — each section is its own heading + the same `.projects-list`
+   row layout the page used before grouping existed. */
+.projects-group-section {
+  margin-bottom: 22px;
+}
+.projects-group-section:last-child {
+  margin-bottom: 0;
+}
+.projects-group-heading {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+}
 .projects-list {
   display: flex;
   flex-direction: column;
@@ -1627,7 +1644,7 @@ textarea {
   margin-top: 8px;
   flex-shrink: 0;
 }
-.pd-tags {
+.pd-group {
   display: flex;
   gap: 5px;
   margin-top: 8px;
@@ -2562,6 +2579,30 @@ textarea {
    its own bottom margin so it doesn't run flush into "DOING"/etc. below. */
 .dashboard-tag-filter-row {
   margin-bottom: 22px;
+  align-items: center;
+}
+/* A small icon+text label prefixing a `.dashboard-tag-filter-row`
+ * (Dashboard only — the group filter and the pre-existing task-tag filter
+ * sit stacked on the same page, so each needs its own facet name to read as
+ * two distinct filters rather than one long, ambiguous pill row). */
+.filter-facet-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+/* Group pills (milestone 26) read as rounded-rectangle "chips" rather than
+ * the fully-rounded pill shape every tag pill uses elsewhere — a second,
+ * shape-based cue (on top of the facet label above) that these belong to a
+ * different filter, without introducing an off-palette color the theming
+ * system (PLAN.md "Theming") otherwise avoids. */
+.group-pill-filter {
+  border-radius: 6px;
 }
 
 /* Task drag-and-drop (milestone 18: Kanban reorder/status-change by drag) */

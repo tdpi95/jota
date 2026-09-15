@@ -13,6 +13,7 @@ import {
   getAutosaveIntervalPreference,
   getCalendarGranularityPreference,
   getCalendarModePreference,
+  getDashboardGroupFilterPreference,
   getDashboardRecentProjectsOpenPreference,
   getLanguagePreference,
   getLaunchAtLoginPreference,
@@ -26,6 +27,7 @@ import {
   setAutosaveIntervalPreference,
   setCalendarGranularityPreference,
   setCalendarModePreference,
+  setDashboardGroupFilterPreference,
   setDashboardRecentProjectsOpenPreference,
   setLanguagePreference,
   setLaunchAtLoginPreference,
@@ -118,7 +120,6 @@ name: External
 created: '2026-01-01'
 archived: false
 description: ''
-tags: []
 color: '#4f86f7'
 ---
 `;
@@ -305,4 +306,15 @@ test('dashboard recent-projects-open preference defaults to true and persists an
 
   setDashboardRecentProjectsOpenPreference(true, homeDir);
   assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), true);
+});
+
+test('dashboard group-filter preference defaults to empty and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.deepEqual(getDashboardGroupFilterPreference(homeDir), []);
+
+  setDashboardGroupFilterPreference(['Work', 'Personal'], homeDir);
+  assert.deepEqual(getDashboardGroupFilterPreference(homeDir), ['Work', 'Personal']);
+
+  setDashboardGroupFilterPreference([], homeDir);
+  assert.deepEqual(getDashboardGroupFilterPreference(homeDir), []);
 });

@@ -45,7 +45,12 @@ export interface ProjectFrontmatter {
   created: string;
   archived: boolean;
   description: string;
-  tags: string[];
+  /** The project's group, for organizing/filtering the project list and
+   * Dashboard. Every project belongs to exactly one group; a project
+   * created (or hand-edited) without one falls back to `DEFAULT_GROUP`
+   * ("Default") — see services/projects.ts. Tasks have no group field of
+   * their own; they inherit this at read time via their project. */
+  group: string;
   /** Hex color, e.g. "#4f86f7" — server-assigned, always present. */
   color: string;
 }

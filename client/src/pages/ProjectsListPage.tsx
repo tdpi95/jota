@@ -13,10 +13,10 @@ export default function ProjectsListPage() {
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [groupFilters, setGroupFilters] = useState<string[]>([]);
 
-  function toggleTagFilter(tag: string) {
-    setTagFilters((current) => (current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]));
+  function toggleGroupFilter(group: string) {
+    setGroupFilters((current) => (current.includes(group) ? current.filter((g) => g !== group) : [...current, group]));
   }
 
   const createMutation = useMutation({
@@ -31,14 +31,24 @@ export default function ProjectsListPage() {
   if (isError) return <p className="field-error">{(error as Error).message}</p>;
 
   const projects = data?.projects ?? [];
-  const allTags = [...new Set(projects.flatMap((p) => p.frontmatter.tags))].sort();
-  // Matches a project tagged with *any* of the selected tags (OR) — narrowing
-  // multi-tag filters to an AND match tends to go empty fast on a small,
-  // sparsely-tagged project list; OR keeps adding a filter widening rather
-  // than a likely dead end.
+  const allGroups = [...new Set(projects.map((p) => p.frontmatter.group))].sort();
+  // Matches a project in *any* of the selected groups (OR) — same
+  // widening-not-narrowing reasoning the old tag filter used.
   const visible = projects
     .filter((p) => showArchived || !p.frontmatter.archived)
-    .filter((p) => tagFilters.length === 0 || p.frontmatter.tags.some((t) => tagFilters.includes(t)));
+    .filter((p) => groupFilters.length === 0 || groupFilters.includes(p.frontmatter.group));
+
+  // Organize the visible projects into their groups (PLAN.md "organize
+  // projects into groups") — a section per group, alphabetical, each
+  // rendering its own `.projects-list` exactly like the old flat list did.
+  const groupSections = new Map<string, typeof visible>();
+  for (const project of visible) {
+    const group = project.frontmatter.group;
+    const bucket = groupSections.get(group);
+    if (bucket) bucket.push(project);
+    else groupSections.set(group, [project]);
+  }
+  const sortedGroups = [...groupSections.keys()].sort();
 
   return (
     <div>
@@ -56,6 +66,7 @@ export default function ProjectsListPage() {
         <Modal title={t('projectsList.newProjectModalTitle')} onClose={() => setCreating(false)}>
           <ProjectForm
             bare
+            existingGroups={allGroups}
             submitLabel={t('projectsList.createProject')}
             pending={createMutation.isPending}
             onSubmit={(values) => createMutation.mutate(values)}
@@ -70,20 +81,20 @@ export default function ProjectsListPage() {
           {t('projectsList.showArchived')}
         </label>
 
-        {allTags.length > 0 && (
+        {allGroups.length > 1 && (
           <div className="tag-filter-row">
-            {allTags.map((tag) => (
+            {allGroups.map((group) => (
               <button
-                key={tag}
+                key={group}
                 type="button"
-                className={`tag-pill tag-pill-filter ${tagFilters.includes(tag) ? 'active' : ''}`}
-                onClick={() => toggleTagFilter(tag)}
+                className={`tag-pill tag-pill-filter ${groupFilters.includes(group) ? 'active' : ''}`}
+                onClick={() => toggleGroupFilter(group)}
               >
-                {tag}
+                {group}
               </button>
             ))}
-            {tagFilters.length > 0 && (
-              <button type="button" className="tag-filter-clear" onClick={() => setTagFilters([])}>
+            {groupFilters.length > 0 && (
+              <button type="button" className="tag-filter-clear" onClick={() => setGroupFilters([])}>
                 {t('projectsList.clear')}
               </button>
             )}
@@ -91,12 +102,17 @@ export default function ProjectsListPage() {
         )}
       </div>
 
-      <div className="projects-list">
-        {visible.map((project) => (
-          <ProjectCard key={project.slug} project={project} />
-        ))}
-        {visible.length === 0 && <div className="empty-note">{t('projectsList.empty')}</div>}
-      </div>
+      {sortedGroups.map((group) => (
+        <div className="projects-group-section" key={group}>
+          <h2 className="projects-group-heading">{group}</h2>
+          <div className="projects-list">
+            {groupSections.get(group)!.map((project) => (
+              <ProjectCard key={project.slug} project={project} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {visible.length === 0 && <div className="empty-note">{t('projectsList.empty')}</div>}
     </div>
   );
 }

@@ -20,8 +20,8 @@ router.get('/', (_req, res, next) => {
 router.post('/', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { name, description, tags, color } = req.body ?? {};
-    const project = projectService.createProject(workspace.path, { name, description, tags, color }, 'api');
+    const { name, description, group, color } = req.body ?? {};
+    const project = projectService.createProject(workspace.path, { name, description, group, color }, 'api');
     res.status(201).json({ project });
   } catch (err) {
     next(err);
@@ -40,11 +40,11 @@ router.get('/:slug', (req, res, next) => {
 router.patch('/:slug', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { name, description, tags, color, archived } = req.body ?? {};
+    const { name, description, group, color, archived } = req.body ?? {};
     const project = projectService.updateProject(
       workspace.path,
       req.params.slug,
-      { name, description, tags, color, archived },
+      { name, description, group, color, archived },
       'api',
     );
     res.json({ project });

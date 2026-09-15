@@ -140,34 +140,38 @@ export function registerTools(server: McpServer, workspacePath: string): void {
     'create_project',
     {
       title: 'Create project',
-      description: 'Creates a new project. Color is auto-assigned from the palette if omitted.',
+      description:
+        'Creates a new project. Color is auto-assigned from the palette if omitted. `group` organizes the project ' +
+        'list/Dashboard filter — left out or blank, the project falls into "Default".',
       inputSchema: {
         name: z.string(),
         description: z.string().optional(),
-        tags: z.array(z.string()).optional(),
+        group: z.string().optional().describe('Left out or blank falls back to "Default". See list_projects for groups in use.'),
         color: z.string().optional().describe('Hex color, e.g. "#4f86f7". Auto-assigned if omitted.'),
       },
     },
-    ({ name, description, tags, color }) =>
-      wrap(() => projectService.createProject(workspacePath, { name, description, tags, color }, 'mcp:create_project')),
+    ({ name, description, group, color }) =>
+      wrap(() => projectService.createProject(workspacePath, { name, description, group, color }, 'mcp:create_project')),
   );
 
   server.registerTool(
     'update_project',
     {
       title: 'Update project',
-      description: "Updates a project's name/description/tags/color/archived state.",
+      description:
+        "Updates a project's name/description/group/color/archived state. Fields left out keep their existing " +
+        'value; an explicitly blank `group` resets it to "Default".',
       inputSchema: {
         slug: z.string(),
         name: z.string().optional(),
         description: z.string().optional(),
-        tags: z.array(z.string()).optional(),
+        group: z.string().optional(),
         color: z.string().optional(),
         archived: z.boolean().optional(),
       },
     },
-    ({ slug, name, description, tags, color, archived }) =>
-      wrap(() => projectService.updateProject(workspacePath, slug, { name, description, tags, color, archived }, 'mcp:update_project')),
+    ({ slug, name, description, group, color, archived }) =>
+      wrap(() => projectService.updateProject(workspacePath, slug, { name, description, group, color, archived }, 'mcp:update_project')),
   );
 
   server.registerTool(

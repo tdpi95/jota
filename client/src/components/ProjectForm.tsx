@@ -1,25 +1,28 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CreateProjectInput, UpdateProjectInput } from '../api/client';
 import { COLOR_PALETTE } from '../lib/colors';
 import MarkdownTextarea from './MarkdownTextarea';
-import TagInput from './TagInput';
 
 export interface ProjectFormInitial {
   name: string;
   description: string;
-  tags: string[];
+  group: string;
   color: string;
   archived?: boolean;
 }
 
-/** Create/edit form for a project's name/description/tags/color (PLAN.md:
- * "project edit form for description/tags/color"). `showArchived` (edit
+/** Create/edit form for a project's name/description/group/color (PLAN.md:
+ * "project edit form for description/group/color"). `showArchived` (edit
  * mode only) exposes the archive toggle — new projects are never created
- * archived. */
+ * archived. `existingGroups` (every group already in use, plus "Default")
+ * backs the group field's suggestion list — a free-text combobox, not a
+ * fixed dropdown, so typing a brand-new group is just as easy as reusing an
+ * existing one; left blank on submit, the server falls back to "Default". */
 export default function ProjectForm({
   initial,
+  existingGroups = [],
   showArchived = false,
   submitLabel,
   pending = false,
@@ -28,6 +31,7 @@ export default function ProjectForm({
   onCancel,
 }: {
   initial?: Partial<ProjectFormInitial>;
+  existingGroups?: string[];
   showArchived?: boolean;
   submitLabel: string;
   pending?: boolean;
@@ -39,9 +43,10 @@ export default function ProjectForm({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
+  const groupListId = useId();
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const [group, setGroup] = useState(initial?.group ?? '');
   const [color, setColor] = useState(initial?.color ?? COLOR_PALETTE[0]);
   const [archived, setArchived] = useState(initial?.archived ?? false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +58,7 @@ export default function ProjectForm({
       return;
     }
     setError(null);
-    onSubmit({ name: name.trim(), description, tags, color, ...(showArchived ? { archived } : {}) });
+    onSubmit({ name: name.trim(), description, group, color, ...(showArchived ? { archived } : {}) });
   }
 
   return (
@@ -68,8 +73,13 @@ export default function ProjectForm({
         <MarkdownTextarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('projectForm.descriptionPlaceholder')} />
       </div>
       <div className="form-field">
-        <label>{t('projectForm.tagsLabel')}</label>
-        <TagInput value={tags} onChange={setTags} />
+        <label>{t('projectForm.groupLabel')}</label>
+        <input type="text" list={groupListId} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t('projectForm.groupPlaceholder')} />
+        <datalist id={groupListId}>
+          {existingGroups.map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
       </div>
       <div className="form-field">
         <label>{t('projectForm.colorLabel')}</label>

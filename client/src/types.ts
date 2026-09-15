@@ -38,7 +38,10 @@ export interface ProjectFrontmatter {
   created: string;
   archived: boolean;
   description: string;
-  tags: string[];
+  /** Every project belongs to exactly one group; falls back to "Default"
+   * when not set. Tasks have no group of their own — they inherit this
+   * from their project. */
+  group: string;
   /** Hex color, e.g. "#4f86f7" — server-assigned, always present. */
   color: string;
 }
@@ -87,6 +90,8 @@ export interface IndexedTask {
   projectSlug: string;
   projectName: string;
   projectColor: string;
+  /** The owning project's group — inherited, not stored on the task. */
+  projectGroup: string;
   text: string;
   status: TaskStatus;
   due: string | null;
@@ -181,7 +186,7 @@ export interface IndexedProject {
   slug: string;
   name: string;
   description: string;
-  tags: string[];
+  group: string;
   color: string;
   archived: boolean;
   created: string;
