@@ -114,6 +114,29 @@ export default function DashboardPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [recentProjectsOpen, setRecentProjectsOpen] = useState(true);
   const [expandedBuckets, setExpandedBuckets] = useState<Record<string, boolean>>({});
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+
+  // Persists across restarts (`~/.poco/config.json` via
+  // `GET/PUT /api/preferences/dashboard-recent-projects-open`) — same
+  // fetch-once-and-apply-on-top-of-the-default shape as CalendarPage's
+  // `calendarMode`/`granularity` toggles.
+  const { data: recentProjectsOpenData } = useQuery({
+    queryKey: ['dashboardRecentProjectsOpenPreference'],
+    queryFn: () => api.getDashboardRecentProjectsOpenPreference(),
+  });
+  useEffect(() => {
+    if (recentProjectsOpenData) setRecentProjectsOpen(recentProjectsOpenData.open);
+  }, [recentProjectsOpenData]);
+  const setRecentProjectsOpenMutation = useMutation({ mutationFn: (next: boolean) => api.setDashboardRecentProjectsOpenPreference(next) });
+  function toggleRecentProjectsOpen() {
+    const next = !recentProjectsOpen;
+    setRecentProjectsOpen(next);
+    setRecentProjectsOpenMutation.mutate(next);
+  }
+
+  function toggleTagFilter(tag: string) {
+    setTagFilters((current) => (current.includes(tag) ? current.filter((existing) => existing !== tag) : [...current, tag]));
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), SEARCH_DEBOUNCE_MS);
@@ -196,10 +219,19 @@ export default function DashboardPage() {
   // parallel filter path.
   const searchableTags = [...new Set(open.flatMap((t) => t.tags))].sort();
 
+  // Task-bucket tag filter — same OR-matched, widening-not-narrowing
+  // toggle-pill pattern as ProjectsListPage/NotesListPage's tag filters,
+  // applied to the buckets below rather than the search popup above (a
+  // separate, unrelated filter over the same already-loaded task list).
+  // `allBucketTags` stays derived from every open task (not `bucketTasks`)
+  // so picking a filter never removes other tags from the pill row.
+  const allBucketTags = [...new Set(open.flatMap((t) => t.tags))].sort();
+  const bucketTasks = tagFilters.length === 0 ? open : open.filter((t) => t.tags.some((tag) => tagFilters.includes(tag)));
+
   const overdue: IndexedTask[] = [];
   const dueToday: IndexedTask[] = [];
   const week: IndexedTask[] = [];
-  for (const t of open) {
+  for (const t of bucketTasks) {
     if (!t.due) continue;
     const diff = daysBetween(today, t.due);
     if (diff < 0) overdue.push(t);
@@ -212,7 +244,7 @@ export default function DashboardPage() {
   // exclusive with the due-date buckets above: the same task can show up
   // both here and in e.g. Overdue, since "what's overdue" and "what am I
   // actively working on" are different questions worth answering separately.
-  const doing = open.filter((t) => t.status === 'doing');
+  const doing = bucketTasks.filter((t) => t.status === 'doing');
 
   // Shared by the Today/Overdue/This-week buckets and the search popup's
   // task results — same task shape (IndexedTask), same mutations either way.
@@ -393,7 +425,7 @@ export default function DashboardPage() {
 
       {recentProjects.length > 0 && (
         <div className="bucket">
-          <button type="button" className="bucket-title bucket-title-toggle" onClick={() => setRecentProjectsOpen((v) => !v)}>
+          <button type="button" className="bucket-title bucket-title-toggle" onClick={toggleRecentProjectsOpen}>
             <span className={`disclosure-caret ${recentProjectsOpen ? 'open' : ''}`}>▸</span>
             {t('dashboard.recentProjects')}
           </button>
@@ -410,6 +442,26 @@ export default function DashboardPage() {
                 </Link>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {allBucketTags.length > 0 && (
+        <div className="tag-filter-row dashboard-tag-filter-row">
+          {allBucketTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-pill tag-pill-filter ${tagFilters.includes(tag) ? 'active' : ''}`}
+              onClick={() => toggleTagFilter(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+          {tagFilters.length > 0 && (
+            <button type="button" className="tag-filter-clear" onClick={() => setTagFilters([])}>
+              {t('dashboard.clear')}
+            </button>
           )}
         </div>
       )}

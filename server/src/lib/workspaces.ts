@@ -94,6 +94,13 @@ export interface WorkspaceRegistry {
    * `getAutosaveIntervalPreference`, the default this preference shipped
    * with (previously a hardcoded 4-second constant with no user control). */
   autosaveIntervalSeconds?: number;
+  /** Dashboard's "Recent projects" section collapse state — app-wide, not
+   * per-workspace, same reasoning as `theme` above (a personal display
+   * preference, not vault content). `undefined` normalizes to `true` in
+   * `services/workspaces.ts`'s `getDashboardRecentProjectsOpenPreference` —
+   * expanded is what the section already defaulted to before this
+   * preference existed. */
+  dashboardRecentProjectsOpen?: boolean;
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

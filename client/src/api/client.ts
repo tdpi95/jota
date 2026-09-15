@@ -367,6 +367,16 @@ export function getAutosaveIntervalPreference(): Promise<{ autosaveIntervalSecon
   return request('/preferences/autosave-interval');
 }
 
+// Dashboard's "Recent projects" section collapse state — same shape as
+// calendar-mode above.
+export function getDashboardRecentProjectsOpenPreference(): Promise<{ open: boolean }> {
+  return request('/preferences/dashboard-recent-projects-open');
+}
+
+export function setDashboardRecentProjectsOpenPreference(open: boolean): Promise<{ open: boolean }> {
+  return request('/preferences/dashboard-recent-projects-open', { method: 'PUT', body: JSON.stringify({ open }) });
+}
+
 export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number): Promise<{ autosaveIntervalSeconds: number }> {
   return request('/preferences/autosave-interval', { method: 'PUT', body: JSON.stringify({ autosaveIntervalSeconds }) });
 }

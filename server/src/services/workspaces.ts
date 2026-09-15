@@ -339,4 +339,21 @@ export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number, h
   return autosaveIntervalSeconds;
 }
 
+/**
+ * Dashboard's "Recent projects" section collapse state — app-wide, not
+ * per-workspace, same shape and reasoning as `getCalendarModePreference`
+ * above. `undefined` normalizes to `true`, the section's original default
+ * before this preference existed.
+ */
+export function getDashboardRecentProjectsOpenPreference(homeDir: string = os.homedir()): boolean {
+  return readRegistry(homeDir).dashboardRecentProjectsOpen ?? true;
+}
+
+export function setDashboardRecentProjectsOpenPreference(open: boolean, homeDir: string = os.homedir()): boolean {
+  const registry = readRegistry(homeDir);
+  registry.dashboardRecentProjectsOpen = open;
+  writeRegistry(registry, homeDir);
+  return open;
+}
+
 export type { WorkspaceEntry };

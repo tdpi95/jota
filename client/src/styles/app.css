@@ -2520,17 +2520,28 @@ textarea {
   flex-wrap: wrap;
   gap: 6px;
 }
+/* Bigger and more solid than a plain `.tag-pill` display tag (task rows,
+   etc.) — this one's a clickable control, not a passive label, so it needs
+   to read as a button at a glance rather than blend in with the tags on the
+   task rows just below it. */
 .tag-pill-filter {
-  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  background: var(--paper-card);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
   cursor: pointer;
   font-family: inherit;
 }
 .tag-pill-filter:hover {
   border-color: var(--accent);
+  color: var(--accent);
 }
 .tag-pill-filter.active {
   background: var(--accent-soft);
   color: var(--accent);
+  border-color: var(--accent);
 }
 .tag-filter-clear {
   border: none;
@@ -2544,6 +2555,13 @@ textarea {
 }
 .tag-filter-clear:hover {
   color: var(--accent);
+}
+/* Dashboard's task-bucket tag filter sits directly above a bucket title
+   (unlike Projects/Notes list pages, where `.tag-filter-row` is the last
+   child of `.projects-filters`, which already supplies this gap) — needs
+   its own bottom margin so it doesn't run flush into "DOING"/etc. below. */
+.dashboard-tag-filter-row {
+  margin-bottom: 22px;
 }
 
 /* Task drag-and-drop (milestone 18: Kanban reorder/status-change by drag) */

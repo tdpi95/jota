@@ -147,4 +147,23 @@ router.put('/autosave-interval', (req, res, next) => {
   }
 });
 
+// Dashboard's "Recent projects" section collapse state — same shape as
+// /calendar-mode above.
+router.get('/dashboard-recent-projects-open', (_req, res) => {
+  res.json({ open: workspaceService.getDashboardRecentProjectsOpenPreference() });
+});
+
+router.put('/dashboard-recent-projects-open', (req, res, next) => {
+  try {
+    const { open } = req.body ?? {};
+    if (typeof open !== 'boolean') {
+      res.status(400).json({ error: 'open (boolean) is required' });
+      return;
+    }
+    res.json({ open: workspaceService.setDashboardRecentProjectsOpenPreference(open) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

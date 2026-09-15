@@ -13,6 +13,7 @@ import {
   getAutosaveIntervalPreference,
   getCalendarGranularityPreference,
   getCalendarModePreference,
+  getDashboardRecentProjectsOpenPreference,
   getLanguagePreference,
   getLaunchAtLoginPreference,
   getReminderSettings,
@@ -25,6 +26,7 @@ import {
   setAutosaveIntervalPreference,
   setCalendarGranularityPreference,
   setCalendarModePreference,
+  setDashboardRecentProjectsOpenPreference,
   setLanguagePreference,
   setLaunchAtLoginPreference,
   setReminderSettings,
@@ -292,4 +294,15 @@ test('autosave interval preference defaults to 30 seconds and persists an explic
 
   setAutosaveIntervalPreference(5, homeDir);
   assert.equal(getAutosaveIntervalPreference(homeDir), 5);
+});
+
+test('dashboard recent-projects-open preference defaults to true and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), true);
+
+  setDashboardRecentProjectsOpenPreference(false, homeDir);
+  assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), false);
+
+  setDashboardRecentProjectsOpenPreference(true, homeDir);
+  assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), true);
 });

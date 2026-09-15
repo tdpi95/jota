@@ -248,7 +248,8 @@
     },
     "nothingDueToday": "Không có việc nào đến hạn hôm nay.",
     "showMore": "+{{count}} nữa",
-    "showFewer": "Ẩn bớt"
+    "showFewer": "Ẩn bớt",
+    "clear": "Xóa bộ lọc"
   },
   "projectsList": {
     "title": "Dự án",

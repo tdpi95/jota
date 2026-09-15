@@ -248,7 +248,8 @@
     },
     "nothingDueToday": "Nothing due today.",
     "showMore": "+{{count}} more",
-    "showFewer": "Show fewer"
+    "showFewer": "Show fewer",
+    "clear": "Clear"
   },
   "projectsList": {
     "title": "Projects",
