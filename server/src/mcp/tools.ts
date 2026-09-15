@@ -13,11 +13,13 @@ import { HttpError } from '../lib/httpError.js';
 import * as journalService from '../services/journal.js';
 import * as noteService from '../services/notes.js';
 import * as projectService from '../services/projects.js';
+import * as searchService from '../services/search.js';
 import * as taskService from '../services/tasks.js';
 
 const TASK_STATUS = z.enum(['todo', 'doing', 'done']);
 const DATE = z.string().describe('YYYY-MM-DD');
 const CHECKLIST_ITEM = z.object({ text: z.string(), done: z.boolean() });
+const CONTENT_TYPE = z.enum(['task', 'note', 'journal', 'project']);
 
 function ok(data: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -308,5 +310,27 @@ export function registerTools(server: McpServer, workspacePath: string): void {
       inputSchema: { query: z.string().optional() },
     },
     ({ query }) => wrap(() => (query ? noteService.searchNotes(workspacePath, query) : noteService.listNotes(workspacePath))),
+  );
+
+  server.registerTool(
+    'search_everything',
+    {
+      title: 'Search everything',
+      description:
+        'Full-text search across task text/description, note bodies, journal bodies, and project name/description at ' +
+        'once — unlike search_tasks (tasks only) and list_notes (title/tags only, never body), this matches body ' +
+        'content across every content type, and can be narrowed by date range and/or content type. Each result ' +
+        "carries a `date` (task: done/due/created; note: last updated; journal: the entry's own date; project: " +
+        'created) and a `snippet` excerpt with the match marked in **bold**. Results are ordered most-recent-first, ' +
+        "not by text relevance (matches across different content types aren't meaningfully comparable on relevance " +
+        'alone).',
+      inputSchema: {
+        query: z.string(),
+        dateRange: z.object({ from: z.string().optional(), to: z.string().optional() }).optional(),
+        types: z.array(CONTENT_TYPE).optional().describe('Restrict to these content types; searches all four if omitted.'),
+      },
+    },
+    ({ query, dateRange, types }) =>
+      wrap(() => searchService.searchEverything(workspacePath, { query, from: dateRange?.from, to: dateRange?.to, types })),
   );
 }

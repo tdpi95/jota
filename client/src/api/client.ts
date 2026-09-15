@@ -17,6 +17,8 @@ import type {
   Note,
   ProjectSummary,
   PullResult,
+  SearchContentType,
+  SearchResult,
   SyncStatus,
   Task,
   TaskStatus,
@@ -389,6 +391,20 @@ export function checkGitAvailable(): Promise<{ available: boolean }> {
  * server/src/lib/mcpInfo.ts. */
 export function getMcpInfo(): Promise<{ command: string; args: string[]; env?: Record<string, string> }> {
   return request('/system/mcp-info');
+}
+
+// --- Search (cross-type full-text, PLAN.md "Search (cross-type full-text)", milestone 25) ---
+
+/** Full-text search across task/note/journal/project body content at once —
+ * unlike `searchTasks` (tasks only, title/description/tags, no date
+ * filter), matches body/description text and supports a date range. Backs
+ * the Dashboard's search popup. */
+export function search(params: { q: string; from?: string; to?: string; types?: SearchContentType[] }): Promise<{ results: SearchResult[] }> {
+  const qs = new URLSearchParams({ q: params.q });
+  if (params.from) qs.set('from', params.from);
+  if (params.to) qs.set('to', params.to);
+  if (params.types && params.types.length > 0) qs.set('types', params.types.join(','));
+  return request(`/search?${qs.toString()}`);
 }
 
 export { ApiError };

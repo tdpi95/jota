@@ -310,3 +310,225 @@ export function querySearchNotes(workspacePath: string, q: string): IndexedNote[
     db.close();
   }
 }
+
+// --- Cross-type full-text search (PLAN.md "Search (cross-type full-text)",
+// milestone 25) — searches the FTS5 mirrors lib/index/db.ts/reindex.ts
+// maintain (tasks_fts/notes_fts/journal_fts/projects_fts), which unlike the
+// LIKE-based queries above also match task description, note body, journal
+// body, and project description. ---
+
+export type SearchContentType = 'task' | 'note' | 'journal' | 'project';
+
+export interface SearchInput {
+  query: string;
+  /** YYYY-MM-DD, inclusive; filters each result on its own type's natural
+   * date (task: `relevantDateOf`; note: `updated`; journal: the entry's own
+   * date; project: `created`, the only date a project has) — same field
+   * each type's other date-filtered view already uses. */
+  from?: string;
+  to?: string;
+  /** Restricts which content types are searched; all four if omitted. */
+  types?: SearchContentType[];
+}
+
+interface TaskSearchResult {
+  type: 'task';
+  /** The date this result was matched/sorted on (`relevantDateOf`). */
+  date: string;
+  snippet: string;
+  task: IndexedTask;
+}
+
+interface NoteSearchResult {
+  type: 'note';
+  date: string;
+  snippet: string;
+  note: IndexedNote;
+}
+
+interface JournalSearchResult {
+  type: 'journal';
+  date: string;
+  snippet: string;
+  tags: string[];
+}
+
+export interface IndexedProject {
+  slug: string;
+  name: string;
+  description: string;
+  tags: string[];
+  color: string;
+  archived: boolean;
+  created: string;
+}
+
+interface ProjectSearchResult {
+  type: 'project';
+  date: string;
+  snippet: string;
+  project: IndexedProject;
+}
+
+export type SearchResult = TaskSearchResult | NoteSearchResult | JournalSearchResult | ProjectSearchResult;
+
+/**
+ * Turns free text into an FTS5 MATCH expression: each whitespace-separated
+ * token is quoted as a literal phrase (doubling any embedded `"`, FTS5's own
+ * escape) with a trailing `*` *outside* the closing quote — `"zago"*`, not
+ * `"zago*"` (the latter is a literal, non-matching character inside the
+ * phrase; confirmed empirically against this project's `node:sqlite`
+ * build) — which FTS5 treats as a prefix query on that phrase's last token,
+ * so a partial word like "zago" matches a stored "zagoo" the same way a
+ * quick-find search box is expected to, not just a whole-word match. Tokens
+ * are joined with FTS5's default implicit AND between them. Deliberately
+ * not "pass the query straight through" — FTS5's own query syntax (bare
+ * `AND`/`OR`/`NOT`, `column:` filters, unbalanced quotes) would otherwise
+ * throw a syntax error on perfectly ordinary text a user might search for
+ * (a version string, a path, "C++"), rather than just matching it
+ * literally. Returns `''` for an empty/whitespace-only query — callers
+ * treat that as "no results", same as `searchTasks`/`searchNotes`'s
+ * existing empty-query convention.
+ */
+function toFtsMatchQuery(query: string): string {
+  return query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => `"${token.replace(/"/g, '""')}"*`)
+    .join(' ');
+}
+
+const SNIPPET_EXPR = (ftsTable: string) => `snippet(${ftsTable}, -1, '**', '**', '…', 12)`;
+
+function inRange(date: string, from: string | undefined, to: string | undefined): boolean {
+  if (from && date < from) return false;
+  if (to && date > to) return false;
+  return true;
+}
+
+/**
+ * Unions matches from `tasks_fts`/`notes_fts`/`journal_fts`/`projects_fts`
+ * into one list, each independently date-filtered, then merges and sorts by
+ * date (most recent first) and caps at 50 — the same cap `querySearchTasks`/
+ * `querySearchNotes` already use. Sorting on date rather than relevance is
+ * deliberate: FTS5's `bm25()` score is only comparable *within* one virtual
+ * table's own corpus, so "relevance" isn't a single meaningful ranking once
+ * results come from four separate FTS tables — recency is the same
+ * tie-break every other aggregate view here already uses (notes by
+ * `updated`, tasks by `created_at`, journal by date, project by `created`).
+ */
+export function queryFullTextSearch(workspacePath: string, input: SearchInput): SearchResult[] {
+  const matchQuery = toFtsMatchQuery(input.query);
+  if (!matchQuery) return [];
+  const types =
+    input.types && input.types.length > 0
+      ? new Set(input.types)
+      : new Set<SearchContentType>(['task', 'note', 'journal', 'project']);
+
+  const db = openIndexDb(workspacePath);
+  try {
+    const results: SearchResult[] = [];
+
+    if (types.has('task')) {
+      const rows = db
+        .prepare(
+          `SELECT t.id, t.project_slug, t.text, t.status, t.due, t.created_at, t.doing_since,
+                  t.spent_minutes, t.done_at, t.tags, t.description, t.checklist,
+                  p.name AS project_name, p.color AS project_color, ${SNIPPET_EXPR('tasks_fts')} AS snippet
+           FROM tasks_fts
+           JOIN tasks t ON t.id = tasks_fts.id
+           JOIN projects p ON p.slug = t.project_slug
+           WHERE tasks_fts MATCH ?
+           ORDER BY bm25(tasks_fts)
+           LIMIT 100`,
+        )
+        .all(matchQuery) as unknown as (TaskJoinRow & { snippet: string })[];
+      for (const row of rows) {
+        const task = mapTaskRow(row);
+        const date = relevantDateOf(task);
+        if (inRange(date, input.from, input.to)) results.push({ type: 'task', date, snippet: row.snippet, task });
+      }
+    }
+
+    if (types.has('note')) {
+      const rows = db
+        .prepare(
+          `SELECT n.slug, n.title, n.created, n.updated, n.tags, ${SNIPPET_EXPR('notes_fts')} AS snippet
+           FROM notes_fts
+           JOIN notes n ON n.slug = notes_fts.slug
+           WHERE notes_fts MATCH ?
+           ORDER BY bm25(notes_fts)
+           LIMIT 100`,
+        )
+        .all(matchQuery) as unknown as (NoteRow & { snippet: string })[];
+      for (const row of rows) {
+        const date = row.updated.slice(0, 10);
+        if (inRange(date, input.from, input.to)) results.push({ type: 'note', date, snippet: row.snippet, note: mapNoteRow(row) });
+      }
+    }
+
+    if (types.has('journal')) {
+      const rows = db
+        .prepare(
+          `SELECT j.date, j.tags, ${SNIPPET_EXPR('journal_fts')} AS snippet
+           FROM journal_fts
+           JOIN journal_entries j ON j.date = journal_fts.date
+           WHERE journal_fts MATCH ?
+           ORDER BY bm25(journal_fts)
+           LIMIT 100`,
+        )
+        .all(matchQuery) as { date: string; tags: string; snippet: string }[];
+      for (const row of rows) {
+        if (inRange(row.date, input.from, input.to)) {
+          results.push({ type: 'journal', date: row.date, snippet: row.snippet, tags: JSON.parse(row.tags) as string[] });
+        }
+      }
+    }
+
+    if (types.has('project')) {
+      const rows = db
+        .prepare(
+          `SELECT p.slug, p.name, p.description, p.tags, p.color, p.archived, p.created, ${SNIPPET_EXPR('projects_fts')} AS snippet
+           FROM projects_fts
+           JOIN projects p ON p.slug = projects_fts.slug
+           WHERE projects_fts MATCH ?
+           ORDER BY bm25(projects_fts)
+           LIMIT 100`,
+        )
+        .all(matchQuery) as {
+        slug: string;
+        name: string;
+        description: string;
+        tags: string;
+        color: string;
+        archived: number;
+        created: string;
+        snippet: string;
+      }[];
+      for (const row of rows) {
+        if (inRange(row.created, input.from, input.to)) {
+          results.push({
+            type: 'project',
+            date: row.created,
+            snippet: row.snippet,
+            project: {
+              slug: row.slug,
+              name: row.name,
+              description: row.description,
+              tags: JSON.parse(row.tags) as string[],
+              color: row.color,
+              archived: row.archived === 1,
+              created: row.created,
+            },
+          });
+        }
+      }
+    }
+
+    results.sort((a, b) => b.date.localeCompare(a.date));
+    return results.slice(0, 50);
+  } finally {
+    db.close();
+  }
+}

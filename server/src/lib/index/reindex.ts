@@ -70,6 +70,17 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
     INSERT INTO tasks (id, project_slug, text, status, due, created_at, doing_since, spent_minutes, done_at, tags, description, checklist)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  // FTS5 mirror of the same tasks — rebuilt alongside `tasks` on every
+  // reparse (milestone 25 "Search improvement"; lib/index/db.ts).
+  const deleteTasksFtsForSlug = db.prepare('DELETE FROM tasks_fts WHERE project_slug = ?');
+  const insertTaskFts = db.prepare(`
+    INSERT INTO tasks_fts (id, project_slug, text, description, tags) VALUES (?, ?, ?, ?, ?)
+  `);
+  // FTS5 mirror of the project itself (name/description/tags) — added after
+  // a follow-up ask to also search project name/description, not just
+  // task/note/journal.
+  const deleteProjectFts = db.prepare('DELETE FROM projects_fts WHERE slug = ?');
+  const insertProjectFts = db.prepare('INSERT INTO projects_fts (slug, name, description, tags) VALUES (?, ?, ?, ?)');
 
   for (const file of files) {
     const slug = file.slice(0, -'.md'.length);
@@ -95,7 +106,10 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
       stat.mtimeMs,
       hashContent(content),
     );
+    deleteProjectFts.run(slug);
+    insertProjectFts.run(slug, parsed.frontmatter.name, parsed.frontmatter.description, JSON.stringify(parsed.frontmatter.tags));
     deleteTasksForSlug.run(slug);
+    deleteTasksFtsForSlug.run(slug);
     for (const task of tasks) {
       insertTask.run(
         task.id,
@@ -111,6 +125,7 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
         task.description,
         JSON.stringify(task.checklist),
       );
+      insertTaskFts.run(task.id, slug, task.text, task.description ?? '', JSON.stringify(task.tags));
     }
     reparsed++;
   }
@@ -121,6 +136,8 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
   for (const slug of indexedSlugs) {
     if (seenSlugs.has(slug)) continue;
     deleteTasksForSlug.run(slug);
+    deleteTasksFtsForSlug.run(slug);
+    deleteProjectFts.run(slug);
     deleteProject.run(slug);
     removed++;
   }
@@ -140,14 +157,19 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
 
   const getMtime = db.prepare('SELECT source_mtime FROM journal_entries WHERE date = ?');
   const upsertEntry = db.prepare(`
-    INSERT INTO journal_entries (date, year, has_body, tags, source_mtime, source_hash)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO journal_entries (date, year, has_body, tags, body, source_mtime, source_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(date) DO UPDATE SET
-      year = excluded.year, has_body = excluded.has_body, tags = excluded.tags,
+      year = excluded.year, has_body = excluded.has_body, tags = excluded.tags, body = excluded.body,
       source_mtime = excluded.source_mtime, source_hash = excluded.source_hash
   `);
   const deleteLinksForDate = db.prepare('DELETE FROM journal_task_links WHERE date = ?');
   const insertLink = db.prepare('INSERT INTO journal_task_links (date, task_id) VALUES (?, ?)');
+  // FTS5 mirror (milestone 25 "Search improvement") — delete-then-insert per
+  // date, same as the plain `journal_entries` upsert above (FTS5 has no
+  // ON CONFLICT upsert against a non-rowid key).
+  const deleteJournalFtsForDate = db.prepare('DELETE FROM journal_fts WHERE date = ?');
+  const insertJournalFts = db.prepare('INSERT INTO journal_fts (date, tags, body) VALUES (?, ?, ?)');
 
   for (const year of years) {
     const yearDir = path.join(journalDir, year);
@@ -168,11 +190,21 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
       const parsed = parseJournalFile(content);
       const hasBody = parsed.body.trim().length > 0;
 
-      upsertEntry.run(date, year, hasBody ? 1 : 0, JSON.stringify(parsed.frontmatter.tags), stat.mtimeMs, hashContent(content));
+      upsertEntry.run(
+        date,
+        year,
+        hasBody ? 1 : 0,
+        JSON.stringify(parsed.frontmatter.tags),
+        parsed.body,
+        stat.mtimeMs,
+        hashContent(content),
+      );
       deleteLinksForDate.run(date);
       for (const taskId of parsed.frontmatter.linkedTasks) {
         insertLink.run(date, taskId);
       }
+      deleteJournalFtsForDate.run(date);
+      insertJournalFts.run(date, JSON.stringify(parsed.frontmatter.tags), parsed.body);
       reparsed++;
     }
   }
@@ -183,6 +215,7 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
   for (const date of indexedDates) {
     if (seenDates.has(date)) continue;
     deleteLinksForDate.run(date);
+    deleteJournalFtsForDate.run(date);
     deleteEntry.run(date);
     removed++;
   }
@@ -198,12 +231,16 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
 
   const getMtime = db.prepare('SELECT source_mtime FROM notes WHERE slug = ?');
   const upsertNote = db.prepare(`
-    INSERT INTO notes (slug, title, created, updated, tags, source_mtime, source_hash)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO notes (slug, title, created, updated, tags, body, source_mtime, source_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(slug) DO UPDATE SET
       title = excluded.title, created = excluded.created, updated = excluded.updated,
-      tags = excluded.tags, source_mtime = excluded.source_mtime, source_hash = excluded.source_hash
+      tags = excluded.tags, body = excluded.body, source_mtime = excluded.source_mtime, source_hash = excluded.source_hash
   `);
+  // FTS5 mirror (milestone 25 "Search improvement") — delete-then-insert per
+  // slug, same reasoning as journal_fts above.
+  const deleteNotesFtsForSlug = db.prepare('DELETE FROM notes_fts WHERE slug = ?');
+  const insertNoteFts = db.prepare('INSERT INTO notes_fts (slug, title, tags, body) VALUES (?, ?, ?, ?)');
 
   for (const file of files) {
     const slug = file.slice(0, -'.md'.length);
@@ -223,9 +260,12 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
       parsed.frontmatter.created,
       parsed.frontmatter.updated,
       JSON.stringify(parsed.frontmatter.tags),
+      parsed.body,
       stat.mtimeMs,
       hashContent(content),
     );
+    deleteNotesFtsForSlug.run(slug);
+    insertNoteFts.run(slug, parsed.frontmatter.title, JSON.stringify(parsed.frontmatter.tags), parsed.body);
     reparsed++;
   }
 
@@ -234,6 +274,7 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
   let removed = 0;
   for (const slug of indexedSlugs) {
     if (seenSlugs.has(slug)) continue;
+    deleteNotesFtsForSlug.run(slug);
     deleteNote.run(slug);
     removed++;
   }

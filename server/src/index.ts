@@ -9,6 +9,7 @@ import type { Server } from 'node:http';
 import path from 'node:path';
 
 import { HttpError } from './lib/httpError.js';
+import { reconcileWorkspace } from './lib/index/reindex.js';
 import calendarRouter from './routes/calendar.js';
 import indexRouter from './routes/index.js';
 import journalRouter from './routes/journal.js';
@@ -16,12 +17,14 @@ import notesRouter from './routes/notes.js';
 import preferencesRouter from './routes/preferences.js';
 import projectsRouter from './routes/projects.js';
 import reportsRouter from './routes/reports.js';
+import searchRouter from './routes/search.js';
 import syncRouter from './routes/sync.js';
 import systemRouter from './routes/system.js';
 import taskQueriesRouter from './routes/taskQueries.js';
 import tasksRouter from './routes/tasks.js';
 import vaultRouter from './routes/vault.js';
 import workspacesRouter from './routes/workspaces.js';
+import * as workspaceService from './services/workspaces.js';
 
 const handleServiceError: ErrorRequestHandler = (err, _req, res, _next) => {
   const statusCode = err instanceof HttpError ? err.statusCode : 500;
@@ -47,6 +50,7 @@ export function createApp() {
   app.use('/api/notes', notesRouter);
   app.use('/api/calendar', calendarRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/search', searchRouter);
   app.use('/api/preferences', preferencesRouter);
   app.use('/api/system', systemRouter);
 
@@ -76,6 +80,25 @@ export function startServer(port = 0, host = '127.0.0.1'): Promise<{ server: Ser
   return new Promise((resolve, reject) => {
     const app = createApp();
     const server = app.listen(port, host, () => {
+      // Reconcile whatever workspace is already active at process boot
+      // (PLAN.md "Sync strategy — reconciliation ... runs whenever a
+      // workspace is opened, not just process boot" — the "not just" half
+      // was never actually wired in until this was found via a real bug:
+      // a workspace already open before a schema/cache upgrade — e.g.
+      // milestone 25's `body`/FTS columns — never got backfilled, since the
+      // only thing that ever called `reconcileWorkspace` was a mutating
+      // write, and a process restart with an already-active workspace
+      // triggers neither `addWorkspace` nor `openWorkspace`, just this).
+      // Best-effort, same footing as every other reconcile call: log and
+      // continue, never fail startup over it.
+      const active = workspaceService.getActiveWorkspace();
+      if (active) {
+        try {
+          reconcileWorkspace(active.path);
+        } catch (err) {
+          console.error(`[index] startup index reconcile failed for ${active.path}:`, (err as Error).message);
+        }
+      }
       const address = server.address();
       const actualPort = typeof address === 'object' && address !== null ? address.port : port;
       resolve({ server, port: actualPort });

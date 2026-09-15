@@ -169,6 +169,83 @@ test('openIndexDb migrates an index created before the checklist column existed'
   assert.doesNotThrow(() => openIndexDb(dir).close());
 });
 
+test('openIndexDb migrates an index created before journal/note `body` was cached, backfilling unchanged files too (milestone 25)', () => {
+  const dir = scratchWorkspace();
+  writeJournal(dir, '2026-09-10', 'Some real body text about widgets.');
+  const filePath = path.join(dir, 'journal', '2026', '2026-09-10.md');
+  const mtime = fs.statSync(filePath).mtimeMs;
+
+  const dbPath = getIndexDbPath(dir);
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  // Simulate a pre-milestone-25 index: `journal_entries` without `body`, its
+  // row already at the file's *current* mtime — the exact condition that
+  // would make a plain `ALTER ... DEFAULT ''` migration (with no mtime
+  // reset) leave this row's body empty forever, since reconciliation would
+  // see the mtime as unchanged and skip reparsing it.
+  const legacy = new DatabaseSync(dbPath);
+  legacy.exec(`
+    CREATE TABLE journal_entries (
+      date TEXT PRIMARY KEY, year TEXT NOT NULL, has_body INTEGER NOT NULL, tags TEXT NOT NULL,
+      source_mtime REAL NOT NULL, source_hash TEXT NOT NULL
+    );
+  `);
+  legacy
+    .prepare('INSERT INTO journal_entries (date, year, has_body, tags, source_mtime, source_hash) VALUES (?, ?, 1, ?, ?, ?)')
+    .run('2026-09-10', '2026', '[]', mtime, 'irrelevant');
+  legacy.close();
+
+  openIndexDb(dir).close(); // triggers the migration + mtime reset
+  reconcileWorkspace(dir); // must now see the row as changed and reparse it
+
+  const db = openIndexDb(dir);
+  const row = db.prepare('SELECT body FROM journal_entries WHERE date = ?').get('2026-09-10') as { body: string };
+  const ftsRow = db.prepare('SELECT body FROM journal_fts WHERE date = ?').get('2026-09-10') as { body: string } | undefined;
+  db.close();
+
+  assert.match(row.body, /Some real body text about widgets\./);
+  assert.match(ftsRow?.body ?? '', /Some real body text about widgets\./);
+});
+
+test('openIndexDb backfills projects_fts for an index created before it existed, even for an unchanged project file (follow-up to milestone 25)', () => {
+  const dir = scratchWorkspace();
+  writeProject(dir, 'widget-warehouse', [], { name: 'Widget Warehouse', description: 'Tracks widget stock levels.' });
+  const filePath = path.join(dir, 'projects', 'widget-warehouse.md');
+  const mtime = fs.statSync(filePath).mtimeMs;
+
+  const dbPath = getIndexDbPath(dir);
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  // Simulate a pre-follow-up index: `projects` exists (its columns didn't
+  // change — only the new `projects_fts` mirror is missing), its row
+  // already at the file's *current* mtime, same "unchanged file still
+  // needs a one-time backfill" condition as the journal/note case above.
+  const legacy = new DatabaseSync(dbPath);
+  legacy.exec(`
+    CREATE TABLE projects (
+      slug TEXT PRIMARY KEY, name TEXT NOT NULL, created TEXT NOT NULL, archived INTEGER NOT NULL,
+      description TEXT NOT NULL, tags TEXT NOT NULL, color TEXT NOT NULL,
+      source_mtime REAL NOT NULL, source_hash TEXT NOT NULL
+    );
+  `);
+  legacy
+    .prepare(
+      `INSERT INTO projects (slug, name, created, archived, description, tags, color, source_mtime, source_hash)
+       VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+    )
+    .run('widget-warehouse', 'Widget Warehouse', '2026-01-01', 'Tracks widget stock levels.', '[]', '#4f86f7', mtime, 'irrelevant');
+  legacy.close();
+
+  openIndexDb(dir).close(); // triggers the sqlite_master check + mtime reset
+  reconcileWorkspace(dir); // must now see the row as changed and reparse it
+
+  const db = openIndexDb(dir);
+  const ftsRow = db.prepare('SELECT name FROM projects_fts WHERE slug = ?').get('widget-warehouse') as
+    | { name: string }
+    | undefined;
+  db.close();
+
+  assert.equal(ftsRow?.name, 'Widget Warehouse');
+});
+
 test('rebuildIndex after deleting the sqlite file reproduces identical state', () => {
   const dir = scratchWorkspace();
   writeProject(dir, 'website-redesign', [makeTask('t_aaa001'), makeTask('t_aaa002')]);

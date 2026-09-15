@@ -8,8 +8,30 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { HttpError } from '../lib/httpError.js';
+import { reconcileWorkspace } from '../lib/index/reindex.js';
 import { ensureGitHistory } from '../lib/vaultGit.js';
 import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WorkspaceEntry } from '../lib/workspaces.js';
+
+/**
+ * Best-effort reconciliation on open/add (PLAN.md "Sync strategy —
+ * reconciliation, not blind reparsing": "runs whenever a workspace is
+ * opened, not just process boot") — documented there from the start, but
+ * never actually wired in until this was found the hard way: a schema/cache
+ * addition (milestone 25's `body`/FTS columns) silently produced empty
+ * search results for a workspace that had been open since before the
+ * upgrade and had nothing else trigger `reconcileWorkspace` (that only ever
+ * ran from a *write* path — create/update/delete a task/note/journal entry —
+ * never from opening/switching a workspace). Same best-effort footing as
+ * every write path's own reconcile call: log and continue on failure, never
+ * block the open itself on it.
+ */
+function reconcileOnOpen(workspacePath: string): void {
+  try {
+    reconcileWorkspace(workspacePath);
+  } catch (err) {
+    console.error(`[workspaces] index reconcile failed for ${workspacePath}:`, (err as Error).message);
+  }
+}
 
 /** Structured error for the routes layer to translate into an HTTP status. */
 export class WorkspaceServiceError extends HttpError {
@@ -76,6 +98,7 @@ export function addWorkspace(input: AddWorkspaceInput, homeDir: string = os.home
 
   scaffoldWorkspaceDirs(resolvedPath);
   ensureGitHistory(resolvedPath);
+  reconcileOnOpen(resolvedPath);
 
   const entry: WorkspaceEntry = {
     id: randomUUID(),
@@ -103,6 +126,7 @@ export function openWorkspace(id: string, homeDir: string = os.homedir()): Works
 
   scaffoldWorkspaceDirs(entry.path);
   ensureGitHistory(entry.path);
+  reconcileOnOpen(entry.path);
 
   entry.lastOpenedAt = new Date().toISOString();
   registry.activeWorkspaceId = entry.id;
