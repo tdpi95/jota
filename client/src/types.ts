@@ -75,6 +75,7 @@ export interface JournalEntrySummary {
  * dot. */
 export interface JournalEntryFull extends JournalEntrySummary {
   body: string;
+  linkedTasks: string[];
 }
 
 /** `lib/index/queries.ts`'s `IndexedTask` — the shape aggregate endpoints

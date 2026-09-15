@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import * as api from '../api/client';
 import { formatDateLong } from '../lib/date';
+import type { TaskStatus } from '../types';
+
+interface LinkedTaskInfo {
+  text: string;
+  status: TaskStatus;
+  projectSlug: string;
+  projectColor: string;
+}
 
 // A body past either threshold gets clamped to a few lines with an expand
 // button — a rough "is this long enough to bother" check, not a pixel-exact
@@ -39,10 +47,24 @@ export default function JournalEntriesList({
     queryKey: ['journalYearFull', year],
     queryFn: () => api.listJournalYearFull(year),
   });
+  // Same "all projects with tasks embedded" lookup JournalDayPage uses to
+  // resolve linked-task ids to title/status/project — there's no standalone
+  // "get task by id" endpoint.
+  const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
 
   const entries = (data?.entries ?? [])
     .filter((e) => !monthFilter || e.date.slice(5, 7) === monthFilter)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const tasksById = useMemo(() => {
+    const map = new Map<string, LinkedTaskInfo>();
+    for (const project of projectsQuery.data?.projects ?? []) {
+      for (const task of project.tasks) {
+        map.set(task.id, { text: task.text, status: task.status, projectSlug: project.slug, projectColor: project.frontmatter.color });
+      }
+    }
+    return map;
+  }, [projectsQuery.data]);
 
   return (
     <div className="journal-list-section">
@@ -88,6 +110,24 @@ export default function JournalEntriesList({
                 </>
               ) : (
                 <p className="journal-list-entry-empty">{t('journalEntriesList.noBody')}</p>
+              )}
+              {entry.linkedTasks.length > 0 && (
+                <div className="journal-list-entry-tasks">
+                  {entry.linkedTasks.map((taskId) => {
+                    const info = tasksById.get(taskId);
+                    return (
+                      <Link
+                        key={taskId}
+                        to={`/projects/${info?.projectSlug ?? ''}`}
+                        className={`cp-task ${info?.status === 'done' ? 'done' : ''}`}
+                        title={info?.text ?? taskId}
+                      >
+                        <span className="cp-task-dot" style={{ background: info?.projectColor ?? 'var(--hairline)' }} />
+                        <span className="cp-task-text">{info?.text ?? taskId}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               )}
             </div>
           );

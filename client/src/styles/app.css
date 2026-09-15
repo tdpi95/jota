@@ -2158,6 +2158,21 @@ textarea {
   font-style: italic;
   margin: 0;
 }
+.journal-list-entry-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.journal-list-entry-tasks .cp-task {
+  flex: 0 1 auto;
+  background: var(--surface-muted);
+  border-radius: 20px;
+  padding: 4px 10px 4px 8px;
+}
+.journal-list-entry-tasks .cp-task-text {
+  white-space: nowrap;
+}
 
 .md-textarea {
   font-family: 'Newsreader', Georgia, serif;

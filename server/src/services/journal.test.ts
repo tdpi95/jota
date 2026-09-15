@@ -104,7 +104,7 @@ test('listJournalYear reads summaries from the index, scoped to the given year',
 
 test('listJournalYearFull reads bodies straight off disk, scoped to the given year', () => {
   const ws = scratchWorkspace();
-  putJournalEntry(ws, '2026', '2026-09-10', { body: 'entry one', tags: ['a'] });
+  putJournalEntry(ws, '2026', '2026-09-10', { body: 'entry one', tags: ['a'], linkedTasks: ['t_abc12345'] });
   putJournalEntry(ws, '2026', '2026-01-01', { body: '' }); // empty body -> hasBody: false
   putJournalEntry(ws, '2025', '2025-12-31', { body: 'last year' });
 
@@ -119,10 +119,12 @@ test('listJournalYearFull reads bodies straight off disk, scoped to the given ye
   // lone trailing newline rather than '' — the same reason hasBody itself
   // is computed off `.trim().length > 0`, not a plain emptiness check.
   assert.equal(jan1.body.trim(), '');
+  assert.deepEqual(jan1.linkedTasks, []);
   const sep10 = entries.find((e) => e.date === '2026-09-10')!;
   assert.equal(sep10.hasBody, true);
   assert.equal(sep10.body.trim(), 'entry one');
   assert.deepEqual(sep10.tags, ['a']);
+  assert.deepEqual(sep10.linkedTasks, ['t_abc12345']);
 });
 
 test('listJournalYearFull returns an empty array for a year with no journal folder yet', () => {

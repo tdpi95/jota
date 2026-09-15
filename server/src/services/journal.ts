@@ -35,6 +35,7 @@ export interface JournalEntrySummary {
 
 export interface JournalEntryFull extends JournalEntrySummary {
   body: string;
+  linkedTasks: string[];
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -187,7 +188,7 @@ export function listJournalYearFull(workspacePath: string, year: string): Journa
   const entries = files.map((file) => {
     const date = file.slice(0, -'.md'.length);
     const parsed = parseJournalFile(fs.readFileSync(path.join(yearDir, file), 'utf8'));
-    return { date, hasBody: parsed.body.trim().length > 0, tags: parsed.frontmatter.tags, body: parsed.body };
+    return { date, hasBody: parsed.body.trim().length > 0, tags: parsed.frontmatter.tags, body: parsed.body, linkedTasks: parsed.frontmatter.linkedTasks };
   });
   entries.sort((a, b) => (a.date < b.date ? -1 : 1));
   return entries;
