@@ -173,3 +173,51 @@ export interface IndexedNote {
   updated: string;
   tags: string[];
 }
+
+/** `lib/index/queries.ts`'s `IndexedProject` — the cross-type search
+ * result's project shape (milestone 25 follow-up). */
+export interface IndexedProject {
+  slug: string;
+  name: string;
+  description: string;
+  tags: string[];
+  color: string;
+  archived: boolean;
+  created: string;
+}
+
+/** `lib/index/queries.ts`'s `SearchContentType`/`SearchResult` — backs
+ * `GET /api/search` (milestone 25 "Search (cross-type full-text)"). Each
+ * result carries a `date` (the type's own natural date field — see
+ * PLAN.md) and a `snippet` excerpt with the match marked in `**bold**`. */
+export type SearchContentType = 'task' | 'note' | 'journal' | 'project';
+
+export interface TaskSearchResult {
+  type: 'task';
+  date: string;
+  snippet: string;
+  task: IndexedTask;
+}
+
+export interface NoteSearchResult {
+  type: 'note';
+  date: string;
+  snippet: string;
+  note: IndexedNote;
+}
+
+export interface JournalSearchResult {
+  type: 'journal';
+  date: string;
+  snippet: string;
+  tags: string[];
+}
+
+export interface ProjectSearchResult {
+  type: 'project';
+  date: string;
+  snippet: string;
+  project: IndexedProject;
+}
+
+export type SearchResult = TaskSearchResult | NoteSearchResult | JournalSearchResult | ProjectSearchResult;

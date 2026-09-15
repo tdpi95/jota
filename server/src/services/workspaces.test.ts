@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { getIndexStatus } from '../lib/index/reindex.js';
 import { readRegistry, writeRegistry } from '../lib/workspaces.js';
 import {
   addWorkspace,
@@ -108,6 +109,58 @@ test('opening a workspace whose .poco dir was deleted self-heals it', () => {
 
   openWorkspace(entry.id, homeDir);
   assert.ok(fs.existsSync(path.join(vaultA, '.poco', 'cache')));
+});
+
+const EXTERNAL_PROJECT_MD = `---
+name: External
+created: '2026-01-01'
+archived: false
+description: ''
+tags: []
+color: '#4f86f7'
+---
+`;
+
+// Regression coverage for a real bug: search returned nothing for content
+// that genuinely existed, because a workspace already open (or a folder
+// with existing, never-yet-indexed content) had nothing trigger
+// `reconcileWorkspace` for it — that used to only ever run from a mutating
+// write (create/update/delete a task/note/journal entry), never from
+// opening/adding a workspace, despite PLAN.md documenting reconciliation as
+// running "whenever a workspace is opened, not just process boot".
+
+test('adding a brand-new workspace over an existing folder with content indexes it immediately, not just on the next write', () => {
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
+  fs.mkdirSync(path.join(vaultA, 'projects'), { recursive: true });
+  // Written directly to disk — never through any service write path, same
+  // as a folder of pre-existing notes someone points poco at, or a hand
+  // edit made before the workspace was ever registered.
+  fs.writeFileSync(path.join(vaultA, 'projects', 'external.md'), EXTERNAL_PROJECT_MD, 'utf8');
+
+  addWorkspace({ path: vaultA }, homeDir);
+
+  assert.equal(getIndexStatus(vaultA).projectCount, 1);
+});
+
+test('opening an already-registered workspace picks up a file dropped onto disk since it was last indexed', () => {
+  const homeDir = scratchDir('poco-home-');
+  const vaultA = scratchDir('poco-vault-a-');
+  const vaultB = scratchDir('poco-vault-b-');
+
+  const a = addWorkspace({ path: vaultA }, homeDir);
+  addWorkspace({ path: vaultB }, homeDir); // switches active away from A
+
+  // Simulate a file that appeared on disk while A wasn't the active
+  // workspace (an external sync tool, a hand edit, or — the actual case
+  // that surfaced this — an index-schema upgrade that needs existing
+  // content reparsed) — nothing yet has re-reconciled A for it.
+  fs.writeFileSync(path.join(vaultA, 'projects', 'external.md'), EXTERNAL_PROJECT_MD, 'utf8');
+  assert.equal(getIndexStatus(vaultA).projectCount, 0);
+
+  openWorkspace(a.id, homeDir);
+
+  assert.equal(getIndexStatus(vaultA).projectCount, 1);
 });
 
 test('opening an unknown id throws a structured 404 error', () => {

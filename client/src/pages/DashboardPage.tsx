@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import ProjectCard from '../components/ProjectCard';
 import TaskRow from '../components/TaskRow';
 import { daysBetween, formatDateLong, todayStr, yearOf } from '../lib/date';
-import type { IndexedTask, ProjectSummary, Task, TaskStatus } from '../types';
+import type { IndexedTask, ProjectSummary, SearchResult, Task, TaskStatus } from '../types';
 
 /** `GET /api/tasks/open`'s `IndexedTask` (project name/color/slug joined
  * in) -> the `Task` shape `TaskRow`/`TaskForm` actually render. Same fields
@@ -52,6 +52,19 @@ const RECENT_PROJECTS_LIMIT = 3;
  * pattern used elsewhere (ProjectDetailPage's Done column, HistoryPanel). */
 const BUCKET_LIMIT = 10;
 
+/** ⌘ on Mac, Ctrl everywhere else — matches how every app using this same
+ * Cmd/Ctrl+K "open search" convention (VS Code, Slack, Notion, Linear,
+ * GitHub) displays its own shortcut hint. */
+const SEARCH_SHORTCUT_LABEL = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
+
+/** Renders a `snippet()` excerpt's `**match**` markers as `<mark>` — the
+ * only markup FTS5's snippet ever produces (PLAN.md "Search (cross-type
+ * full-text)"), so a plain split-on-`**` is enough; no need for a real
+ * markdown renderer for what is otherwise plain, already-escaped text. */
+function renderSnippet(snippet: string): React.ReactNode {
+  return snippet.split('**').map((part, i) => (i % 2 === 1 ? <mark key={i}>{part}</mark> : part));
+}
+
 /**
  * Dashboard v2 (PLAN.md: "open tasks across all projects, bucketed by due
  * date, project color badges, '+ log to today' quick action per row").
@@ -63,11 +76,24 @@ const BUCKET_LIMIT = 10;
  *
  * Milestone 18 additions: an "+ Add task" button next to "Open today's
  * journal" (that link already covers quick journaling) opening a popup with
- * a project selector; a "Search tasks" button (by the task buckets, not the
- * page header) opening a search popup — one text input plus clickable tag
- * pills, both driving the same underlying text-or-tag query
- * (`querySearchTasks` matches both); a collapsible "Recent projects"
- * section.
+ * a project selector; a "Search everything" button opening a search popup —
+ * one text input plus clickable tag pills (sourced from open tasks' own
+ * tags; note/project-only tags aren't offered as pills, though typing one
+ * still matches them); a collapsible "Recent projects" section.
+ *
+ * Milestone 25 follow-up: the popup was upgraded from the task-only
+ * `GET /api/tasks/search` to the cross-type `GET /api/search` (PLAN.md
+ * "Search (cross-type full-text)") — results can now be a task, note,
+ * journal entry, or project, each rendered by its own row shape (task rows
+ * reuse `TaskRow` exactly as the buckets below do; the other three get a
+ * compact title/date + snippet row with a "go to" link) rather than
+ * assuming every result is a task. A later follow-up moved the search
+ * button up into the page header next to the other two quick actions
+ * (previously it sat alone by the task buckets, further down the page) and
+ * added the Cmd/Ctrl+K shortcut every app using this same "open search"
+ * convention supports (VS Code, Slack, Notion, Linear, GitHub) — bound
+ * globally on the page (not just while a text field has focus), matching
+ * how those apps behave, and a no-op if the popup is already open.
  */
 const SEARCH_DEBOUNCE_MS = 300;
 export default function DashboardPage() {
@@ -94,9 +120,25 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Cmd/Ctrl+K opens the search popup from anywhere on the page — including
+  // while some other input has focus, same as VS Code/Slack/Notion/Linear's
+  // own Cmd/Ctrl+K, which is exactly why this is a plain window listener
+  // rather than scoped to a particular element. `preventDefault` stops a
+  // browser tab's own Ctrl+K (Firefox: focus the address bar's search).
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearching(true);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const searchResultsQuery = useQuery({
-    queryKey: ['taskSearch', debouncedSearchQuery],
-    queryFn: () => api.searchTasks(debouncedSearchQuery),
+    queryKey: ['search', debouncedSearchQuery],
+    queryFn: () => api.search({ q: debouncedSearchQuery }),
     enabled: searching && debouncedSearchQuery.trim().length > 0,
   });
 
@@ -173,7 +215,7 @@ export default function DashboardPage() {
   const doing = open.filter((t) => t.status === 'doing');
 
   // Shared by the Today/Overdue/This-week buckets and the search popup's
-  // results — same task shape (IndexedTask), same mutations either way.
+  // task results — same task shape (IndexedTask), same mutations either way.
   function renderTaskRow(t: IndexedTask) {
     return (
       <TaskRow
@@ -185,6 +227,40 @@ export default function DashboardPage() {
         onDelete={() => deleteTaskMutation.mutate({ slug: t.projectSlug, taskId: t.id })}
         onLogToday={() => logTodayMutation.mutate(t.id)}
       />
+    );
+  }
+
+  /** Search popup only (milestone 25 follow-up) — a task result reuses
+   * `renderTaskRow` exactly; a note/journal/project result gets its own
+   * compact row (type badge, title/date, snippet, a "go to" link), since
+   * none of those have a status/due/checklist to show. */
+  function renderSearchResult(r: SearchResult) {
+    if (r.type === 'task') return renderTaskRow(r.task);
+
+    const [title, to, badgeKey] =
+      r.type === 'note'
+        ? [r.note.title, `/notes/${r.note.slug}`, 'note']
+        : r.type === 'project'
+          ? [r.project.name, `/projects/${r.project.slug}`, 'project']
+          : [formatDateLong(r.date, language), `/journal/${yearOf(r.date)}/${r.date}`, 'journal'];
+
+    return (
+      <div className="task-row search-result-row" key={`${r.type}-${to}`}>
+        <span className={`search-result-badge srr-${badgeKey}`}>{t(`dashboard.searchResultType.${badgeKey}`)}</span>
+        <div className="task-main">
+          <div className="task-title-row">
+            <span className="task-title">{title}</span>
+          </div>
+          <div className="search-result-snippet">{renderSnippet(r.snippet)}</div>
+        </div>
+        <div className="task-actions">
+          <Link className="icon-btn" title={t('dashboard.searchResultGoTo', { type: t(`dashboard.searchResultType.${badgeKey}`) })} to={to}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Link>
+        </div>
+      </div>
     );
   }
 
@@ -224,6 +300,18 @@ export default function DashboardPage() {
           <div className="page-sub">{formatDateLong(today, language)}</div>
         </div>
         <div className="dashboard-header-actions">
+          <button
+            type="button"
+            className="btn-secondary icon-only-btn icon-only-btn-round"
+            title={`${t('dashboard.searchEverything')} (${SEARCH_SHORTCUT_LABEL})`}
+            aria-label={t('dashboard.searchEverything')}
+            onClick={() => setSearching(true)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </button>
           <Link className="journal-cta" to={`/journal/${year}/${today}`}>
             {t('dashboard.openTodaysJournal')}
           </Link>
@@ -235,7 +323,7 @@ export default function DashboardPage() {
 
       {searching && (
         <Modal
-          title={t('dashboard.searchTasks')}
+          title={t('dashboard.searchEverything')}
           onClose={() => {
             setSearching(false);
             setSearchQuery('');
@@ -263,9 +351,9 @@ export default function DashboardPage() {
             </div>
           )}
           <div className="task-list search-results">
-            {(searchResultsQuery.data?.tasks ?? []).map(renderTaskRow)}
-            {debouncedSearchQuery.trim() && !searchResultsQuery.isFetching && searchResultsQuery.data?.tasks.length === 0 && (
-              <div className="empty-note">{t('dashboard.noMatchingTasks')}</div>
+            {(searchResultsQuery.data?.results ?? []).map(renderSearchResult)}
+            {debouncedSearchQuery.trim() && !searchResultsQuery.isFetching && searchResultsQuery.data?.results.length === 0 && (
+              <div className="empty-note">{t('dashboard.noSearchResults')}</div>
             )}
             {!debouncedSearchQuery.trim() && <div className="empty-note">{t('dashboard.searchHint')}</div>}
           </div>
@@ -325,21 +413,6 @@ export default function DashboardPage() {
           )}
         </div>
       )}
-
-      <div className="tasks-section-header">
-        <button
-          type="button"
-          className="btn-secondary icon-only-btn"
-          title={t('dashboard.searchTasks')}
-          aria-label={t('dashboard.searchTasks')}
-          onClick={() => setSearching(true)}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-        </button>
-      </div>
 
       {isLoading && <p className="page-sub">{t('dashboard.loadingOpenTasks')}</p>}
       {isError && <p className="field-error">{error instanceof api.ApiError ? error.message : t('dashboard.failedToLoad')}</p>}

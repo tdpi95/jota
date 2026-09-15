@@ -69,6 +69,7 @@ test('the tool list matches PLAN.md\'s MCP tool set', async () => {
       'list_notes',
       'list_open_tasks',
       'list_projects',
+      'search_everything',
       'search_tasks',
       'unlink_task_from_journal',
       'update_note',
@@ -215,6 +216,64 @@ test('get_task_summary returns structured aggregates, not prose', async () => {
   assert.equal(summary.totalCount, 2);
   assert.equal(summary.byStatus.todo, 2);
   assert.deepEqual(summary.byProject, [{ projectSlug: 'website-redesign', projectName: 'Website Redesign', count: 2 }]);
+});
+
+test('search_everything finds a phrase that exists only in a note/project body, or a journal body, not in any title/tag, and honors dateRange (milestone 25)', async () => {
+  const ws = scratchWorkspace();
+  const client = await connectedClient(ws);
+
+  await client.callTool({
+    name: 'create_note',
+    arguments: { title: 'Vendor contacts', body: 'BankX support line and their subnet notes live here.' },
+  });
+  await client.callTool({
+    name: 'upsert_journal_entry',
+    arguments: { date: '2026-06-05', body: 'Debugging the BankX subnet issue.' },
+  });
+  await client.callTool({
+    name: 'upsert_journal_entry',
+    arguments: { date: '2026-07-20', body: 'More BankX subnet notes, later in the summer.' },
+  });
+  await client.callTool({
+    name: 'create_project',
+    arguments: { name: 'BankX Migration', description: 'Everything related to the BankX subnet cutover.' },
+  });
+
+  const all = expectOk<{ type: string; date: string }[]>(
+    (await client.callTool({ name: 'search_everything', arguments: { query: 'subnet' } })) as CallToolResult,
+  );
+  assert.deepEqual(
+    all.map((r) => r.type).sort(),
+    ['journal', 'journal', 'note', 'project'],
+  );
+
+  const juneOnly = expectOk<{ type: string; date: string }[]>(
+    (await client.callTool({
+      name: 'search_everything',
+      arguments: { query: 'subnet', dateRange: { from: '2026-06-01', to: '2026-06-30' } },
+    })) as CallToolResult,
+  );
+  assert.equal(juneOnly.length, 1);
+  assert.equal(juneOnly[0].type, 'journal');
+  assert.equal(juneOnly[0].date, '2026-06-05');
+
+  const notesOnly = expectOk<{ type: string }[]>(
+    (await client.callTool({
+      name: 'search_everything',
+      arguments: { query: 'subnet', types: ['note'] },
+    })) as CallToolResult,
+  );
+  assert.equal(notesOnly.length, 1);
+  assert.equal(notesOnly[0].type, 'note');
+
+  const projectsOnly = expectOk<{ type: string }[]>(
+    (await client.callTool({
+      name: 'search_everything',
+      arguments: { query: 'subnet', types: ['project'] },
+    })) as CallToolResult,
+  );
+  assert.equal(projectsOnly.length, 1);
+  assert.equal(projectsOnly[0].type, 'project');
 });
 
 test('an unknown project slug returns a structured error with a did-you-mean hint, not a thrown protocol failure', async () => {
