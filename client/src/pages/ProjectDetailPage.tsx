@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import HistoryPanel from '../components/HistoryPanel';
@@ -28,18 +28,46 @@ export default function ProjectDetailPage() {
   ];
   const { slug = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [creatingTask, setCreatingTask] = useState<{ text: string } | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverInfo, setDragOverInfo] = useState<{ status: TaskStatus; afterId: string | null } | null>(null);
   const [showAllDone, setShowAllDone] = useState(false);
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['project', slug],
     queryFn: () => api.getProject(slug),
   });
+
+  // Arriving from a journal entry's linked-task chip (JournalDayPage) passes
+  // the task id via navigation state rather than a query param, so a raw
+  // page refresh doesn't re-trigger the scroll/highlight. Expand the Done
+  // column's "older" collapse first if that's where the task lives, since
+  // its row has no ref (isn't rendered) until then.
+  useEffect(() => {
+    const navState = location.state as { highlightTaskId?: string } | null;
+    const taskId = navState?.highlightTaskId;
+    if (!taskId || !data) return;
+    const task = data.project.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    if (task.status === 'done' && task.doneAt !== null && daysBetween(task.doneAt, todayStr()) > RECENT_DONE_DAYS) {
+      setShowAllDone(true);
+    }
+    setHighlightedTaskId(taskId);
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, location.state]);
+
+  useEffect(() => {
+    if (!highlightedTaskId) return;
+    rowRefs.current[highlightedTaskId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setHighlightedTaskId(null), 2000);
+    return () => clearTimeout(timer);
+  }, [highlightedTaskId, showAllDone]);
   // Just for the edit form's group combobox suggestions (existing group
   // names across every project) — same query key ProjectsListPage/Dashboard
   // already use, so this is cache-warm rather than a fresh fetch whenever
@@ -182,7 +210,10 @@ export default function ProjectDetailPage() {
         <div>
           <div className="pd-head">
             {frontmatter.profileImage ? (
-              <img className="pd-avatar" src={`/api/${frontmatter.profileImage}`} alt="" />
+              <span className="pd-avatar-wrap">
+                <img className="pd-avatar" src={`/api/${frontmatter.profileImage}`} alt="" />
+                <span className="pd-color-badge" style={{ background: frontmatter.color }} />
+              </span>
             ) : (
               <span className="pd-color" style={{ background: frontmatter.color }} />
             )}
@@ -267,7 +298,7 @@ export default function ProjectDetailPage() {
                     ref={(el) => {
                       rowRefs.current[task.id] = el;
                     }}
-                    className={`task-drag-wrap ${draggingTaskId === task.id ? 'dragging' : ''}`}
+                    className={`task-drag-wrap ${draggingTaskId === task.id ? 'dragging' : ''} ${highlightedTaskId === task.id ? 'task-highlight' : ''}`}
                     draggable
                     onDragStart={(e) => {
                       setDraggingTaskId(task.id);

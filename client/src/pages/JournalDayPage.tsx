@@ -27,6 +27,7 @@ interface LinkedTaskInfo {
   id: string;
   title: string;
   projectColor: string;
+  projectSlug: string;
 }
 
 export default function JournalDayPage() {
@@ -191,7 +192,7 @@ function JournalDayPageInner({ date }: { date: string }) {
     const map = new Map<string, LinkedTaskInfo>();
     for (const project of projectsQuery.data?.projects ?? []) {
       for (const task of project.tasks) {
-        map.set(task.id, { id: task.id, title: task.text, projectColor: project.frontmatter.color });
+        map.set(task.id, { id: task.id, title: task.text, projectColor: project.frontmatter.color, projectSlug: project.slug });
       }
     }
     return map;
@@ -248,7 +249,17 @@ function JournalDayPageInner({ date }: { date: string }) {
             return (
               <span className="linked-chip" key={taskId}>
                 <span className="project-dot" style={{ background: info?.projectColor ?? 'var(--hairline)' }} />
-                {info?.title ?? taskId}
+                {info ? (
+                  <button
+                    type="button"
+                    className="linked-chip-title"
+                    onClick={() => navigate(`/projects/${info.projectSlug}`, { state: { highlightTaskId: taskId } })}
+                  >
+                    {info.title}
+                  </button>
+                ) : (
+                  taskId
+                )}
                 <button className="linked-remove" onClick={() => unlinkMutation.mutate(taskId)} aria-label={t('journalDay.removeLink')}>
                   ×
                 </button>

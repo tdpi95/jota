@@ -37,7 +37,10 @@ export default function ProjectCard({ project, variant = 'row' }: { project: Pro
   );
 
   const avatar = frontmatter.profileImage ? (
-    <img className="project-avatar-tab" src={`/api/${frontmatter.profileImage}`} alt="" />
+    <span className="project-avatar-wrap">
+      <img className="project-avatar-tab" src={`/api/${frontmatter.profileImage}`} alt="" />
+      <span className="project-color-badge" style={{ background: frontmatter.color }} />
+    </span>
   ) : (
     <span className="project-color-tab" style={{ background: frontmatter.color }} />
   );
