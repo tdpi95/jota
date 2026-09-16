@@ -1,13 +1,32 @@
 # App icon design canvas
 
-Source files for the app icon (Claude Design canvas): `Main.dc.html` is the
-shipped design — "Stacked Tiles," three overlapping rounded-square tiles
-(sized from poco's own paper/accent-soft/today-bg color tokens) ascending
-small-to-large toward the top-right, like a thought bubble building up.
-`DirectionB.dc.html` ("Folded Note") and `DirectionC.dc.html` (a geometric
-"p" glyph) are the two alternates explored alongside it — kept for
-reference, not shipped. `canvas.json` lays out all three with sticky-note
-annotations explaining each direction's rationale/tradeoff.
+**Current shipped icon**: a supplied raster illustration (colorful sticky
+notes arranged into a thought-bubble/brain shape), not derived from any
+`.dc.html` file below. Two source masters, both under `source/`:
+- `thought-bubble-master.png` (1254×1254, paper texture + background) —
+  `electron/build/icon.png` (1024) and `electron/src/assets/icon.png` (512)
+  are plain Lanczos downscales of it, no re-render step needed.
+- `thought-bubble-flat-transparent.png` (1536×1024, flat colors, true alpha
+  transparency, no paper texture/background) — used for the small sizes
+  where the textured master turned to mud: `electron/src/assets/tray-icon.png`
+  (16×16) and `tray-icon@2x.png` (32×32). Made by padding the source to a
+  1536×1536 transparent square (`convert src -gravity center -background
+  none -extent 1536x1536`) then Lanczos-downscaling with `-background none
+  -gravity center -extent <N>x<N>` to keep alpha.
+
+To swap either again, replace the relevant file under `source/` and re-run
+the matching resize above.
+
+Source files for the *previous* shipped design (Claude Design canvas):
+`Main.dc.html` was that design — "Stacked Tiles," three overlapping
+rounded-square tiles (sized from poco's own paper/accent-soft/today-bg color
+tokens) ascending small-to-large toward the top-right, like a thought bubble
+building up. `DirectionB.dc.html` ("Folded Note") and `DirectionC.dc.html`
+(a geometric "p" glyph) are the two alternates explored alongside it — kept
+for reference, not shipped. `canvas.json` lays out all three with
+sticky-note annotations explaining each direction's rationale/tradeoff.
+These are now historical (superseded by the raster above) but still the
+source for the tray icons, which still use the old flat design.
 
 **Live/editable version**: https://claude.ai/code/artifact/7e744a89-1fef-4646-8186-f63a58ae86df
 
