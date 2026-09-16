@@ -36,11 +36,17 @@ export default function ProjectCard({ project, variant = 'row' }: { project: Pro
     </div>
   );
 
+  const avatar = frontmatter.profileImage ? (
+    <img className="project-avatar-tab" src={`/api/${frontmatter.profileImage}`} alt="" />
+  ) : (
+    <span className="project-color-tab" style={{ background: frontmatter.color }} />
+  );
+
   if (variant === 'grid') {
     return (
       <Link className="project-card-grid" to={`/projects/${slug}`}>
         <div className="project-card-head">
-          <span className="project-color-tab" style={{ background: frontmatter.color }} />
+          {avatar}
           <span className={`project-name ${frontmatter.archived ? 'archived' : ''}`}>
             {frontmatter.name}
             {frontmatter.archived ? t('projectCard.archivedSuffix') : ''}
@@ -54,7 +60,7 @@ export default function ProjectCard({ project, variant = 'row' }: { project: Pro
 
   return (
     <Link className="project-row" to={`/projects/${slug}`}>
-      <span className="project-color-tab" style={{ background: frontmatter.color }} />
+      {avatar}
       <div className="project-row-main">
         <span className={`project-name ${frontmatter.archived ? 'archived' : ''}`}>
           {frontmatter.name}

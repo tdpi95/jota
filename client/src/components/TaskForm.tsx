@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { CreateTaskInput, UpdateTaskInput } from '../api/client';
 import type { ChecklistItem, Task } from '../types';
+import AttachmentField, { useAttachmentField } from './AttachmentField';
 import ChecklistEditor from './ChecklistEditor';
 import MarkdownEditor from './MarkdownEditor';
 import TagInput from './TagInput';
@@ -60,6 +61,7 @@ export default function TaskForm({
 }) {
   const { t } = useTranslation();
   const [values, setValues] = useState<TaskFormValues>(() => initialValues(task, initialText));
+  const attachmentState = useAttachmentField('tasks', values.description ?? '', (next) => setValues((v) => ({ ...v, description: next })));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -130,7 +132,9 @@ export default function TaskForm({
           placeholder={t('taskForm.descriptionPlaceholder')}
           value={values.description ?? ''}
           onChange={(next) => setValues({ ...values, description: next })}
+          onPasteFiles={attachmentState.handleFiles}
         />
+        <AttachmentField state={attachmentState} />
       </div>
       <div className="form-actions">
         <button type="submit" className="btn-primary" disabled={!values.text.trim() || pending}>

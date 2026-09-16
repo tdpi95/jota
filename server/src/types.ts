@@ -53,6 +53,10 @@ export interface ProjectFrontmatter {
   group: string;
   /** Hex color, e.g. "#4f86f7" — server-assigned, always present. */
   color: string;
+  /** Workspace-relative path to an uploaded profile image (milestone 27,
+   * PLAN.md "File attachments"), e.g. "attachments/projects/foo.png".
+   * Optional — most projects have none, falling back to the color swatch. */
+  profileImage?: string;
 }
 
 export interface JournalFrontmatter {

@@ -1282,6 +1282,17 @@ textarea {
   border-radius: 4px;
   flex-shrink: 0;
 }
+/* Profile image (milestone 27, PLAN.md "File attachments") replaces the
+   plain color tab when a project has one — same slot, bigger, an actual
+   image instead of a flat swatch. */
+.project-avatar-tab {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid var(--hairline);
+}
 .project-row-main {
   flex: 1;
   min-width: 0;
@@ -1500,6 +1511,72 @@ textarea {
   padding: 7px 10px;
 }
 
+/* AttachmentField (milestone 27, PLAN.md "File attachments") — the "attach
+   file" toolbar button plus the inline thumbnail/chip list, shared by the
+   journal body, note body, and task description editors. */
+.attachment-field {
+  margin-top: 8px;
+}
+.attachment-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.attachment-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  margin-left: 0;
+}
+.attachment-status {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+.attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.attachment-chip {
+  display: flex;
+}
+.attachment-thumb-link {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+}
+.attachment-thumb {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+}
+.attachment-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--ink-muted);
+  text-decoration: none;
+  max-width: 220px;
+}
+.attachment-file-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment-file-link:hover {
+  color: var(--ink);
+}
+
 /* Rendered markdown preview (NoteDetailPage's Preview mode) — the one place
    in this app that renders markdown to real HTML rather than just
    syntax-coloring it (contrast MarkdownEditor, PLAN.md "Journal editor").
@@ -1627,6 +1704,13 @@ textarea {
   max-width: 100%;
   border-radius: 8px;
 }
+/* Wraps an embedded attachment image so it's actually clickable (milestone
+   27 follow-up) — markdown's `![alt](...)` has no surrounding link of its
+   own to style, unlike a plain `[text](...)` link. */
+.attachment-image-link {
+  display: inline-block;
+  line-height: 0;
+}
 .note-preview table {
   border-collapse: collapse;
   width: 100%;
@@ -1657,6 +1741,16 @@ textarea {
   border-radius: 5px;
   margin-top: 8px;
   flex-shrink: 0;
+}
+/* Profile image (milestone 27) replaces .pd-color when a project has one. */
+.pd-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--hairline);
+  background: var(--paper-card);
 }
 .pd-group {
   display: flex;
@@ -1799,6 +1893,23 @@ textarea {
 }
 .color-swatch.selected {
   border-color: var(--ink);
+}
+/* Project profile image upload (milestone 27, ProjectForm, edit mode only). */
+.profile-image-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-image-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--hairline);
+}
+.profile-image-preview-empty {
+  display: inline-block;
 }
 .tag-input-wrap {
   display: flex;

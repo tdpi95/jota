@@ -26,6 +26,11 @@ export interface PocoBridge {
    * Resolves `true` on success, `false` if the OS reported an error (e.g. the
    * folder was moved/deleted since it was registered) — never rejects. */
   openWorkspaceFolder: (path: string) => Promise<boolean>;
+  /** Opens a workspace-relative attachment path (e.g.
+   * "attachments/notes/foo.png") with the OS's default app for that file
+   * type — see `client/src/lib/attachments.ts`'s `openAttachmentIfPossible`,
+   * the click handler that calls this. */
+  openAttachment: (relPath: string) => Promise<boolean>;
   /** `false` on macOS/Windows and in dev — only a packaged Linux AppImage
    * has anything for `setDesktopEntryInstalled` to point at. Settings
    * hides the whole control rather than show one that would just throw

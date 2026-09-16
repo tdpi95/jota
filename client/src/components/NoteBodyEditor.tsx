@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
+import AttachmentField, { useAttachmentField } from './AttachmentField';
 import MarkdownEditor from './MarkdownEditor';
 
 // Pencil (edit) / eye (preview, same path HistoryPanel's "view diff" button
@@ -47,6 +49,7 @@ export default function NoteBodyEditor({
 }) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
+  const attachmentState = useAttachmentField('notes', body, onChange);
 
   return (
     <>
@@ -68,9 +71,23 @@ export default function NoteBodyEditor({
       </div>
 
       {viewMode === 'edit' ? (
-        <MarkdownEditor className="journal-body" placeholder={t('noteDetail.bodyPlaceholder')} value={body} onChange={onChange} disabled={disabled} />
+        <>
+          <MarkdownEditor
+            className="journal-body"
+            placeholder={t('noteDetail.bodyPlaceholder')}
+            value={body}
+            onChange={onChange}
+            onPasteFiles={attachmentState.handleFiles}
+            disabled={disabled}
+          />
+          <AttachmentField state={attachmentState} disabled={disabled} />
+        </>
       ) : body.trim() ? (
-        <div className="note-preview journal-body" dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(body) }} />
+        <div
+          className="note-preview journal-body"
+          onClick={handleRenderedAttachmentClick}
+          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(body) }}
+        />
       ) : (
         <div className="note-preview journal-body note-preview-empty">{t('noteDetail.previewEmpty')}</div>
       )}

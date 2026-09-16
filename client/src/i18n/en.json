@@ -173,7 +173,14 @@
     "chooseColor": "Choose color {{color}}",
     "customColorTooltip": "Custom color",
     "chooseCustomColor": "Choose a custom color",
-    "archivedLabel": "Archived"
+    "archivedLabel": "Archived",
+    "profileImageLabel": "Profile image",
+    "uploadProfileImage": "Upload image",
+    "removeProfileImage": "Remove"
+  },
+  "attachments": {
+    "attachFile": "Attach file",
+    "uploading": "Uploading…"
   },
   "tagInput": {
     "placeholder": "Add tag…",

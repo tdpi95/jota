@@ -101,6 +101,74 @@ async function waitForServer(port: number, timeoutMs = 15000): Promise<void> {
   throw new Error(`embedded server did not become ready on port ${port} within ${timeoutMs}ms`);
 }
 
+/**
+ * True only for a single, literal path segment — no `/` or `\` (including
+ * one that would only appear *after* percent-decoding, e.g. `%2f` or a
+ * raw backslash on Windows) and not `.`/`..`. `folder`/`filename` are
+ * validated against this *after* decoding, since matching the URL's raw,
+ * still-encoded pathname against a no-slashes regex (as the callers below
+ * do first) doesn't rule out a segment that decodes into one — a classic
+ * percent-encoded traversal vector (`%2e%2e%2f` etc.).
+ */
+function isSafePathSegment(segment: string): boolean {
+  return segment.length > 0 && segment !== '.' && segment !== '..' && !segment.includes('/') && !segment.includes('\\');
+}
+
+/**
+ * Resolves a workspace-relative attachment path ("attachments/<folder>/
+ * <file>", milestone 27's `AttachmentInfo.path`/`profileImage` shape) to the
+ * real file on disk (via the embedded server's own `/api/workspaces/active`,
+ * the same call `poco:get-reminder-settings` already makes to find the
+ * active workspace) and hands it to `shell.openPath`, which launches the
+ * OS's own default handler for that file type (an image viewer, a PDF
+ * reader, ...) exactly like double-clicking it in Finder/Explorer/Nautilus
+ * would — the same primitive `openWorkspaceFolder` already uses for a
+ * folder. Shared by `poco:open-attachment` (the reliable path: the renderer
+ * intercepts the click itself before the browser can decide what to do with
+ * it) and `setWindowOpenHandler`'s fallback below (for whatever a plain
+ * click-interception can't catch, e.g. a middle-click).
+ */
+async function openWorkspaceRelativeAttachment(relPath: string): Promise<boolean> {
+  const match = relPath.match(/^attachments\/([^/]+)\/([^/]+)$/);
+  if (!match || serverPort === null) return false;
+  const folder = decodeURIComponent(match[1]);
+  const filename = decodeURIComponent(match[2]);
+  if (!isSafePathSegment(folder) || !isSafePathSegment(filename)) {
+    console.error('[main] refused to open attachment with an unsafe path segment:', { folder, filename });
+    return false;
+  }
+
+  let workspacePath: string | undefined;
+  try {
+    const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active`);
+    if (!res.ok) return false;
+    const body = (await res.json()) as { workspace?: { path?: string } };
+    workspacePath = body.workspace?.path;
+  } catch (err) {
+    console.error('[main] failed to resolve active workspace for attachment open:', err);
+    return false;
+  }
+  if (!workspacePath) return false;
+
+  // `folder`/`filename` are now known-safe single segments (no `/`, `\`,
+  // `.`, or `..`), so this `path.join` cannot land outside
+  // `<workspace>/attachments/<folder>/` no matter what either one contains.
+  const absolutePath = path.join(path.resolve(workspacePath), 'attachments', folder, filename);
+
+  const errorMessage = await shell.openPath(absolutePath);
+  if (errorMessage) console.error(`[main] failed to open attachment "${absolutePath}":`, errorMessage);
+  return errorMessage === '';
+}
+
+/** `setWindowOpenHandler`'s fallback only ever sees a full `/api/...` URL,
+ * not the bare "attachments/<folder>/<file>" shape the IPC handler above
+ * takes directly from the renderer — this just adapts one to the other. */
+async function openAttachmentPath(pathname: string): Promise<boolean> {
+  const match = pathname.match(/^\/api\/(attachments\/[^/]+\/[^/]+)$/);
+  if (!match) return false;
+  return openWorkspaceRelativeAttachment(match[1]);
+}
+
 async function createWindow(port: number): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -121,12 +189,35 @@ async function createWindow(port: number): Promise<void> {
     },
   });
 
-  // Any `target="_blank"` link (e.g. Settings' git-download link) must open
-  // in the user's real browser, not a second Electron window — Electron's
-  // own default for an unhandled `window.open` is to just deny it silently,
-  // which would make such a link appear to do nothing.
+  // Any `target="_blank"` link (e.g. Settings' git-download link) must not
+  // open a second Electron window — Electron's own default for an unhandled
+  // `window.open` is to just deny it silently, which would make such a link
+  // appear to do nothing. This is now only a *fallback* for an attachment
+  // link specifically (milestone 27) — the renderer's own click handler
+  // (`AttachmentField`, `NoteBodyEditor`'s preview, `TaskRow`'s view modal;
+  // `client/src/lib/attachments.ts`'s `openAttachmentIfPossible`) already
+  // intercepts a plain click and calls `poco:open-attachment` directly,
+  // *before* Chromium ever decides what a `target="_blank"` request to that
+  // URL should do. That distinction turned out to matter: for a file
+  // Chromium can't render inline in a window it controls (a PDF, since this
+  // `BrowserWindow` has no PDF viewer plugin enabled), a plain, un-
+  // intercepted click gets silently turned into a background download
+  // instead of a new-window request — which never reaches this handler at
+  // all, so relying on it alone genuinely didn't work for anything Chromium
+  // decided to download rather than open. This still exists for whatever
+  // the renderer's click interception can't catch (e.g. a middle-click,
+  // which fires no ordinary `click` event to intercept).
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http:') || url.startsWith('https:')) void shell.openExternal(url);
+    void (async () => {
+      let pathname: string | undefined;
+      try {
+        pathname = new URL(url).pathname;
+      } catch {
+        pathname = undefined;
+      }
+      if (pathname && (await openAttachmentPath(pathname))) return;
+      if (url.startsWith('http:') || url.startsWith('https:')) void shell.openExternal(url);
+    })();
     return { action: 'deny' };
   });
 
@@ -259,6 +350,13 @@ if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
       if (errorMessage) console.error(`[main] failed to open workspace folder "${folderPath}":`, errorMessage);
       return errorMessage === '';
     });
+
+    // Milestone 27 follow-up ("open image, file by system apps"): the
+    // renderer calls this directly from a click handler on an attachment
+    // link/image, rather than relying on the browser's own `target="_blank"`
+    // navigate-or-download decision — see the long comment on
+    // `setWindowOpenHandler` below for why that alone wasn't reliable.
+    ipcMain.handle('poco:open-attachment', async (_event, relPath: string) => openWorkspaceRelativeAttachment(relPath));
 
     ipcMain.handle('poco:get-launch-at-login', () => getLaunchAtLogin());
     ipcMain.handle('poco:set-launch-at-login', async (_event, enabled: boolean) => {

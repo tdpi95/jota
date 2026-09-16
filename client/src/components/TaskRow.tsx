@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { UpdateTaskInput } from '../api/client';
+import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { formatTimestamp } from '../lib/date';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import type { Task, TaskStatus } from '../types';
@@ -186,7 +187,11 @@ export default function TaskRow({
             </div>
           )}
           {task.description && (
-            <div className="task-desc note-preview" dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(task.description) }} />
+            <div
+              className="task-desc note-preview"
+              onClick={handleRenderedAttachmentClick}
+              dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(task.description) }}
+            />
           )}
           <div className="form-actions task-detail-actions">
             <button

@@ -1,7 +1,7 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { CreateProjectInput, UpdateProjectInput } from '../api/client';
+import { uploadAttachment, type CreateProjectInput, type UpdateProjectInput } from '../api/client';
 import { COLOR_PALETTE } from '../lib/colors';
 import MarkdownTextarea from './MarkdownTextarea';
 
@@ -11,6 +11,9 @@ export interface ProjectFormInitial {
   group: string;
   color: string;
   archived?: boolean;
+  /** Workspace-relative path, e.g. "attachments/projects/foo.png"
+   * (milestone 27, PLAN.md "File attachments"). */
+  profileImage?: string;
 }
 
 /** Create/edit form for a project's name/description/group/color (PLAN.md:
@@ -49,7 +52,27 @@ export default function ProjectForm({
   const [group, setGroup] = useState(initial?.group ?? '');
   const [color, setColor] = useState(initial?.color ?? COLOR_PALETTE[0]);
   const [archived, setArchived] = useState(initial?.archived ?? false);
+  const [profileImage, setProfileImage] = useState<string | null>(initial?.profileImage ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleProfileImageChange(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setImageError(null);
+    try {
+      const { attachment } = await uploadAttachment('projects', file);
+      setProfileImage(attachment.path);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +81,13 @@ export default function ProjectForm({
       return;
     }
     setError(null);
-    onSubmit({ name: name.trim(), description, group, color, ...(showArchived ? { archived } : {}) });
+    onSubmit({
+      name: name.trim(),
+      description,
+      group,
+      color,
+      ...(showArchived ? { archived, profileImage } : {}),
+    });
   }
 
   return (
@@ -104,6 +133,28 @@ export default function ProjectForm({
           />
         </div>
       </div>
+      {showArchived && (
+        <div className="form-field">
+          <label>{t('projectForm.profileImageLabel')}</label>
+          <div className="profile-image-field">
+            {profileImage ? (
+              <img className="profile-image-preview" src={`/api/${profileImage}`} alt="" />
+            ) : (
+              <span className="profile-image-preview profile-image-preview-empty" style={{ background: color }} />
+            )}
+            <button type="button" className="btn-secondary" disabled={uploadingImage} onClick={() => imageInputRef.current?.click()}>
+              {uploadingImage ? t('attachments.uploading') : t('projectForm.uploadProfileImage')}
+            </button>
+            {profileImage && (
+              <button type="button" className="btn-secondary" onClick={() => setProfileImage(null)}>
+                {t('projectForm.removeProfileImage')}
+              </button>
+            )}
+            <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={(e) => handleProfileImageChange(e.target.files)} />
+          </div>
+          {imageError && <div className="field-error">{imageError}</div>}
+        </div>
+      )}
       {showArchived && (
         <div className="form-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" id="archived-toggle" checked={archived} onChange={(e) => setArchived(e.target.checked)} style={{ width: 'auto' }} />

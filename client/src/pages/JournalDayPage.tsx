@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
+import AttachmentField, { useAttachmentField } from '../components/AttachmentField';
 import HistoryPanel from '../components/HistoryPanel';
 import MarkdownEditor from '../components/MarkdownEditor';
 import TagInput from '../components/TagInput';
@@ -205,6 +206,8 @@ function JournalDayPageInner({ date }: { date: string }) {
 
   const searchResults: IndexedTask[] = (searchQuery.data?.tasks ?? []).filter((task) => !linkedTaskIds.includes(task.id));
 
+  const attachmentState = useAttachmentField('journal', body, handleBodyChange);
+
   return (
     <div>
       <div className="journal-head">
@@ -227,8 +230,10 @@ function JournalDayPageInner({ date }: { date: string }) {
         placeholder={t('journalDay.bodyPlaceholder')}
         value={body}
         onChange={handleBodyChange}
+        onPasteFiles={attachmentState.handleFiles}
         disabled={entryQuery.isLoading}
       />
+      <AttachmentField state={attachmentState} disabled={entryQuery.isLoading} />
       <div className="journal-save-status">
         {saveState === 'unsaved' && t('journalDay.unsaved')}
         {saveState === 'saving' && t('journalDay.saving')}

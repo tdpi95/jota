@@ -24,6 +24,15 @@ export interface PocoBridge {
    * Resolves `true` on success, `false` if the OS reported an error (e.g. the
    * folder was moved/deleted since it was registered) — never rejects. */
   openWorkspaceFolder: (path: string) => Promise<boolean>;
+  /** Opens a workspace-relative attachment path (e.g.
+   * "attachments/notes/foo.png", milestone 27's `AttachmentInfo.path`) with
+   * the OS's default app for that file type (an image viewer, a PDF reader,
+   * ...) — same underlying `shell.openPath` `openWorkspaceFolder` uses, just
+   * resolved against the *active* workspace and pointed at a file instead of
+   * a directory. Resolves `false` (never rejects) if the path doesn't
+   * resolve to a real file under the workspace's `attachments/` folder or
+   * the OS reported an error opening it. */
+  openAttachment: (relPath: string) => Promise<boolean>;
   /** `false` on macOS/Windows and in dev — only a packaged Linux AppImage
    * has anything for `setDesktopEntryInstalled` to point at (see
    * electron/src/desktopEntry.ts). Settings hides the whole control rather
@@ -42,6 +51,7 @@ const pocoBridge: PocoBridge = {
   getReminderSettings: () => ipcRenderer.invoke('poco:get-reminder-settings'),
   setReminderSettings: (settings) => ipcRenderer.invoke('poco:set-reminder-settings', settings),
   openWorkspaceFolder: (path) => ipcRenderer.invoke('poco:open-workspace-folder', path),
+  openAttachment: (relPath) => ipcRenderer.invoke('poco:open-attachment', relPath),
   canCreateDesktopEntry: () => ipcRenderer.invoke('poco:can-create-desktop-entry'),
   isDesktopEntryInstalled: () => ipcRenderer.invoke('poco:is-desktop-entry-installed'),
   setDesktopEntryInstalled: (enabled) => ipcRenderer.invoke('poco:set-desktop-entry-installed', enabled),

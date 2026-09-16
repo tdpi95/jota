@@ -64,6 +64,9 @@ export interface UpdateProjectInput {
   group?: string;
   color?: string;
   archived?: boolean;
+  /** Same `undefined` = leave alone / `null` = clear convention as
+   * `UpdateTaskInput.due` — a string sets a new image, `null` removes it. */
+  profileImage?: string | null;
 }
 
 function projectsDir(workspacePath: string): string {
@@ -172,6 +175,10 @@ export function updateProject(workspacePath: string, slug: string, input: Update
   if (input.group !== undefined) parsed.frontmatter.group = input.group.trim() || DEFAULT_GROUP;
   if (input.color !== undefined) parsed.frontmatter.color = input.color;
   if (input.archived !== undefined) parsed.frontmatter.archived = input.archived;
+  if (input.profileImage !== undefined) {
+    if (input.profileImage === null) delete parsed.frontmatter.profileImage;
+    else parsed.frontmatter.profileImage = input.profileImage;
+  }
 
   saveProjectFile(workspacePath, slug, parsed, origin, `update_project ${slug}`);
   return toSummary(slug, parsed);

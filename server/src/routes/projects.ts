@@ -40,11 +40,11 @@ router.get('/:slug', (req, res, next) => {
 router.patch('/:slug', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();
-    const { name, description, group, color, archived } = req.body ?? {};
+    const { name, description, group, color, archived, profileImage } = req.body ?? {};
     const project = projectService.updateProject(
       workspace.path,
       req.params.slug,
-      { name, description, group, color, archived },
+      { name, description, group, color, archived, profileImage },
       'api',
     );
     res.json({ project });

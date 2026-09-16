@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { HttpError } from './lib/httpError.js';
 import { reconcileWorkspace } from './lib/index/reindex.js';
+import attachmentsRouter from './routes/attachments.js';
 import calendarRouter from './routes/calendar.js';
 import indexRouter from './routes/index.js';
 import journalRouter from './routes/journal.js';
@@ -39,6 +40,7 @@ export function createApp() {
   app.use(express.json());
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.use('/api/attachments', attachmentsRouter);
   app.use('/api/workspaces', workspacesRouter);
   app.use('/api/index', indexRouter);
   app.use('/api/vault/git', syncRouter);

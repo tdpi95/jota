@@ -173,7 +173,14 @@
     "chooseColor": "Chọn màu {{color}}",
     "customColorTooltip": "Màu tùy chỉnh",
     "chooseCustomColor": "Chọn màu tùy chỉnh",
-    "archivedLabel": "Đã lưu trữ"
+    "archivedLabel": "Đã lưu trữ",
+    "profileImageLabel": "Ảnh đại diện",
+    "uploadProfileImage": "Tải ảnh lên",
+    "removeProfileImage": "Xóa"
+  },
+  "attachments": {
+    "attachFile": "Đính kèm tệp",
+    "uploading": "Đang tải lên…"
   },
   "tagInput": {
     "placeholder": "Thêm thẻ…",

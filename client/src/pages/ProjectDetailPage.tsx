@@ -181,7 +181,11 @@ export default function ProjectDetailPage() {
       <div className="page-header">
         <div>
           <div className="pd-head">
-            <span className="pd-color" style={{ background: frontmatter.color }} />
+            {frontmatter.profileImage ? (
+              <img className="pd-avatar" src={`/api/${frontmatter.profileImage}`} alt="" />
+            ) : (
+              <span className="pd-color" style={{ background: frontmatter.color }} />
+            )}
             <div>
               <h1 className="page-title">
                 {frontmatter.name}
@@ -204,7 +208,14 @@ export default function ProjectDetailPage() {
         <Modal title={t('projectDetail.editProjectModalTitle')} onClose={() => setEditing(false)}>
           <ProjectForm
             bare
-            initial={{ name: frontmatter.name, description: frontmatter.description, group: frontmatter.group, color: frontmatter.color, archived: frontmatter.archived }}
+            initial={{
+              name: frontmatter.name,
+              description: frontmatter.description,
+              group: frontmatter.group,
+              color: frontmatter.color,
+              archived: frontmatter.archived,
+              profileImage: frontmatter.profileImage,
+            }}
             existingGroups={existingGroups}
             showArchived
             submitLabel={t('projectDetail.saveChanges')}

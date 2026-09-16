@@ -107,6 +107,9 @@ export interface UpdateProjectInput {
   group?: string;
   color?: string;
   archived?: boolean;
+  /** `undefined` leaves it untouched, a path sets/replaces it, `null` clears
+   * it back to the plain color swatch (milestone 27). */
+  profileImage?: string | null;
 }
 
 export function updateProject(slug: string, input: UpdateProjectInput): Promise<{ project: ProjectSummary }> {
@@ -427,6 +430,35 @@ export function search(params: { q: string; from?: string; to?: string; types?: 
   if (params.to) qs.set('to', params.to);
   if (params.types && params.types.length > 0) qs.set('types', params.types.join(','));
   return request(`/search?${qs.toString()}`);
+}
+
+// --- Attachments (milestone 27, PLAN.md "File attachments") ---
+
+export type AttachmentFolder = 'tasks' | 'journal' | 'notes' | 'projects';
+
+export interface AttachmentInfo {
+  folder: AttachmentFolder;
+  filename: string;
+  /** Workspace-relative path, e.g. "attachments/notes/foo.png" — what a
+   * project's `profileImage` field stores directly. */
+  path: string;
+  /** API URL to fetch/display the file. */
+  url: string;
+}
+
+/** Uploads a file into the workspace's attachments folder. Doesn't go
+ * through `request()` — a multipart body must NOT carry the JSON
+ * `Content-Type` header `request()` always sets; the browser needs to set
+ * its own `multipart/form-data; boundary=...` instead. */
+export async function uploadAttachment(folder: AttachmentFolder, file: File): Promise<{ attachment: AttachmentInfo }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`/api/attachments/${encodeURIComponent(folder)}`, { method: 'POST', body: formData });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(typeof body.error === 'string' ? body.error : `request failed (${res.status})`, res.status);
+  }
+  return res.json();
 }
 
 export { ApiError };

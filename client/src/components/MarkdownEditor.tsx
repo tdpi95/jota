@@ -142,6 +142,13 @@ interface MarkdownEditorProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** Pasting a file (an image copied from a screenshot tool, a file copied
+   * from a file manager, ...) hands the pasted `FileList` here instead of
+   * falling through to CodeMirror's default paste handling — there's no
+   * useful text representation of a file paste anyway. Only content types
+   * that support attachments (milestone 27, PLAN.md "File attachments")
+   * pass this; a plain text/markdown paste is always handled normally. */
+  onPasteFiles?: (files: FileList) => void;
 }
 
 /**
@@ -152,11 +159,13 @@ interface MarkdownEditorProps {
  * preview: the stored value is still the raw markdown text untouched, this
  * only changes how it's colored on screen.
  */
-export default function MarkdownEditor({ value, onChange, placeholder, disabled, className }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, placeholder, disabled, className, onPasteFiles }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onPasteFilesRef = useRef(onPasteFiles);
+  onPasteFilesRef.current = onPasteFiles;
   const editableCompartment = useRef(new Compartment()).current;
 
   // Created once per mount; external `value` changes after that are synced
@@ -188,6 +197,15 @@ export default function MarkdownEditor({ value, onChange, placeholder, disabled,
           inlineCodeBackground,
           placeholderExt(placeholder ?? ''),
           editableCompartment.of([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
+          EditorView.domEventHandlers({
+            paste: (event) => {
+              const files = event.clipboardData?.files;
+              if (!files || files.length === 0 || !onPasteFilesRef.current) return false;
+              event.preventDefault();
+              onPasteFilesRef.current(files);
+              return true;
+            },
+          }),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return;
             if (update.transactions.some((tr) => tr.annotation(externalValueSync))) return;

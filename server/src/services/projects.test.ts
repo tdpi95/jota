@@ -78,6 +78,20 @@ test('updateProject with a blank group resets it to Default', () => {
   assert.equal(updated.frontmatter.group, DEFAULT_GROUP);
 });
 
+test('updateProject sets and clears profileImage (undefined leaves it alone, null clears it)', () => {
+  const ws = scratchWorkspace();
+  createProject(ws, { name: 'Website Redesign' });
+
+  const withImage = updateProject(ws, 'website-redesign', { profileImage: 'attachments/projects/foo.png' });
+  assert.equal(withImage.frontmatter.profileImage, 'attachments/projects/foo.png');
+
+  const untouched = updateProject(ws, 'website-redesign', { description: 'New copy.' });
+  assert.equal(untouched.frontmatter.profileImage, 'attachments/projects/foo.png');
+
+  const cleared = updateProject(ws, 'website-redesign', { profileImage: null });
+  assert.equal(cleared.frontmatter.profileImage, undefined);
+});
+
 test('updateProject on an unknown slug throws a structured 404', () => {
   const ws = scratchWorkspace();
   assert.throws(() => updateProject(ws, 'nope', { archived: true }), /no project with slug/);
