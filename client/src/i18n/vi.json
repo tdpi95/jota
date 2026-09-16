@@ -187,7 +187,6 @@
   "taskForm": {
     "titleLabel": "Tiêu đề",
     "titlePlaceholder": "Tên công việc mới…",
-    "fewerFields": "Thu gọn",
     "moreFields": "Thêm trường",
     "addTask": "+ Thêm việc",
     "dueDateLabel": "Hạn chót",
@@ -202,6 +201,8 @@
     "goToProject": "Đến dự án",
     "logToTodaysJournal": "Ghi vào nhật ký hôm nay",
     "editTask": "Sửa việc",
+    "editTaskModalTitle": "Sửa việc",
+    "created": "Tạo lúc {{time}}",
     "deleteTask": "Xóa việc",
     "confirmDelete": "Xóa \"{{text}}\"?",
     "status": {
@@ -273,6 +274,7 @@
     "editProjectModalTitle": "Sửa dự án",
     "saveChanges": "Lưu thay đổi",
     "addTask": "+ Thêm việc",
+    "addTaskModalTitle": "Thêm việc",
     "columns": {
       "todo": "Cần làm",
       "doing": "Đang làm",

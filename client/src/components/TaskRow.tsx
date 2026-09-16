@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { UpdateTaskInput } from '../api/client';
+import { formatTimestamp } from '../lib/date';
+import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import type { Task, TaskStatus } from '../types';
 import DueDateBadge from './DueDateBadge';
+import Modal from './Modal';
 import TaskForm from './TaskForm';
 import TimeSpentBadge from './TimeSpentBadge';
 
@@ -23,18 +26,24 @@ function StatusIcon({ status }: { status: TaskStatus }) {
 
 /**
  * One task row: status-cycle button (todo → doing → done → todo), title,
- * due/tag/time-spent badges, an expandable description, and per-row actions
- * — edit (opens `TaskForm` inline in place of the row), delete, and
- * "+ log to today" (links this task onto today's journal entry, PLAN.md's
- * "+ log to today" quick action — built here on the shared row so Dashboard
- * (milestone 14) gets it for free once it reuses this component). An
- * optional `project` badge (name + color dot) is shown first in the meta
- * row when the caller spans multiple projects (the Dashboard) — omitted on
- * a single project's own task list (ProjectDetailPage), where it would be
- * redundant. When `project` is given, a "Go to project" action also appears
- * (milestone 18: Dashboard buckets and the task-search popup both list
- * tasks across every project, so jumping to the owning project is useful
- * there in a way it isn't on ProjectDetailPage's own list).
+ * due/tag/time-spent badges, and per-row actions — edit (opens `TaskForm` in
+ * a `Modal`), delete, and "+ log to today" (links this task onto today's
+ * journal entry, PLAN.md's "+ log to today" quick action — built here on
+ * the shared row so Dashboard (milestone 14) gets it for free once it
+ * reuses this component). Clicking the row's title/meta area opens a *view*
+ * `Modal` — badges, when created, checklist (still interactively checkable),
+ * and description (rendered as markdown, same `renderMarkdownToHtml`
+ * NoteBodyEditor's preview uses) — plus an Edit button that swaps straight
+ * to the edit `Modal` — instead of the old inline expand-in-place (PLAN.md
+ * milestone 18); every task opens it, not just ones with a checklist or
+ * description, since "when created" alone is worth seeing. An optional `project`
+ * badge (name + color dot) is shown first in the meta row when the caller
+ * spans multiple projects (the Dashboard) — omitted on a single project's
+ * own task list (ProjectDetailPage), where it would be redundant. When
+ * `project` is given, a "Go to project" action also appears (milestone 18:
+ * Dashboard buckets and the task-search popup both list tasks across every
+ * project, so jumping to the owning project is useful there in a way it
+ * isn't on ProjectDetailPage's own list).
  */
 export default function TaskRow({
   task,
@@ -53,31 +62,12 @@ export default function TaskRow({
 }) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const [logged, setLogged] = useState(false);
-
-  if (editing) {
-    return (
-      <div className="task-row">
-        <div style={{ flex: 1 }}>
-          <TaskForm
-            task={task}
-            submitLabel={t('common.save')}
-            onSubmit={(values) => {
-              onSave(values);
-              setEditing(false);
-            }}
-            onCancel={() => setEditing(false)}
-          />
-        </div>
-      </div>
-    );
-  }
 
   const nextStatus = NEXT_STATUS[task.status];
   const hasChecklist = task.checklist.length > 0;
   const checklistDoneCount = task.checklist.filter((item) => item.done).length;
-  const expandable = Boolean(task.description) || hasChecklist;
 
   function toggleChecklistItem(index: number) {
     onSave({
@@ -94,7 +84,7 @@ export default function TaskRow({
       >
         <StatusIcon status={task.status} />
       </button>
-      <div className="task-main" onClick={() => expandable && setExpanded((v) => !v)}>
+      <div className="task-main" onClick={() => setViewing(true)}>
         <div className="task-title-row">
           <span className={`task-title ${task.status === 'done' ? 'st-done' : ''}`}>{task.text}</span>
         </div>
@@ -118,17 +108,6 @@ export default function TaskRow({
           ))}
           <TimeSpentBadge spentMinutes={task.spentMinutes} doingSince={task.doingSince} />
         </div>
-        {expanded && hasChecklist && (
-          <div className="task-checklist" onClick={(e) => e.stopPropagation()}>
-            {task.checklist.map((item, index) => (
-              <label className="task-checklist-item" key={index}>
-                <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(index)} />
-                <span className={item.done ? 'st-done' : ''}>{item.text}</span>
-              </label>
-            ))}
-          </div>
-        )}
-        {expanded && task.description && <div className="task-desc">{task.description}</div>}
       </div>
       <div className="task-actions">
         {project && (
@@ -178,6 +157,65 @@ export default function TaskRow({
           </svg>
         </button>
       </div>
+
+      {viewing && (
+        <Modal title={task.text} onClose={() => setViewing(false)}>
+          <div className="task-meta-row">
+            <DueDateBadge due={task.due} />
+            {hasChecklist && (
+              <span className="checklist-badge">
+                {checklistDoneCount}/{task.checklist.length}
+              </span>
+            )}
+            {task.tags.map((tag) => (
+              <span className="tag-pill" key={tag}>
+                {tag}
+              </span>
+            ))}
+            <TimeSpentBadge spentMinutes={task.spentMinutes} doingSince={task.doingSince} />
+          </div>
+          <div className="page-sub">{t('taskRow.created', { time: formatTimestamp(task.created) })}</div>
+          {hasChecklist && (
+            <div className="task-checklist">
+              {task.checklist.map((item, index) => (
+                <label className="task-checklist-item" key={index}>
+                  <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(index)} />
+                  <span className={item.done ? 'st-done' : ''}>{item.text}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {task.description && (
+            <div className="task-desc note-preview" dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(task.description) }} />
+          )}
+          <div className="form-actions task-detail-actions">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setViewing(false);
+                setEditing(true);
+              }}
+            >
+              {t('common.edit')}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {editing && (
+        <Modal title={t('taskRow.editTaskModalTitle')} onClose={() => setEditing(false)}>
+          <TaskForm
+            task={task}
+            submitLabel={t('common.save')}
+            onSubmit={(values) => {
+              onSave(values);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

@@ -187,7 +187,6 @@
   "taskForm": {
     "titleLabel": "Title",
     "titlePlaceholder": "New task title…",
-    "fewerFields": "Fewer fields",
     "moreFields": "More fields",
     "addTask": "+ Add task",
     "dueDateLabel": "Due date",
@@ -202,6 +201,8 @@
     "goToProject": "Go to project",
     "logToTodaysJournal": "Log to today's journal",
     "editTask": "Edit task",
+    "editTaskModalTitle": "Edit task",
+    "created": "Created {{time}}",
     "deleteTask": "Delete task",
     "confirmDelete": "Delete \"{{text}}\"?",
     "status": {
@@ -273,6 +274,7 @@
     "editProjectModalTitle": "Edit project",
     "saveChanges": "Save changes",
     "addTask": "+ Add task",
+    "addTaskModalTitle": "Add task",
     "columns": {
       "todo": "Todo",
       "doing": "Doing",

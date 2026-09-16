@@ -30,6 +30,7 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [creatingTask, setCreatingTask] = useState<{ text: string } | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverInfo, setDragOverInfo] = useState<{ status: TaskStatus; afterId: string | null } | null>(null);
   const [showAllDone, setShowAllDone] = useState(false);
@@ -65,7 +66,10 @@ export default function ProjectDetailPage() {
 
   const createTaskMutation = useMutation({
     mutationFn: (values: api.CreateTaskInput) => api.createTask(slug, values),
-    onSuccess: invalidateProject,
+    onSuccess: () => {
+      invalidateProject();
+      setCreatingTask(null);
+    },
   });
 
   const updateTaskMutation = useMutation({
@@ -211,7 +215,25 @@ export default function ProjectDetailPage() {
         </Modal>
       )}
 
-      <TaskForm compact submitLabel={t('projectDetail.addTask')} pending={createTaskMutation.isPending} onSubmit={(values) => createTaskMutation.mutate(values)} />
+      <TaskForm
+        compact
+        submitLabel={t('projectDetail.addTask')}
+        pending={createTaskMutation.isPending}
+        onSubmit={(values) => createTaskMutation.mutate(values)}
+        onMoreFields={(text) => setCreatingTask({ text })}
+      />
+
+      {creatingTask && (
+        <Modal title={t('projectDetail.addTaskModalTitle')} onClose={() => setCreatingTask(null)}>
+          <TaskForm
+            initialText={creatingTask.text}
+            submitLabel={t('projectDetail.addTask')}
+            pending={createTaskMutation.isPending}
+            onSubmit={(values) => createTaskMutation.mutate(values)}
+            onCancel={() => setCreatingTask(null)}
+          />
+        </Modal>
+      )}
 
       <div className="pd-columns">
         {COLUMNS.map((col) => {

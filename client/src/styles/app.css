@@ -1165,12 +1165,18 @@ textarea {
 .tag-pill button:hover {
   opacity: 1;
 }
+/* Always paired with .note-preview (TaskRow renders the description as real
+   HTML, not raw text) — no `white-space: pre-line` here: with that set, the
+   literal newline text nodes markdown-it leaves between sibling block tags
+   (`<p>...</p>\n<ul>\n<li>...` etc.) become significant whitespace and each
+   renders as its own extra line break, visually doubling the gap between
+   every paragraph/list/heading on top of their own CSS margins. */
 .task-desc {
-  margin-top: 7px;
+  margin-top: 16px;
+  margin-bottom: 16px;
   font-size: 12px;
   color: var(--ink-muted);
   line-height: 1.55;
-  white-space: pre-line;
 }
 .checklist-badge {
   font-size: 10.5px;
@@ -1604,6 +1610,14 @@ textarea {
 .note-preview li {
   margin-bottom: 4px;
 }
+/* A "loose" list (a blank line between items in the source markdown) has
+   markdown-it wrap each item's text in its own <p>, per CommonMark — without
+   this, that <p>'s own 14px bottom margin (the rule above) stacks with the
+   list/li spacing, blowing a plain bullet list out to paragraph-sized gaps
+   even though nothing about the source list itself asked for extra room. */
+.note-preview li > p {
+  margin: 0;
+}
 .note-preview hr {
   border: none;
   border-top: 1px solid var(--hairline);
@@ -1762,6 +1776,14 @@ textarea {
   gap: 8px;
   margin-top: 4px;
 }
+/* TaskRow's view-modal Edit button — a fixed gap above it independent of
+   whichever section (checklist, description, or just the created-time line)
+   happens to be last, since a bare task with neither has nothing above to
+   supply its own margin-bottom (.form-actions' own 4px alone read as too
+   tight there). */
+.form-actions.task-detail-actions {
+  margin-top: 16px;
+}
 .color-swatches {
   display: flex;
   gap: 7px;
@@ -1895,6 +1917,29 @@ textarea {
 }
 .journal-body .cm-content {
   padding: 20px;
+}
+
+/* TaskForm's description field — the same CodeMirror-backed MarkdownEditor
+   as the journal body (PLAN.md milestone 18: task descriptions are edited
+   and rendered as real markdown, not a plain textarea), just sized to sit
+   inside a modal form field instead of filling the page. Read-only display
+   (TaskRow's expanded description) reuses .note-preview instead. */
+.task-desc-editor {
+  width: 100%;
+  min-height: 110px;
+  max-height: 260px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--paper);
+  overflow: auto;
+  resize: vertical;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.task-desc-editor .cm-content {
+  padding: 9px 11px;
 }
 
 /* Generic CodeMirror-wrapper reset shared by any .md-editor instance
