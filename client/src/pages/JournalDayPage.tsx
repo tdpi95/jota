@@ -7,8 +7,11 @@ import * as api from '../api/client';
 import AttachmentField, { useAttachmentField } from '../components/AttachmentField';
 import HistoryPanel from '../components/HistoryPanel';
 import MarkdownEditor from '../components/MarkdownEditor';
+import { VIEW_MODE_ICONS } from '../components/NoteBodyEditor';
 import TagInput from '../components/TagInput';
+import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
+import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import type { IndexedTask } from '../types';
 
 // Every autosave is also a git commit (PLAN.md: every write is committed,
@@ -64,6 +67,13 @@ function JournalDayPageInner({ date }: { date: string }) {
 
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  // Today opens ready to write in; any other day opens read-only-looking
+  // (Review) since it's someone looking back rather than composing — each
+  // mount (a fresh `key={date}` in JournalDayPage above) re-derives this
+  // from that day's own date, so navigating via prev/next day always lands
+  // on the right default rather than carrying over whatever mode was last
+  // active.
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>(() => (date === todayStr() ? 'edit' : 'preview'));
   // 'unsaved' (waiting out the debounce) is distinct from 'saving' (the PUT
   // is actually in flight) — the debounce timer resets on every keystroke,
   // so while actively composing with pauses shorter than the configured
@@ -226,15 +236,44 @@ function JournalDayPageInner({ date }: { date: string }) {
         <TagInput value={tags} onChange={handleTagsChange} placeholder={t('journalDay.tagPlaceholder')} />
       </div>
 
-      <MarkdownEditor
-        className="journal-body"
-        placeholder={t('journalDay.bodyPlaceholder')}
-        value={body}
-        onChange={handleBodyChange}
-        onPasteFiles={attachmentState.handleFiles}
-        disabled={entryQuery.isLoading}
-      />
-      <AttachmentField state={attachmentState} disabled={entryQuery.isLoading} />
+      <div className="note-view-toggle" role="radiogroup" aria-label={t('journalDay.viewMode.sectionTitle') ?? undefined}>
+        {(['edit', 'preview'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={viewMode === m}
+            title={t(`journalDay.viewMode.${m}`)}
+            aria-label={t(`journalDay.viewMode.${m}`)}
+            className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
+            onClick={() => setViewMode(m)}
+          >
+            {VIEW_MODE_ICONS[m]}
+          </button>
+        ))}
+      </div>
+
+      {viewMode === 'edit' ? (
+        <>
+          <MarkdownEditor
+            className="journal-body"
+            placeholder={t('journalDay.bodyPlaceholder')}
+            value={body}
+            onChange={handleBodyChange}
+            onPasteFiles={attachmentState.handleFiles}
+            disabled={entryQuery.isLoading}
+          />
+          <AttachmentField state={attachmentState} disabled={entryQuery.isLoading} />
+        </>
+      ) : body.trim() ? (
+        <div
+          className="note-preview journal-body"
+          onClick={handleRenderedAttachmentClick}
+          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(body) }}
+        />
+      ) : (
+        <div className="note-preview journal-body note-preview-empty">{t('journalDay.previewEmpty')}</div>
+      )}
       <div className="journal-save-status">
         {saveState === 'unsaved' && t('journalDay.unsaved')}
         {saveState === 'saving' && t('journalDay.saving')}

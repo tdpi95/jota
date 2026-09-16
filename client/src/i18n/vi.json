@@ -317,7 +317,13 @@
     "removeLink": "Bỏ liên kết",
     "addTask": "+ Thêm việc",
     "searchPlaceholder": "Tìm việc…",
-    "noMatchingTasks": "Không có việc nào khớp."
+    "noMatchingTasks": "Không có việc nào khớp.",
+    "viewMode": {
+      "sectionTitle": "Chế độ xem",
+      "edit": "Soạn thảo",
+      "preview": "Xem lại"
+    },
+    "previewEmpty": "Chưa có nội dung để xem lại."
   },
   "journalEntriesList": {
     "yearTitle": "Nhật ký — {{year}}",

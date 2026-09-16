@@ -317,7 +317,13 @@
     "removeLink": "Remove link",
     "addTask": "+ Add task",
     "searchPlaceholder": "Search tasks…",
-    "noMatchingTasks": "No matching tasks."
+    "noMatchingTasks": "No matching tasks.",
+    "viewMode": {
+      "sectionTitle": "View",
+      "edit": "Edit",
+      "preview": "Review"
+    },
+    "previewEmpty": "Nothing to review yet."
   },
   "journalEntriesList": {
     "yearTitle": "Journal entries — {{year}}",
