@@ -107,6 +107,9 @@
       "settings": "Settings"
     }
   },
+  "shortcuts": {
+    "confirmLeaveUnsaved": "You have unsaved changes. Leave anyway?"
+  },
   "calendarSidebar": {
     "previousMonth": "Previous month",
     "nextMonth": "Next month",

@@ -1,11 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Annotation, Compartment, EditorState, RangeSetBuilder } from '@codemirror/state';
 import { Decoration, drawSelection, dropCursor, EditorView, keymap, placeholder as placeholderExt, ViewPlugin } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting, syntaxTree } from '@codemirror/language';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
 import { tags as t } from '@lezer/highlight';
+
+import { VscodeSearchPanel } from '../lib/vscodeSearchPanel';
 
 /**
  * VS Code-style *source* highlighting for markdown — the raw text stays
@@ -149,6 +152,21 @@ interface MarkdownEditorProps {
    * that support attachments (milestone 27, PLAN.md "File attachments")
    * pass this; a plain text/markdown paste is always handled normally. */
   onPasteFiles?: (files: FileList) => void;
+  /** Focus the editor right after it mounts — used by the global "quick add
+   * journal" keyboard shortcut, which navigates to today's entry expecting
+   * to drop the user straight into typing rather than requiring an extra
+   * click. Read only at creation, same as `placeholder`. */
+  autoFocus?: boolean;
+}
+
+/** Imperative handle (via `ref`) for the two things a *page* needs to drive
+ * from outside — both exist specifically because a page-level Cmd/Ctrl+F
+ * shortcut (`useFindShortcut`) can't rely on this editor already having
+ * focus, or even being mounted at all (a page's Preview mode unmounts it
+ * entirely): `openFind` focuses the view and opens/refocuses the find panel
+ * in one call, safe to call as soon as the editor has mounted. */
+export interface MarkdownEditorHandle {
+  openFind: () => void;
 }
 
 /**
@@ -159,7 +177,10 @@ interface MarkdownEditorProps {
  * preview: the stored value is still the raw markdown text untouched, this
  * only changes how it's colored on screen.
  */
-export default function MarkdownEditor({ value, onChange, placeholder, disabled, className, onPasteFiles }: MarkdownEditorProps) {
+const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor(
+  { value, onChange, placeholder, disabled, className, onPasteFiles, autoFocus },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -167,6 +188,16 @@ export default function MarkdownEditor({ value, onChange, placeholder, disabled,
   const onPasteFilesRef = useRef(onPasteFiles);
   onPasteFilesRef.current = onPasteFiles;
   const editableCompartment = useRef(new Compartment()).current;
+  const didAutoFocusRef = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    openFind: () => {
+      const view = viewRef.current;
+      if (!view) return;
+      view.focus();
+      openSearchPanel(view);
+    },
+  }), []);
 
   // Created once per mount; external `value` changes after that are synced
   // by the effect below rather than tearing the view down (that would drop
@@ -185,7 +216,24 @@ export default function MarkdownEditor({ value, onChange, placeholder, disabled,
           indentOnInput(),
           bracketMatching(),
           EditorView.lineWrapping,
-          keymap.of([...defaultKeymap, ...historyKeymap]),
+          // Cmd/Ctrl+F find-in-editor (journal body, note body) — built on
+          // CodeMirror's own search state/commands, but with a from-scratch
+          // panel (`VscodeSearchPanel`, via `createPanel`) instead of the
+          // default one: icon toggle buttons + a collapsible replace row
+          // behind a chevron, VS Code-style, rather than a flat row of text
+          // buttons and always-visible replace fields. `searchKeymap` also
+          // carries F3/Cmd-G (find next/previous), Escape (close), and
+          // Cmd-D (select next occurrence) — none of which collide with this
+          // app's own global shortcuts (`KeyboardShortcuts.tsx`'s digit/,/T/J
+          // bindings), so nothing needed to change there. `top: true` because
+          // this editor has no internal scroll of its own (.journal-body grows
+          // to fit its content instead of scrolling — see app.css) — the
+          // default bottom-panel placement would insert the find bar *after*
+          // every line, off past the bottom of the fold on anything longer
+          // than a screenful, exactly where a user reaching for "find" isn't
+          // looking.
+          search({ top: true, createPanel: (searchView) => new VscodeSearchPanel(searchView) }),
+          keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
           // No `codeLanguages` — that pulls in a lazy chunk per possible
           // fence info-string language (pug, nginx, verilog, ...) just to
           // syntax-color code *inside* fences, well past what "highlight
@@ -239,8 +287,24 @@ export default function MarkdownEditor({ value, onChange, placeholder, disabled,
     viewRef.current?.dispatch({
       effects: editableCompartment.reconfigure([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
     });
-  }, [disabled, editableCompartment]);
+    // `autoFocus` can't be honored at creation time for a caller that also
+    // passes `disabled` while its own data is still loading (JournalDayPage:
+    // `disabled={entryQuery.isLoading}`) — CodeMirror's `editable: false`
+    // makes the underlying contenteditable DOM node unfocusable, so a
+    // `view.focus()` called while still disabled is silently a no-op. Doing
+    // it here instead, gated on the transition to enabled, catches both that
+    // case and the already-enabled-at-mount case (this effect also runs once
+    // on mount). `didAutoFocusRef` keeps it a one-time thing so a later
+    // disabled->enabled->disabled->enabled cycle doesn't keep stealing focus
+    // back from wherever the user has since clicked.
+    if (!disabled && autoFocus && !didAutoFocusRef.current) {
+      didAutoFocusRef.current = true;
+      viewRef.current?.focus();
+    }
+  }, [disabled, editableCompartment, autoFocus]);
 
   const classes = ['md-editor', className, disabled ? 'is-disabled' : ''].filter(Boolean).join(' ');
   return <div ref={containerRef} className={classes} />;
-}
+});
+
+export default MarkdownEditor;

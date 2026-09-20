@@ -1,9 +1,25 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
+import { shortcutLabel } from '../lib/shortcuts';
 import CalendarSidebar from './CalendarSidebar';
+import KeyboardShortcuts from './KeyboardShortcuts';
 import VaultChangePoller from './VaultChangePoller';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
+
+/** Cmd/Ctrl+1..5, Cmd/Ctrl+, — see `KeyboardShortcuts` for the actual key
+ * handling; shown here purely as each nav item's hover tooltip so the
+ * shortcuts are discoverable. Keyed by the same `icon` name `NavItem`
+ * already takes, not by route, so it can't drift out of sync with
+ * `NAV_SHORTCUTS` there by accident (same order, top to bottom). */
+const NAV_SHORTCUT_HINTS: Record<string, string> = {
+  dashboard: shortcutLabel('1'),
+  projects: shortcutLabel('2'),
+  notes: shortcutLabel('3'),
+  journal: shortcutLabel('4'),
+  calendar: shortcutLabel('5'),
+  settings: shortcutLabel(','),
+};
 
 const NAV_ICONS: Record<string, React.ReactNode> = {
   dashboard: (
@@ -47,8 +63,9 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
 };
 
 function NavItem({ to, label, icon, end }: { to: string; label: string; icon: string; end?: boolean }) {
+  const hint = NAV_SHORTCUT_HINTS[icon];
   return (
-    <NavLink to={to} end={end} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+    <NavLink to={to} end={end} title={hint ? `${label} (${hint})` : label} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
       {NAV_ICONS[icon]}
       {label}
     </NavLink>
@@ -66,6 +83,7 @@ export default function AppShell() {
   return (
     <div className="app">
       <VaultChangePoller />
+      <KeyboardShortcuts />
       <aside className="sidebar">
         <WorkspaceSwitcher />
         <nav className="nav">

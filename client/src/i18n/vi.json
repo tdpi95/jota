@@ -107,6 +107,9 @@
       "settings": "Cài đặt"
     }
   },
+  "shortcuts": {
+    "confirmLeaveUnsaved": "Bạn có thay đổi chưa lưu. Vẫn rời khỏi trang?"
+  },
   "calendarSidebar": {
     "previousMonth": "Tháng trước",
     "nextMonth": "Tháng sau",

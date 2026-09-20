@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
+import { useFindShortcut } from '../lib/useFindShortcut';
 import AttachmentField, { useAttachmentField } from './AttachmentField';
-import MarkdownEditor from './MarkdownEditor';
+import MarkdownEditor, { type MarkdownEditorHandle } from './MarkdownEditor';
 
 // Pencil (edit) / eye (preview, same path HistoryPanel's "view diff" button
 // already uses) — icon-only, so each button still carries its label via
@@ -50,6 +51,8 @@ export default function NoteBodyEditor({
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const attachmentState = useAttachmentField('notes', body, onChange);
+  const editorRef = useRef<MarkdownEditorHandle>(null);
+  useFindShortcut(viewMode, setViewMode, editorRef);
 
   return (
     <>
@@ -73,6 +76,7 @@ export default function NoteBodyEditor({
       {viewMode === 'edit' ? (
         <>
           <MarkdownEditor
+            ref={editorRef}
             className="journal-body"
             placeholder={t('noteDetail.bodyPlaceholder')}
             value={body}

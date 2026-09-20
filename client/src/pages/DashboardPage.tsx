@@ -6,9 +6,12 @@ import { Link } from 'react-router-dom';
 import * as api from '../api/client';
 import Modal from '../components/Modal';
 import ProjectCard from '../components/ProjectCard';
+import QuickAddTaskModal from '../components/QuickAddTaskModal';
 import TaskRow from '../components/TaskRow';
 import { daysBetween, formatDateLong, todayStr, yearOf } from '../lib/date';
-import type { IndexedTask, ProjectSummary, SearchResult, Task, TaskStatus } from '../types';
+import { lastActivity } from '../lib/projects';
+import { shortcutLabel } from '../lib/shortcuts';
+import type { IndexedTask, SearchResult, Task, TaskStatus } from '../types';
 
 /** `GET /api/tasks/open`'s `IndexedTask` (project name/color/slug joined
  * in) -> the `Task` shape `TaskRow`/`TaskForm` actually render. Same fields
@@ -31,21 +34,6 @@ function toTask(t: IndexedTask): Task {
   };
 }
 
-/** Most-recent-activity instant for a project — the latest of its own
- * creation date and every task's creation/completion — used to sort the
- * Dashboard's "Recent projects" section. Not a stored field: derived purely
- * from data every consumer already has (PLAN.md doesn't track a
- * last-modified timestamp anywhere, and adding one just for this would mean
- * a write-path change for a read-only convenience). */
-function lastActivity(project: ProjectSummary): number {
-  let latest = new Date(project.frontmatter.created).getTime();
-  for (const task of project.tasks) {
-    latest = Math.max(latest, new Date(task.created).getTime());
-    if (task.doneAt) latest = Math.max(latest, new Date(task.doneAt).getTime());
-  }
-  return latest;
-}
-
 const RECENT_PROJECTS_LIMIT = 3;
 /** Each task bucket (Doing/Today/Overdue/This week) below the fold shows at
  * most this many rows by default — same "+N more"/"Show fewer" collapse
@@ -55,7 +43,7 @@ const BUCKET_LIMIT = 10;
 /** ⌘ on Mac, Ctrl everywhere else — matches how every app using this same
  * Cmd/Ctrl+K "open search" convention (VS Code, Slack, Notion, Linear,
  * GitHub) displays its own shortcut hint. */
-const SEARCH_SHORTCUT_LABEL = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
+const SEARCH_SHORTCUT_LABEL = shortcutLabel('K');
 
 /** Renders a `snippet()` excerpt's `**match**` markers as `<mark>` — the
  * only markup FTS5's snippet ever produces (PLAN.md "Search (cross-type
@@ -107,8 +95,6 @@ export default function DashboardPage() {
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
 
   const [addingTask, setAddingTask] = useState(false);
-  const [quickTaskText, setQuickTaskText] = useState('');
-  const [quickTaskSlug, setQuickTaskSlug] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -221,26 +207,9 @@ export default function DashboardPage() {
     },
   });
 
-  const quickAddTaskMutation = useMutation({
-    mutationFn: ({ slug, text }: { slug: string; text: string }) => api.createTask(slug, { text }),
-    onSuccess: () => {
-      invalidate();
-      setQuickTaskText('');
-      setAddingTask(false);
-    },
-  });
-
   const projects = projectsQuery.data?.projects ?? [];
   const selectableProjects = projects.filter((p) => !p.frontmatter.archived);
   const recentProjects = [...selectableProjects].sort((a, b) => lastActivity(b) - lastActivity(a)).slice(0, RECENT_PROJECTS_LIMIT);
-  const selectedSlug = quickTaskSlug || recentProjects[0]?.slug || selectableProjects[0]?.slug || '';
-
-  function handleQuickAddTask(e: React.FormEvent) {
-    e.preventDefault();
-    const text = quickTaskText.trim();
-    if (!text || !selectedSlug) return;
-    quickAddTaskMutation.mutate({ slug: selectedSlug, text });
-  }
 
   const open = data?.tasks ?? [];
   // Clickable tags in the search popup — derived from open tasks (the data
@@ -386,10 +355,15 @@ export default function DashboardPage() {
               <path d="m21 21-4.35-4.35" />
             </svg>
           </button>
-          <Link className="journal-cta" to={`/journal/${year}/${today}`}>
+          <Link className="journal-cta" to={`/journal/${year}/${today}`} title={`${t('dashboard.openTodaysJournal')} (${shortcutLabel('J')})`}>
             {t('dashboard.openTodaysJournal')}
           </Link>
-          <button type="button" className="journal-cta" onClick={() => setAddingTask(true)}>
+          <button
+            type="button"
+            className="journal-cta"
+            title={`${t('dashboard.addTask')} (${shortcutLabel('T')})`}
+            onClick={() => setAddingTask(true)}
+          >
             {t('dashboard.addTask')}
           </button>
         </div>
@@ -434,36 +408,7 @@ export default function DashboardPage() {
         </Modal>
       )}
 
-      {addingTask && (
-        <Modal title={t('dashboard.quickAddTaskTitle')} onClose={() => setAddingTask(false)}>
-          <form onSubmit={handleQuickAddTask}>
-            <div className="quick-add-row">
-              <input
-                className="add-task-input"
-                placeholder={t('dashboard.taskTitlePlaceholder')}
-                value={quickTaskText}
-                onChange={(e) => setQuickTaskText(e.target.value)}
-                autoFocus
-              />
-              <select className="quick-add-select" value={selectedSlug} onChange={(e) => setQuickTaskSlug(e.target.value)}>
-                {selectableProjects.map((p) => (
-                  <option key={p.slug} value={p.slug}>
-                    {p.frontmatter.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn-primary" disabled={!quickTaskText.trim() || !selectedSlug || quickAddTaskMutation.isPending}>
-                {t('dashboard.addTaskSubmit')}
-              </button>
-              <button type="button" className="btn-secondary" onClick={() => setAddingTask(false)}>
-                {t('dashboard.cancel')}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      {addingTask && <QuickAddTaskModal onClose={() => setAddingTask(false)} />}
 
       {recentProjects.length > 0 && (
         <div className="bucket">

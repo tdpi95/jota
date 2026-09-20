@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import AttachmentField, { useAttachmentField } from '../components/AttachmentField';
 import HistoryPanel from '../components/HistoryPanel';
-import MarkdownEditor from '../components/MarkdownEditor';
+import MarkdownEditor, { type MarkdownEditorHandle } from '../components/MarkdownEditor';
 import { VIEW_MODE_ICONS } from '../components/NoteBodyEditor';
 import TagInput from '../components/TagInput';
 import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
+import { useFindShortcut } from '../lib/useFindShortcut';
 import type { IndexedTask } from '../types';
 
 // Every autosave is also a git commit (PLAN.md: every write is committed,
@@ -47,7 +48,14 @@ function JournalDayPageInner({ date }: { date: string }) {
   const language = i18n.language === 'vi' ? 'vi' : 'en';
   const year = yearOf(date);
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  // Set by the global "quick add journal" keyboard shortcut
+  // (`KeyboardShortcuts`), which navigates here expecting to land the user
+  // straight in the editor. Read once at mount (this component fully
+  // remounts per `date` via the `key={date}` in JournalDayPage above), not
+  // tracked in state — there's nothing to react to afterward.
+  const focusEditorOnMount = Boolean((location.state as { focusEditor?: boolean } | null)?.focusEditor);
 
   const entryQuery = useQuery({ queryKey: ['journalEntry', date], queryFn: () => api.getJournalEntry(year, date) });
   // Settings-configurable (`SettingsPage`'s Autosave section) — read fresh
@@ -74,6 +82,8 @@ function JournalDayPageInner({ date }: { date: string }) {
   // on the right default rather than carrying over whatever mode was last
   // active.
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>(() => (date === todayStr() ? 'edit' : 'preview'));
+  const editorRef = useRef<MarkdownEditorHandle>(null);
+  useFindShortcut(viewMode, setViewMode, editorRef);
   // 'unsaved' (waiting out the debounce) is distinct from 'saving' (the PUT
   // is actually in flight) — the debounce timer resets on every keystroke,
   // so while actively composing with pauses shorter than the configured
@@ -256,12 +266,14 @@ function JournalDayPageInner({ date }: { date: string }) {
       {viewMode === 'edit' ? (
         <>
           <MarkdownEditor
+            ref={editorRef}
             className="journal-body"
             placeholder={t('journalDay.bodyPlaceholder')}
             value={body}
             onChange={handleBodyChange}
             onPasteFiles={attachmentState.handleFiles}
             disabled={entryQuery.isLoading}
+            autoFocus={focusEditorOnMount}
           />
           <AttachmentField state={attachmentState} disabled={entryQuery.isLoading} />
         </>

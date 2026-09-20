@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { CreateTaskInput, UpdateTaskInput } from '../api/client';
+import { useUnsavedChanges } from '../lib/unsavedChanges';
 import type { ChecklistItem, Task } from '../types';
 import AttachmentField, { useAttachmentField } from './AttachmentField';
 import ChecklistEditor from './ChecklistEditor';
@@ -62,6 +63,15 @@ export default function TaskForm({
   const { t } = useTranslation();
   const [values, setValues] = useState<TaskFormValues>(() => initialValues(task, initialText));
   const attachmentState = useAttachmentField('tasks', values.description ?? '', (next) => setValues((v) => ({ ...v, description: next })));
+
+  // Feeds the global "warn before navigating away" keyboard-shortcut guard
+  // (`useUnsavedChangesGuard`) — this form never autosaves, so a shortcut
+  // jumping to another page while it's mid-edit would otherwise silently
+  // drop whatever's typed. Compared against a snapshot of the *initial*
+  // values (not re-derived from `task`/`initialText`) so a submit's own
+  // `setValues(initialValues())` reset below correctly reads back as clean.
+  const initialValuesRef = useRef(initialValues(task, initialText));
+  useUnsavedChanges(JSON.stringify(values) !== JSON.stringify(initialValuesRef.current));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

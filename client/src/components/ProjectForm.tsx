@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { uploadAttachment, type CreateProjectInput, type UpdateProjectInput } from '../api/client';
 import { COLOR_PALETTE } from '../lib/colors';
+import { useUnsavedChanges } from '../lib/unsavedChanges';
 import MarkdownTextarea from './MarkdownTextarea';
 
 export interface ProjectFormInitial {
@@ -57,6 +58,22 @@ export default function ProjectForm({
   const [imageError, setImageError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Feeds the global "warn before navigating away" keyboard-shortcut guard
+  // (`useUnsavedChangesGuard`) — this form (always inside a `Modal`, never
+  // autosaved) closes on cancel/submit, at which point unmounting clears the
+  // flag; while open with anything changed from `initial`, it stays set.
+  const initialRef = useRef({
+    name: initial?.name ?? '',
+    description: initial?.description ?? '',
+    group: initial?.group ?? '',
+    color: initial?.color ?? COLOR_PALETTE[0],
+    archived: initial?.archived ?? false,
+    profileImage: initial?.profileImage ?? null,
+  });
+  useUnsavedChanges(
+    JSON.stringify({ name, description, group, color, archived, profileImage }) !== JSON.stringify(initialRef.current),
+  );
 
   async function handleProfileImageChange(files: FileList | null) {
     const file = files?.[0];

@@ -131,6 +131,22 @@
   --md-quote: var(--ink-muted);
   --md-code: oklch(52% 0.14 350);
   --md-code-bg: oklch(24% 0.02 75 / 6%);
+
+  /* Cmd/Ctrl+F match highlight (MarkdownEditor.tsx's search() extension) —
+     a fixed warm hue, independent of --accent-hue and every --md-* token
+     above, and deliberately *not* --accent itself: a match inside a heading
+     or link (both --md-heading/--md-link = var(--accent)) would otherwise
+     highlight in the exact same color as that text, and CSS can't fix this
+     with a `color` override on the highlight span — the heading/link text
+     sits in its *own* nested span with its own explicit color from
+     syntaxHighlighting(), which (being a direct, not inherited, rule on
+     that element) always wins over a parent's inherited-or-not `color`,
+     !important or not. Translucent for the same reason --md-code-bg is:
+     the underlying text color shows through, tinted, rather than being
+     replaced — same fix as that token's own "erased the selection
+     highlight" bug, applied here pre-emptively instead of after the fact. */
+  --find-match-bg: oklch(85% 0.16 95 / 45%);
+  --find-match-selected-bg: oklch(72% 0.19 55 / 55%);
 }
 
 /* Accent palettes (PLAN.md "Theming") — "default" is the original color
@@ -192,6 +208,9 @@
   --md-quote: var(--ink-muted);
   --md-code: oklch(72% 0.14 350);
   --md-code-bg: oklch(94% 0.008 75 / 8%);
+
+  --find-match-bg: oklch(55% 0.14 95 / 35%);
+  --find-match-selected-bg: oklch(60% 0.18 55 / 45%);
 }
 
 * {
@@ -2130,6 +2149,145 @@ textarea {
 }
 .md-editor.is-disabled .cm-editor {
   opacity: 0.6;
+}
+/* Cmd/Ctrl+F find panel (`VscodeSearchPanel`, lib/vscodeSearchPanel.ts) — a
+   from-scratch panel (not `@codemirror/search`'s default one), so this
+   targets its own `.find-*` classes directly rather than fighting
+   CodeMirror's own injected `.cm-panels`/`.cm-textfield`/`.cm-button` base
+   theme with `!important` (still needed just above, for the two things
+   CodeMirror itself still draws — the selection layer and search-match
+   decorations). `.find-panel` is opaque and fills its parent `.cm-panels`
+   wrapper completely, so that wrapper's own default light-grey background
+   (CodeMirror's `&light .cm-panels` base theme rule, which tracks
+   `EditorView.darkTheme` — a config this app never sets) stays fully
+   covered and never needs overriding. Every color here is an existing
+   `--*` token also used elsewhere in this file, so light/dark and every
+   accent palette are already correct with no palette-specific rules of
+   their own. */
+.find-panel {
+  background: var(--paper-card);
+  border-bottom: 1px solid var(--hairline);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Explicit UI font + line-height, not `inherit` — this panel's nearest
+     ancestor is the editor itself (.journal-body/.task-desc-editor), whose
+     `font-family: 'JetBrains Mono'` + `line-height: 1.75` are sized for a
+     full line of prose/code, not a single-line search box: a plain
+     `<input>`'s own internal text-box layout doesn't reliably reconcile
+     with a line-height that much taller than its font-size (Chrome/Firefox
+     differ on where the glyph baseline lands inside it), which showed up
+     as a search query rendering visibly offset/clipped. Same font stack
+     every other input in the app already uses (TagInput, note title, ...) —
+     this panel is app chrome, not document content, so it was already the
+     odd one out inheriting the editor's code font to begin with. */
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12.5px;
+  line-height: normal;
+  color: var(--ink);
+}
+.find-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* `.find-replace-row`'s `hidden` attribute (toggled by
+   VscodeSearchPanel.setReplaceOpen) would otherwise lose to the plain
+   `.find-row` rule just above — a same-specificity author `display: flex`
+   beats the UA stylesheet's own `[hidden] { display: none }`, `hidden`
+   attribute or not. The extra `[hidden]` selector here outranks it. */
+.find-row[hidden] {
+  display: none;
+}
+/* Same width as .find-toggle-replace, so the replace row's input lines up
+   directly under the search row's — the one place this app's find panel
+   still borrows VS Code's own layout convention past "has a chevron". */
+.find-row-spacer {
+  flex: 0 0 22px;
+}
+.find-input-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 0 6px;
+}
+.find-input-wrap:focus-within {
+  border-color: var(--accent-border);
+}
+.find-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  color: var(--ink);
+  padding: 5px 2px;
+}
+.find-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  padding-left: 6px;
+}
+.find-toggle-group,
+.find-nav-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+.find-toggle-btn,
+.find-icon-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.find-toggle-btn {
+  font-size: 11px;
+  font-weight: 600;
+}
+.find-toggle-underline {
+  text-decoration: underline;
+}
+.find-toggle-btn:hover,
+.find-icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+.find-icon-btn:active {
+  background: var(--surface-active);
+}
+.find-toggle-btn.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+/* Deliberately no `color` override here — see --find-match-bg's own comment
+   above for why that can't work (a matched heading/link's text sits in a
+   nested span with its own explicit, always-winning color from
+   syntaxHighlighting()). Translucent backgrounds instead: legible against
+   any of this editor's text colors, matched text included. */
+.md-editor .cm-searchMatch {
+  background: var(--find-match-bg) !important;
+}
+.md-editor .cm-searchMatch-selected {
+  background: var(--find-match-selected-bg) !important;
 }
 /* Fenced/indented code block band (MarkdownEditor.tsx's codeBlockBackground
    line-decoration plugin) — a full-line background spanning the empty
