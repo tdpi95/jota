@@ -13,17 +13,17 @@ and optional git-remote sync.
 
 ## Screenshots
 
-| Dashboard | Project (Kanban) |
-|---|---|
+| Dashboard                                    | Project (Kanban)                                             |
+| -------------------------------------------- | ------------------------------------------------------------ |
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Project kanban board](docs/screenshots/project-kanban.png) |
 
-| Journal entry | Calendar |
-|---|---|
-| ![Journal entry with linked tasks and git history](docs/screenshots/journal.png) | ![Full-page calendar](docs/screenshots/calendar.png) |
+| Notes                                                             | Note (rendered preview)                                               |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ![Notes list with tag filtering](docs/screenshots/notes-list.png) | ![A note rendered in Preview mode](docs/screenshots/notes-detail.png) |
 
-| Settings | Dark theme |
-|---|---|
-| ![Settings — theme, accent, workspaces, sync, MCP](docs/screenshots/settings.png) | ![Dashboard in dark theme](docs/screenshots/dark-theme.png) |
+| Journal entry                                                                    | Calendar                                             |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| ![Journal entry with linked tasks and git history](docs/screenshots/journal.png) | ![Full-page calendar](docs/screenshots/calendar.png) |
 
 ## Name
 
@@ -48,17 +48,30 @@ that exact layout from the ground up.
   clock starts, no manual timer. Drag-and-drop between Todo/Doing/Done
   columns.
 - **Projects** carry a description, tags, and a color (from a preset palette
-  or any custom hex) shown as calendar marks and badges.
+  or any custom hex) shown as calendar marks and badges, and can be grouped
+  (e.g. "Work" / "Personal") for filtering on the Dashboard.
 - **Journal entries** can link to the tasks you worked on that day, with a
-  searchable task picker.
+  searchable task picker, and have the same Edit/Preview toggle as notes.
+- **Notes**: a lightweight third content type alongside tasks and journal
+  entries — just markdown files with a title, tags, and created/updated
+  timestamps (`<workspace>/notes/<slug>.md`), with an Edit/Preview toggle for
+  rendered markdown and the same git history/undo as everything else.
+- **File attachments**: attach images and files to tasks, journal entries,
+  and notes (inserted as a plain markdown link/image, rendered inline in
+  Preview mode), plus a profile image per project.
 - **Dashboard**: today/overdue/this-week task buckets across all projects,
-  recent projects, quick-add, and a task/tag search popup.
+  recent projects, quick-add, and a cross-type search popup (Ctrl/Cmd+K).
+- **Search**: one search across task titles/descriptions, journal bodies,
+  note bodies, and project names/descriptions, with tag and date-range
+  narrowing.
 - **Calendar**: a compact sidebar month grid (marks due dates and journal
   entries, click-through to any day) plus a full-page Calendar view listing
   task titles per day, with a due/journal toggle and a year overview for
   fast month-picking.
 - **Theming**: light/dark theme and a choice of accent-color palettes
   (Default, Green, Blue, Violet), switchable instantly in Settings.
+- **Keyboard shortcuts**: app-wide shortcuts (quick search, quick add) plus
+  find/replace inside the journal and note editors.
 - **Multiple workspaces**, Obsidian-style — point the app at any folder via
   a native folder picker, switch between registered workspaces anytime.
 - **Git-backed history**: every workspace is its own git repo, auto-committed
@@ -66,18 +79,17 @@ that exact layout from the ground up.
   change (yours or an AI agent's) is a one-click revert away, with a diff
   view. Optional push/pull to a remote for backup/sync, with structured
   conflict surfacing.
-- **MCP server** for agent access — 14 read/write tools over the same
-  service layer the app itself uses (create/update projects and tasks,
-  journal entries and links, task search/summary), so any MCP-capable agent
-  (Claude Code, Claude Desktop, etc.) can manage and summarize your tasks
-  and journal directly. Targets an explicit workspace via `POCO_WORKSPACE`,
-  independent of whatever workspace the app itself has open.
+- **MCP server** for agent access — 20 read/write tools over the same
+  service layer the app itself uses (projects, tasks, journal entries and
+  links, notes, and a cross-type `search_everything`), so any MCP-capable
+  agent (Claude Code, Claude Desktop, etc.) can manage and summarize your
+  tasks, journal, and notes directly. Targets an explicit workspace via
+  `POCO_WORKSPACE`, independent of whatever workspace the app itself has
+  open.
 - **Daily reminder**: a native OS notification if you haven't journaled yet
   today, from a tray-resident background app (the app stays running in the
   tray after the window closes; only "Quit" actually quits). Launch-at-login
   and reminder time are configurable in Settings.
-- **Localization**: English and Vietnamese, switchable instantly in Settings,
-  covering the full UI plus the Electron tray menu and reminder notification.
 
 ## Requirements
 
@@ -142,11 +154,11 @@ npm run mcp -w server
 POCO_WORKSPACE=/path/to/workspace npx tsx server/src/mcp/index.ts
 ```
 
-Exposes 14 tools (`create_project`, `create_task`, `update_task`,
-`get_task_summary`, journal linking, search, etc.) over stdio to any MCP
-host (Claude Code, Claude Desktop, ...). See [PLAN.md](PLAN.md) for the full
-tool list and [PROGRESS.md](PROGRESS.md)'s "Milestone 10 notes" for how
-workspace targeting works.
+Exposes 20 tools (`create_project`, `create_task`, `update_task`,
+`get_task_summary`, journal linking, notes CRUD, `search_everything`, etc.)
+over stdio to any MCP host (Claude Code, Claude Desktop, ...). See
+[PLAN.md](PLAN.md) for the full tool list and [PROGRESS.md](PROGRESS.md)'s
+"Milestone 10 notes" for how workspace targeting works.
 
 ### Build a standalone desktop app
 
