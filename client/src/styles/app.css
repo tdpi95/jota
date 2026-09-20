@@ -50,7 +50,9 @@
    value `[data-palette]` below overrides; every accent-family token derives
    its hue from it (not a literal), which is the whole point of using oklch
    here — swapping the hue alone keeps the same lightness/chroma feel across
-   palettes. `[data-theme="dark"]` overrides every other token for the dark
+   palettes. `--paper`/`--paper-card` also derive their hue from it (at very
+   low chroma) so the page background carries a faint tint of the active
+   palette instead of staying a fixed neutral. `[data-theme="dark"]` overrides every other token for the dark
    variant, still referencing `var(--accent-hue)` so a palette choice
    applies identically in both themes. Both attributes are set on <html> by
    `client/src/lib/theme.ts`, resolved before first render in `main.tsx`. */
@@ -58,8 +60,8 @@
   color-scheme: light;
   --accent-hue: 45; /* "default" palette — the original single accent color */
 
-  --paper: oklch(97.3% 0.012 75);
-  --paper-card: oklch(99% 0.006 75);
+  --paper: oklch(97.3% 0.012 var(--accent-hue));
+  --paper-card: oklch(99% 0.006 var(--accent-hue));
   --ink: oklch(24% 0.02 75);
   --ink-muted: oklch(48% 0.02 75);
   --hairline: oklch(87% 0.015 75);
@@ -151,8 +153,8 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --paper: oklch(22% 0.012 75);
-  --paper-card: oklch(27% 0.012 75);
+  --paper: oklch(22% 0.012 var(--accent-hue));
+  --paper-card: oklch(27% 0.012 var(--accent-hue));
   --ink: oklch(94% 0.008 75);
   --ink-muted: oklch(70% 0.012 75);
   --hairline: oklch(38% 0.014 75);
