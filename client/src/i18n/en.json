@@ -237,7 +237,7 @@
     "searchEverything": "Search everything",
     "searchPlaceholder": "Search tasks, notes, journal entries, projects…",
     "noSearchResults": "No results.",
-    "searchHint": "Type, or pick a tag above, to search every task, note, journal entry, and project — title, tags, and body/description text all included.",
+    "searchHint": "Type, or pick a tag above, to search every task, note, journal entry, and project.",
     "searchResultType": {
       "note": "Note",
       "journal": "Journal",

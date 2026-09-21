@@ -237,7 +237,7 @@
     "searchEverything": "Tìm kiếm mọi thứ",
     "searchPlaceholder": "Tìm việc, ghi chú, nhật ký, dự án…",
     "noSearchResults": "Không có kết quả.",
-    "searchHint": "Gõ, hoặc chọn một thẻ ở trên, để tìm trong mọi công việc, ghi chú, nhật ký và dự án — bao gồm cả tên, thẻ và nội dung/mô tả.",
+    "searchHint": "Gõ, hoặc chọn một thẻ ở trên, để tìm trong mọi công việc, ghi chú, nhật ký và dự án.",
     "searchResultType": {
       "note": "Ghi chú",
       "journal": "Nhật ký",
