@@ -221,4 +221,23 @@ router.put('/pinned-notes', (req, res, next) => {
   }
 });
 
+// NoteBodyEditor's Edit/Preview toggle — same shape as /dashboard-pinned-open
+// above.
+router.get('/note-view-mode', (_req, res) => {
+  res.json({ noteViewMode: workspaceService.getNoteViewModePreference() });
+});
+
+router.put('/note-view-mode', (req, res, next) => {
+  try {
+    const { noteViewMode } = req.body ?? {};
+    if (noteViewMode !== 'edit' && noteViewMode !== 'preview') {
+      res.status(400).json({ error: "noteViewMode must be 'edit' or 'preview'" });
+      return;
+    }
+    res.json({ noteViewMode: workspaceService.setNoteViewModePreference(noteViewMode) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

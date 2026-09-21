@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
+import * as api from '../api/client';
 import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import { useFindShortcut } from '../lib/useFindShortcut';
@@ -35,9 +37,11 @@ export { VIEW_MODE_ICONS };
  * itself — shared between `NoteDetailPage` (an existing note) and
  * `NewNotePage` (a not-yet-created draft), which otherwise differ in almost
  * everything else (fetching, autosave-vs-create-on-first-edit, delete,
- * history, filename). Owns its own `viewMode` state — each mounted note
- * (existing or draft) starts fresh in Edit mode, which is what's wanted
- * either way.
+ * history, filename). Owns its own `viewMode` state, seeded from the
+ * app-wide `note-view-mode` preference (`GET/PUT /api/preferences/note-view-mode`,
+ * same persistence shape as `CalendarPage`'s due/journal toggle) — so
+ * switching notes, or reopening the app, comes back to whichever mode was
+ * last used rather than always resetting to Edit.
  */
 export default function NoteBodyEditor({
   body,
@@ -54,6 +58,19 @@ export default function NoteBodyEditor({
   const editorRef = useRef<MarkdownEditorHandle>(null);
   useFindShortcut(viewMode, setViewMode, editorRef);
 
+  const { data: noteViewModeData } = useQuery({
+    queryKey: ['noteViewModePreference'],
+    queryFn: () => api.getNoteViewModePreference(),
+  });
+  useEffect(() => {
+    if (noteViewModeData) setViewMode(noteViewModeData.noteViewMode);
+  }, [noteViewModeData]);
+  const setNoteViewModeMutation = useMutation({ mutationFn: (next: 'edit' | 'preview') => api.setNoteViewModePreference(next) });
+  function changeViewMode(next: 'edit' | 'preview') {
+    setViewMode(next);
+    setNoteViewModeMutation.mutate(next);
+  }
+
   return (
     <>
       <div className="note-view-toggle" role="radiogroup" aria-label={t('noteDetail.viewMode.sectionTitle') ?? undefined}>
@@ -66,7 +83,7 @@ export default function NoteBodyEditor({
             title={t(`noteDetail.viewMode.${m}`)}
             aria-label={t(`noteDetail.viewMode.${m}`)}
             className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
-            onClick={() => setViewMode(m)}
+            onClick={() => changeViewMode(m)}
           >
             {VIEW_MODE_ICONS[m]}
           </button>

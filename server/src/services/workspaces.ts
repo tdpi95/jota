@@ -395,6 +395,23 @@ export function getPinnedNotesPreference(homeDir: string = os.homedir()): string
   return readRegistry(homeDir).pinnedNoteSlugs ?? [];
 }
 
+/**
+ * `NoteBodyEditor`'s Edit/Preview toggle — app-wide, not per-note, same
+ * shape and reasoning as `getCalendarModePreference` above. `undefined`
+ * normalizes to `'edit'`, what every note already opened in before this
+ * preference existed.
+ */
+export function getNoteViewModePreference(homeDir: string = os.homedir()): 'edit' | 'preview' {
+  return readRegistry(homeDir).noteViewMode ?? 'edit';
+}
+
+export function setNoteViewModePreference(noteViewMode: 'edit' | 'preview', homeDir: string = os.homedir()): 'edit' | 'preview' {
+  const registry = readRegistry(homeDir);
+  registry.noteViewMode = noteViewMode;
+  writeRegistry(registry, homeDir);
+  return noteViewMode;
+}
+
 export function setPinnedNotesPreference(slugs: string[], homeDir: string = os.homedir()): string[] {
   const registry = readRegistry(homeDir);
   registry.pinnedNoteSlugs = slugs;

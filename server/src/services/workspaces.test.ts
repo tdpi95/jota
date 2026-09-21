@@ -17,6 +17,7 @@ import {
   getDashboardPinnedOpenPreference,
   getLanguagePreference,
   getLaunchAtLoginPreference,
+  getNoteViewModePreference,
   getPinnedNotesPreference,
   getPinnedProjectsPreference,
   getReminderSettings,
@@ -32,6 +33,7 @@ import {
   setDashboardGroupFilterPreference,
   setDashboardPinnedOpenPreference,
   setLanguagePreference,
+  setNoteViewModePreference,
   setPinnedNotesPreference,
   setPinnedProjectsPreference,
   setLaunchAtLoginPreference,
@@ -343,4 +345,15 @@ test('pinned-notes preference defaults to empty and persists an explicit choice'
 
   setPinnedNotesPreference([], homeDir);
   assert.deepEqual(getPinnedNotesPreference(homeDir), []);
+});
+
+test('note view mode preference defaults to edit and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.equal(getNoteViewModePreference(homeDir), 'edit');
+
+  setNoteViewModePreference('preview', homeDir);
+  assert.equal(getNoteViewModePreference(homeDir), 'preview');
+
+  setNoteViewModePreference('edit', homeDir);
+  assert.equal(getNoteViewModePreference(homeDir), 'edit');
 });

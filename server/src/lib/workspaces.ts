@@ -126,6 +126,12 @@ export interface WorkspaceRegistry {
   /** Dashboard's pinned-notes selection — same shape and reasoning as
    * `pinnedProjectSlugs` above, for note slugs. */
   pinnedNoteSlugs?: string[];
+  /** The note editor's Edit/Preview toggle (`NoteBodyEditor`) — app-wide,
+   * not per-note, same reasoning as `theme` above (a personal display
+   * preference, not vault content). `undefined` normalizes to `'edit'` in
+   * `services/workspaces.ts`'s `getNoteViewModePreference` — `'edit'` is
+   * what every note already opened in before this preference existed. */
+  noteViewMode?: 'edit' | 'preview';
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

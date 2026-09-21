@@ -372,6 +372,15 @@ export function getAutosaveIntervalPreference(): Promise<{ autosaveIntervalSecon
   return request('/preferences/autosave-interval');
 }
 
+// NoteBodyEditor's Edit/Preview toggle — same shape as calendar-mode above.
+export function getNoteViewModePreference(): Promise<{ noteViewMode: 'edit' | 'preview' }> {
+  return request('/preferences/note-view-mode');
+}
+
+export function setNoteViewModePreference(noteViewMode: 'edit' | 'preview'): Promise<{ noteViewMode: 'edit' | 'preview' }> {
+  return request('/preferences/note-view-mode', { method: 'PUT', body: JSON.stringify({ noteViewMode }) });
+}
+
 // Dashboard's "Pinned" section collapse state — same shape as
 // calendar-mode above.
 export function getDashboardPinnedOpenPreference(): Promise<{ open: boolean }> {
