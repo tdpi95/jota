@@ -1,10 +1,10 @@
-# poco
+# Poco
 
-A personal, local-first daily-tasks + journal app backed entirely by plain
-markdown files — tasks grouped by project, journal/daily notes bucketed by
-year. No hosted backend, no accounts, no lock-in: your vault is just a folder
-of `.md` files you can read, edit, `grep`, sync, or back up with any tool you
-already use.
+A local-first task manager, note-taking, and daily journal app for personal
+knowledge management (PKM) — backed entirely by plain markdown files, with
+tasks grouped by project and journal/daily notes bucketed by year. No hosted
+backend, no accounts, no lock-in: your vault is just a folder of `.md` files
+you can read, edit, `grep`, sync, or back up with any tool you already use.
 
 Ships as an **Electron desktop app**, with AI-agent access (Claude Code,
 Claude Desktop, or any other MCP client) via a built-in **MCP server**,
@@ -27,14 +27,14 @@ and optional git-remote sync.
 
 ## Name
 
-**poco** — "a little," in Spanish/Italian/Portuguese — is what this app actually is under the hood: a lot of small, self-contained pieces rather than one big system. A task is one line in a plain file. A day is one small journal entry. A project is just another file, not a row locked inside a database. There's no server to run, no account to create, no monolith to back up — just small, modular, markdown micro-entries, added a little at a time.
+**Poco** — "a little," in Spanish/Italian/Portuguese — is what this app actually is under the hood: a lot of small, self-contained pieces rather than one big system. A task is one line in a plain file. A day is one small journal entry. A project is just another file, not a row locked inside a database. There's no server to run, no account to create, no monolith to back up — just small, modular, markdown micro-entries, added a little at a time.
 
-## Why
+## Poco vs Obsidian, Logseq, and other markdown PKM tools
 
 Existing markdown-based tools (Obsidian, Logseq, Dendron, org-mode/org-journal,
 Foam, SilverBullet) all get close, but none match "one task file per project,
 one journal file per day, grouped by year" without heavy plugin configuration
-or accepting a different file-per-unit convention. `poco` is built around
+or accepting a different file-per-unit convention. Poco is built around
 that exact layout from the ground up.
 
 ## Features

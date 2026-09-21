@@ -15,29 +15,30 @@
    files. Only the four weights/styles this app actually uses (regular/
    bold/italic/bold-italic) are included, not the full 16-weight family. */
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2') format('woff2');
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/jetbrains-mono/JetBrainsMono-Italic.woff2') format('woff2');
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono/JetBrainsMono-Italic.woff2") format("woff2");
   font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/jetbrains-mono/JetBrainsMono-BoldItalic.woff2') format('woff2');
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono/JetBrainsMono-BoldItalic.woff2")
+    format("woff2");
   font-weight: 700;
   font-style: italic;
   font-display: swap;
@@ -60,7 +61,7 @@
   color-scheme: light;
   --accent-hue: 45; /* "default" palette — the original single accent color */
 
-  --paper: oklch(97.3% 0.012 var(--accent-hue));
+  --paper: oklch(97.3% 0.009 var(--accent-hue));
   --paper-card: oklch(99% 0.006 var(--accent-hue));
   --ink: oklch(24% 0.02 75);
   --ink-muted: oklch(48% 0.02 75);
@@ -153,20 +154,20 @@
    this app shipped with (no override needed, it's :root's own value
    above), so only the three added palettes need a rule. Lightness/chroma
    stay exactly what :root already used for --accent; only the hue moves. */
-[data-palette='green'] {
+[data-palette="green"] {
   --accent-hue: 145;
 }
-[data-palette='blue'] {
+[data-palette="blue"] {
   --accent-hue: 250;
 }
-[data-palette='violet'] {
+[data-palette="violet"] {
   --accent-hue: 305;
 }
 
 /* Dark theme (PLAN.md "Theming") — every neutral/semantic token gets a dark
    counterpart; --accent-hue is deliberately not touched here so whichever
    palette is active carries over unchanged. */
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   color-scheme: dark;
 
   --paper: oklch(22% 0.012 var(--accent-hue));
@@ -218,7 +219,12 @@
 }
 body {
   margin: 0;
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   color: var(--ink);
   background: var(--paper);
 }
@@ -290,7 +296,12 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 .ws-button svg {
   flex-shrink: 0;
@@ -327,7 +338,7 @@ textarea {
 }
 .ws-item .path {
   margin-left: auto;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 10.5px;
   color: var(--ink-muted);
   overflow: hidden;
@@ -353,7 +364,7 @@ textarea {
   border-radius: 7px;
   border: 1px solid var(--hairline);
   font-size: 11.5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   background: var(--paper);
   color: var(--ink);
 }
@@ -435,7 +446,7 @@ textarea {
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 .cal-weekdays {
   display: grid;
@@ -536,7 +547,7 @@ textarea {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   min-width: 110px;
   /* a <button>, not a <span> — clicking it opens the year overview */
   border: none;
@@ -632,7 +643,7 @@ textarea {
 .cp-day-num {
   font-size: 12px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   color: var(--ink);
   text-decoration: none;
 }
@@ -805,16 +816,31 @@ textarea {
   gap: 16px;
 }
 .page-title {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 30px;
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.01em;
 }
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dashboard-title-plane {
+  width: 50px;
+  height: auto;
+  flex-shrink: 0;
+}
 .page-sub {
   font-size: 12px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   margin-top: 4px;
 }
 .page-action {
@@ -1019,7 +1045,7 @@ textarea {
   padding: 1px 8px;
   border-radius: 20px;
   font-size: 10.5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 /* Dashboard's two top-level sections — Pinned, and the filters+task-buckets
@@ -1075,7 +1101,9 @@ textarea {
   justify-content: center;
   margin-top: 1px;
   padding: 0;
-  color: var(--good-contrast); /* the st-done checkmark's stroke color, against its var(--good) fill below */
+  color: var(
+    --good-contrast
+  ); /* the st-done checkmark's stroke color, against its var(--good) fill below */
 }
 .status-btn:hover {
   border-color: var(--accent);
@@ -1144,7 +1172,7 @@ textarea {
   gap: 5px;
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 .project-dot {
   width: 7px;
@@ -1157,7 +1185,7 @@ textarea {
   padding: 2px 8px;
   border-radius: 20px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   border: none;
   cursor: pointer;
 }
@@ -1218,7 +1246,7 @@ textarea {
   padding: 2px 8px;
   border-radius: 20px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   background: var(--surface-muted);
   color: var(--ink-muted);
 }
@@ -1244,7 +1272,7 @@ textarea {
   gap: 4px;
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 .task-actions {
   display: flex;
@@ -1283,7 +1311,12 @@ textarea {
   margin-bottom: 0;
 }
 .projects-group-heading {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-muted);
@@ -1353,7 +1386,12 @@ textarea {
   gap: 3px;
 }
 .project-name {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 16px;
   font-weight: 600;
 }
@@ -1379,7 +1417,7 @@ textarea {
   gap: 12px;
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   flex-shrink: 0;
 }
 .project-counts b {
@@ -1427,7 +1465,10 @@ textarea {
   overflow: hidden;
 }
 
-/* Notes list (/notes) — same row layout as .projects-list/.project-row,
+/* Notes. `.notes-list` (a plain row list, .note-row) backs the Dashboard's
+   "Pinned" section, next to the pinned-projects grid. `/notes` itself
+   (NotesListPage) instead renders a `.notes-grid` of `.note-card-grid`
+   cards — same row/grid split as `.projects-list`/`.projects-grid` above,
    minus the color tab (notes have no color) and task counts (replaced by a
    last-updated timestamp). */
 .notes-search-input {
@@ -1443,6 +1484,34 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.note-card-grid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.note-card-grid:hover {
+  border-color: var(--accent);
+}
+.note-card-grid .note-title {
+  display: block;
+  /* Leaves room for `.pin-btn-grid`, absolutely positioned in this card's
+     top-right corner, so a long note title doesn't run underneath it. */
+  padding-right: 22px;
 }
 .note-row {
   display: flex;
@@ -1468,14 +1537,19 @@ textarea {
   flex-wrap: wrap;
 }
 .note-title {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 16px;
   font-weight: 600;
 }
 .note-updated {
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -1529,7 +1603,12 @@ textarea {
   min-width: 0;
   border: none;
   background: transparent;
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 23px;
   font-weight: 600;
   color: var(--ink);
@@ -1565,11 +1644,11 @@ textarea {
   color: var(--accent);
 }
 .note-slug-text {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
 }
 .note-slug-input {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   padding: 3px 7px;
   border-radius: 6px;
@@ -1683,7 +1762,12 @@ textarea {
 .journal-body.note-preview {
   padding: 20px;
   resize: none;
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 14.5px;
   line-height: 1.7;
   color: var(--ink);
@@ -1750,7 +1834,7 @@ textarea {
   margin-bottom: 0;
 }
 .note-preview code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.9em;
   color: var(--md-code);
   background: var(--md-code-bg);
@@ -1905,7 +1989,7 @@ textarea {
   padding: 1px 8px;
   border-radius: 20px;
   font-size: 10.5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 .add-task-row {
   display: flex;
@@ -1959,9 +2043,9 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.form-field input[type='text'],
+.form-field input[type="text"],
 .form-field input:not([type]),
-.form-field input[type='date'],
+.form-field input[type="date"],
 .form-field textarea {
   padding: 9px 11px;
   border-radius: 8px;
@@ -2103,7 +2187,12 @@ textarea {
   border-color: var(--accent);
 }
 .journal-date {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 23px;
   font-weight: 600;
   margin: 0;
@@ -2128,7 +2217,7 @@ textarea {
   overflow: auto;
   resize: vertical;
   margin-top: 12px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 14px;
   line-height: 1.75;
   color: var(--ink);
@@ -2151,7 +2240,7 @@ textarea {
   background: var(--paper);
   overflow: auto;
   resize: vertical;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 13px;
   line-height: 1.6;
   color: var(--ink);
@@ -2235,7 +2324,12 @@ textarea {
      every other input in the app already uses (TagInput, note title, ...) —
      this panel is app chrome, not document content, so it was already the
      odd one out inheriting the editor's code font to begin with. */
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 12.5px;
   line-height: normal;
   color: var(--ink);
@@ -2369,7 +2463,7 @@ textarea {
 .journal-save-status {
   font-size: 11px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   margin-top: 8px;
 }
 .linked-section {
@@ -2511,7 +2605,7 @@ textarea {
   border-color: var(--accent);
 }
 .journal-year-row .date {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
   color: var(--ink-muted);
   width: 220px;
@@ -2534,7 +2628,12 @@ textarea {
    it or a popup; reuses .tag-pill/.empty-note/.page-sub, just its own list
    and per-entry clamp/expand. */
 .journal-list-section-title {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 17px;
   font-weight: 600;
   margin: 0 0 14px;
@@ -2559,7 +2658,7 @@ textarea {
   margin-bottom: 6px;
 }
 .journal-list-entry-date {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
@@ -2606,7 +2705,12 @@ textarea {
 }
 
 .md-textarea {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   color: var(--ink);
 }
 
@@ -2671,10 +2775,15 @@ textarea {
 .ws-row .name {
   font-weight: 700;
   font-size: 13.5px;
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 .ws-row .path {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 10.5px;
   color: var(--ink-muted);
   margin-top: 2px;
@@ -2728,7 +2837,7 @@ textarea {
   padding: 9px 11px;
   border-radius: 8px;
   border: 1px solid var(--hairline);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
   background: var(--paper);
   color: var(--ink);
@@ -2739,7 +2848,7 @@ textarea {
   gap: 14px;
   font-size: 11.5px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   margin-bottom: 14px;
 }
 .sync-counts b {
@@ -2753,7 +2862,7 @@ textarea {
   font-size: 11.5px;
   color: var(--ink-muted);
   margin-top: 12px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 /* Notice banner (e.g. Settings' "git not found") */
@@ -2805,7 +2914,7 @@ textarea {
   border: 1px solid var(--hairline);
   border-radius: 8px;
   padding: 12px 14px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 11.5px;
   line-height: 1.5;
   overflow-x: auto;
@@ -2847,7 +2956,7 @@ textarea {
 .history-date {
   font-size: 10.5px;
   color: var(--ink-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   margin-top: 2px;
 }
 .history-actions {
@@ -2861,7 +2970,7 @@ textarea {
   border-radius: 8px;
   background: var(--paper);
   border: 1px solid var(--hairline);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   line-height: 1.55;
   overflow-x: auto;
@@ -2899,7 +3008,12 @@ textarea {
   margin-bottom: 14px;
 }
 .modal-header h2 {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Manrope",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 19px;
   font-weight: 600;
   margin: 0;

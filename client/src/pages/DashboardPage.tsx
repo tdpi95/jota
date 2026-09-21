@@ -1,19 +1,26 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
-import * as api from '../api/client';
-import NoteRow from '../components/NoteRow';
-import ProjectCard from '../components/ProjectCard';
-import QuickAddTaskModal from '../components/QuickAddTaskModal';
-import SearchModal from '../components/SearchModal';
-import TaskRow from '../components/TaskRow';
-import { daysBetween, formatDateLong, formatTimestamp, todayStr, yearOf } from '../lib/date';
-import { usePinnedNotes, usePinnedProjects } from '../lib/pins';
-import { shortcutLabel } from '../lib/shortcuts';
-import { toTask } from '../lib/tasks';
-import type { IndexedTask, TaskStatus } from '../types';
+import * as api from "../api/client";
+import planeImg from "../assets/poco-plane.png";
+import NoteRow from "../components/NoteRow";
+import ProjectCard from "../components/ProjectCard";
+import QuickAddTaskModal from "../components/QuickAddTaskModal";
+import SearchModal from "../components/SearchModal";
+import TaskRow from "../components/TaskRow";
+import {
+  daysBetween,
+  formatDateLong,
+  formatTimestamp,
+  todayStr,
+  yearOf,
+} from "../lib/date";
+import { usePinnedNotes, usePinnedProjects } from "../lib/pins";
+import { shortcutLabel } from "../lib/shortcuts";
+import { toTask } from "../lib/tasks";
+import type { IndexedTask, TaskStatus } from "../types";
 
 /** Each task bucket (Doing/Today/Overdue/This week) below the fold shows at
  * most this many rows by default — same "+N more"/"Show fewer" collapse
@@ -23,74 +30,36 @@ const BUCKET_LIMIT = 10;
 /** ⌘ on Mac, Ctrl everywhere else — matches how every app using this same
  * Cmd/Ctrl+K "open search" convention (VS Code, Slack, Notion, Linear,
  * GitHub) displays its own shortcut hint. */
-const SEARCH_SHORTCUT_LABEL = shortcutLabel('K');
+const SEARCH_SHORTCUT_LABEL = shortcutLabel("K");
 
-/**
- * Dashboard v2 (PLAN.md: "open tasks across all projects, bucketed by due
- * date, project color badges, '+ log to today' quick action per row").
- * Buckets mirror design/Main.dc.html's own logic exactly: Today (due today),
- * Overdue (due before today, hidden entirely when empty), This week (due
- * within the next 7 days). Undated tasks and anything due further out stay
- * off the dashboard by design — they're still visible in each project's
- * Todo column.
- *
- * Milestone 18 additions: an "+ Add task" button next to "Open today's
- * journal" (that link already covers quick journaling) opening a popup with
- * a project selector; a "Search everything" button opening a search popup —
- * one text input plus clickable tag pills (sourced from open tasks' own
- * tags; note/project-only tags aren't offered as pills, though typing one
- * still matches them); a collapsible "Recent projects" section (later
- * replaced by "Pinned" — see below).
- *
- * Milestone 25 follow-up: the popup was upgraded from the task-only
- * `GET /api/tasks/search` to the cross-type `GET /api/search` (PLAN.md
- * "Search (cross-type full-text)") — results can now be a task, note,
- * journal entry, or project, each rendered by its own row shape (task rows
- * reuse `TaskRow` exactly as the buckets below do; the other three get a
- * compact title/date + snippet row with a "go to" link) rather than
- * assuming every result is a task. A later follow-up moved the search
- * button up into the page header next to the other two quick actions
- * (previously it sat alone by the task buckets, further down the page) and
- * added the Cmd/Ctrl+K shortcut every app using this same "open search"
- * convention supports (VS Code, Slack, Notion, Linear, GitHub).
- *
- * Milestone 18 follow-up ("ctrl+K doesn't work on other pages"): the popup
- * itself (search input, tag pills, results, task mutations) moved out into
- * `SearchModal` so the global Cmd/Ctrl+K shortcut (`KeyboardShortcuts.tsx`)
- * can open the exact same popup from any page — this page's own search
- * button just sets `searching` and renders it, same as `QuickAddTaskModal`.
- *
- * Follow-up (user: "replace recent projects section in dashboard by pinned
- * projects and notes"): the old "Recent projects" section (top 3 by
- * most-recent task activity) is replaced by a "Pinned" section showing
- * every project and note the user has explicitly pinned (`lib/pins.ts`'s
- * `usePinnedProjects`/`usePinnedNotes`, an app-wide preference in
- * `~/.poco/config.json` — same storage as the group filter above, not
- * vault content, since pinning is a personal organizing choice) — no
- * top-N cap, since pinning is already a deliberate, bounded choice. Same
- * collapsible disclosure + persisted open/closed state the old section
- * had (`dashboardPinnedOpen`, renamed from `dashboardRecentProjectsOpen`).
- * Pin toggles themselves live on `ProjectCard`/`NoteRow` (a small pin icon
- * button, shared with `/projects` and `/notes` respectively) rather than on
- * this page, so pinning/unpinning works the same everywhere.
- */
 export default function DashboardPage() {
   const { t, i18n } = useTranslation();
-  const language = i18n.language === 'vi' ? 'vi' : 'en';
+  const language = i18n.language === "vi" ? "vi" : "en";
   const queryClient = useQueryClient();
   const today = todayStr();
   const year = yearOf(today);
 
-  const { data, isLoading, isError, error } = useQuery({ queryKey: ['tasks', 'open'], queryFn: api.getOpenTasks });
-  const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
-  const notesQuery = useQuery({ queryKey: ['notes'], queryFn: () => api.listNotes() });
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["tasks", "open"],
+    queryFn: api.getOpenTasks,
+  });
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: api.listProjects,
+  });
+  const notesQuery = useQuery({
+    queryKey: ["notes"],
+    queryFn: () => api.listNotes(),
+  });
   const { pinnedProjectSlugs, togglePinnedProject } = usePinnedProjects();
   const { pinnedNoteSlugs, togglePinnedNote } = usePinnedNotes();
 
   const [addingTask, setAddingTask] = useState(false);
   const [searching, setSearching] = useState(false);
   const [pinnedOpen, setPinnedOpen] = useState(true);
-  const [expandedBuckets, setExpandedBuckets] = useState<Record<string, boolean>>({});
+  const [expandedBuckets, setExpandedBuckets] = useState<
+    Record<string, boolean>
+  >({});
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
 
@@ -99,13 +68,15 @@ export default function DashboardPage() {
   // fetch-once-and-apply-on-top-of-the-default shape as CalendarPage's
   // `calendarMode`/`granularity` toggles.
   const { data: pinnedOpenData } = useQuery({
-    queryKey: ['dashboardPinnedOpenPreference'],
+    queryKey: ["dashboardPinnedOpenPreference"],
     queryFn: () => api.getDashboardPinnedOpenPreference(),
   });
   useEffect(() => {
     if (pinnedOpenData) setPinnedOpen(pinnedOpenData.open);
   }, [pinnedOpenData]);
-  const setPinnedOpenMutation = useMutation({ mutationFn: (next: boolean) => api.setDashboardPinnedOpenPreference(next) });
+  const setPinnedOpenMutation = useMutation({
+    mutationFn: (next: boolean) => api.setDashboardPinnedOpenPreference(next),
+  });
   function togglePinnedOpen() {
     const next = !pinnedOpen;
     setPinnedOpen(next);
@@ -113,7 +84,11 @@ export default function DashboardPage() {
   }
 
   function toggleTagFilter(tag: string) {
-    setTagFilters((current) => (current.includes(tag) ? current.filter((existing) => existing !== tag) : [...current, tag]));
+    setTagFilters((current) =>
+      current.includes(tag)
+        ? current.filter((existing) => existing !== tag)
+        : [...current, tag],
+    );
   }
 
   // Persists across restarts (`~/.poco/config.json` via
@@ -126,16 +101,21 @@ export default function DashboardPage() {
   // it, so a stale entry silently has no effect rather than zeroing out
   // every bucket with no visible explanation.
   const { data: groupFilterData } = useQuery({
-    queryKey: ['dashboardGroupFilterPreference'],
+    queryKey: ["dashboardGroupFilterPreference"],
     queryFn: () => api.getDashboardGroupFilterPreference(),
   });
   useEffect(() => {
     if (groupFilterData) setGroupFilters(groupFilterData.groups);
   }, [groupFilterData]);
-  const setGroupFilterMutation = useMutation({ mutationFn: (groups: string[]) => api.setDashboardGroupFilterPreference(groups) });
+  const setGroupFilterMutation = useMutation({
+    mutationFn: (groups: string[]) =>
+      api.setDashboardGroupFilterPreference(groups),
+  });
   function toggleGroupFilter(group: string) {
     setGroupFilters((current) => {
-      const next = current.includes(group) ? current.filter((existing) => existing !== group) : [...current, group];
+      const next = current.includes(group)
+        ? current.filter((existing) => existing !== group)
+        : [...current, group];
       setGroupFilterMutation.mutate(next);
       return next;
     });
@@ -146,28 +126,36 @@ export default function DashboardPage() {
   }
 
   function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ['tasks', 'open'] });
-    queryClient.invalidateQueries({ queryKey: ['projects'] });
-    queryClient.invalidateQueries({ queryKey: ['calendar'] });
+    queryClient.invalidateQueries({ queryKey: ["tasks", "open"] });
+    queryClient.invalidateQueries({ queryKey: ["projects"] });
+    queryClient.invalidateQueries({ queryKey: ["calendar"] });
   }
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ slug, taskId, values }: { slug: string; taskId: string; values: api.UpdateTaskInput }) =>
-      api.updateTask(slug, taskId, values),
+    mutationFn: ({
+      slug,
+      taskId,
+      values,
+    }: {
+      slug: string;
+      taskId: string;
+      values: api.UpdateTaskInput;
+    }) => api.updateTask(slug, taskId, values),
     onSuccess: invalidate,
   });
 
   const deleteTaskMutation = useMutation({
-    mutationFn: ({ slug, taskId }: { slug: string; taskId: string }) => api.deleteTask(slug, taskId),
+    mutationFn: ({ slug, taskId }: { slug: string; taskId: string }) =>
+      api.deleteTask(slug, taskId),
     onSuccess: invalidate,
   });
 
   const logTodayMutation = useMutation({
     mutationFn: (taskId: string) => api.linkTaskToJournal(year, today, taskId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['journalEntry', today] });
-      queryClient.invalidateQueries({ queryKey: ['journalYear', year] });
-      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      queryClient.invalidateQueries({ queryKey: ["journalEntry", today] });
+      queryClient.invalidateQueries({ queryKey: ["journalYear", year] });
+      queryClient.invalidateQueries({ queryKey: ["calendar"] });
     },
   });
 
@@ -177,9 +165,13 @@ export default function DashboardPage() {
   // rather than the project list's own order — a stale slug (project
   // deleted since, or archived) is silently dropped, same reasoning as the
   // group filter's own staleness handling above.
-  const pinnedProjects = pinnedProjectSlugs.map((slug) => selectableProjects.find((p) => p.slug === slug)).filter((p): p is (typeof selectableProjects)[number] => !!p);
+  const pinnedProjects = pinnedProjectSlugs
+    .map((slug) => selectableProjects.find((p) => p.slug === slug))
+    .filter((p): p is (typeof selectableProjects)[number] => !!p);
   const notes = notesQuery.data?.notes ?? [];
-  const pinnedNotes = pinnedNoteSlugs.map((slug) => notes.find((n) => n.slug === slug)).filter((n): n is (typeof notes)[number] => !!n);
+  const pinnedNotes = pinnedNoteSlugs
+    .map((slug) => notes.find((n) => n.slug === slug))
+    .filter((n): n is (typeof notes)[number] => !!n);
 
   const open = data?.tasks ?? [];
 
@@ -201,10 +193,20 @@ export default function DashboardPage() {
   // (renamed/regrouped/deleted since, or left over from a different
   // workspace) silently drops out instead of matching zero tasks and
   // blanking every bucket with no visible pill to explain why.
-  const activeGroupFilters = groupFilters.filter((g) => allBucketGroups.includes(g));
+  const activeGroupFilters = groupFilters.filter((g) =>
+    allBucketGroups.includes(g),
+  );
   const bucketTasks = open
-    .filter((t) => tagFilters.length === 0 || t.tags.some((tag) => tagFilters.includes(tag)))
-    .filter((t) => activeGroupFilters.length === 0 || activeGroupFilters.includes(t.projectGroup));
+    .filter(
+      (t) =>
+        tagFilters.length === 0 ||
+        t.tags.some((tag) => tagFilters.includes(tag)),
+    )
+    .filter(
+      (t) =>
+        activeGroupFilters.length === 0 ||
+        activeGroupFilters.includes(t.projectGroup),
+    );
 
   const overdue: IndexedTask[] = [];
   const dueToday: IndexedTask[] = [];
@@ -222,23 +224,46 @@ export default function DashboardPage() {
   // exclusive with the due-date buckets above: the same task can show up
   // both here and in e.g. Overdue, since "what's overdue" and "what am I
   // actively working on" are different questions worth answering separately.
-  const doing = bucketTasks.filter((t) => t.status === 'doing');
+  const doing = bucketTasks.filter((t) => t.status === "doing");
 
   function renderTaskRow(t: IndexedTask) {
     return (
       <TaskRow
         key={t.id}
         task={toTask(t)}
-        project={{ name: t.projectName, color: t.projectColor, slug: t.projectSlug }}
-        onStatusChange={(status: TaskStatus) => updateTaskMutation.mutate({ slug: t.projectSlug, taskId: t.id, values: { status } })}
-        onSave={(values) => updateTaskMutation.mutate({ slug: t.projectSlug, taskId: t.id, values })}
-        onDelete={() => deleteTaskMutation.mutate({ slug: t.projectSlug, taskId: t.id })}
+        project={{
+          name: t.projectName,
+          color: t.projectColor,
+          slug: t.projectSlug,
+        }}
+        onStatusChange={(status: TaskStatus) =>
+          updateTaskMutation.mutate({
+            slug: t.projectSlug,
+            taskId: t.id,
+            values: { status },
+          })
+        }
+        onSave={(values) =>
+          updateTaskMutation.mutate({
+            slug: t.projectSlug,
+            taskId: t.id,
+            values,
+          })
+        }
+        onDelete={() =>
+          deleteTaskMutation.mutate({ slug: t.projectSlug, taskId: t.id })
+        }
         onLogToday={() => logTodayMutation.mutate(t.id)}
       />
     );
   }
 
-  function renderBucket(key: string, title: string, tasks: IndexedTask[], opts: { hideIfEmpty?: boolean; emptyLabel?: string } = {}) {
+  function renderBucket(
+    key: string,
+    title: string,
+    tasks: IndexedTask[],
+    opts: { hideIfEmpty?: boolean; emptyLabel?: string } = {},
+  ) {
     if (tasks.length === 0 && opts.hideIfEmpty) return null;
     const expanded = expandedBuckets[key] ?? false;
     const visibleTasks = expanded ? tasks : tasks.slice(0, BUCKET_LIMIT);
@@ -250,16 +275,26 @@ export default function DashboardPage() {
         </div>
         <div className="task-list">
           {visibleTasks.map(renderTaskRow)}
-          {tasks.length === 0 && opts.emptyLabel && <div className="empty-note">{opts.emptyLabel}</div>}
+          {tasks.length === 0 && opts.emptyLabel && (
+            <div className="empty-note">{opts.emptyLabel}</div>
+          )}
         </div>
         {hiddenCount > 0 && (
-          <button type="button" className="list-toggle-btn" onClick={() => setExpandedBuckets((m) => ({ ...m, [key]: true }))}>
-            {t('dashboard.showMore', { count: hiddenCount })}
+          <button
+            type="button"
+            className="list-toggle-btn"
+            onClick={() => setExpandedBuckets((m) => ({ ...m, [key]: true }))}
+          >
+            {t("dashboard.showMore", { count: hiddenCount })}
           </button>
         )}
         {expanded && tasks.length > BUCKET_LIMIT && (
-          <button type="button" className="list-toggle-btn" onClick={() => setExpandedBuckets((m) => ({ ...m, [key]: false }))}>
-            {t('dashboard.showFewer')}
+          <button
+            type="button"
+            className="list-toggle-btn"
+            onClick={() => setExpandedBuckets((m) => ({ ...m, [key]: false }))}
+          >
+            {t("dashboard.showFewer")}
           </button>
         )}
       </div>
@@ -270,32 +305,49 @@ export default function DashboardPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">{t('dashboard.title')}</h1>
+          <div className="page-title-row">
+            {/* <h1 className="page-title">{t('dashboard.title')}</h1> */}
+            <h1 className="page-title">Poco</h1>
+            <img className="dashboard-title-plane" src={planeImg} alt="" />
+          </div>
           <div className="page-sub">{formatDateLong(today, language)}</div>
         </div>
         <div className="dashboard-header-actions">
           <button
             type="button"
             className="btn-secondary icon-only-btn icon-only-btn-round"
-            title={`${t('dashboard.searchEverything')} (${SEARCH_SHORTCUT_LABEL})`}
-            aria-label={t('dashboard.searchEverything')}
+            title={`${t("dashboard.searchEverything")} (${SEARCH_SHORTCUT_LABEL})`}
+            aria-label={t("dashboard.searchEverything")}
             onClick={() => setSearching(true)}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.35-4.35" />
             </svg>
           </button>
-          <Link className="journal-cta" to={`/journal/${year}/${today}`} title={`${t('dashboard.openTodaysJournal')} (${shortcutLabel('J')})`}>
-            {t('dashboard.openTodaysJournal')}
+          <Link
+            className="journal-cta"
+            to={`/journal/${year}/${today}`}
+            title={`${t("dashboard.openTodaysJournal")} (${shortcutLabel("J")})`}
+          >
+            {t("dashboard.openTodaysJournal")}
           </Link>
           <button
             type="button"
             className="journal-cta"
-            title={`${t('dashboard.addTask')} (${shortcutLabel('T')})`}
+            title={`${t("dashboard.addTask")} (${shortcutLabel("T")})`}
             onClick={() => setAddingTask(true)}
           >
-            {t('dashboard.addTask')}
+            {t("dashboard.addTask")}
           </button>
         </div>
       </div>
@@ -306,23 +358,41 @@ export default function DashboardPage() {
 
       {(pinnedProjects.length > 0 || pinnedNotes.length > 0) && (
         <div className="dashboard-section dashboard-pinned-section bucket">
-          <button type="button" className="bucket-title bucket-title-toggle" onClick={togglePinnedOpen}>
-            <span className={`disclosure-caret ${pinnedOpen ? 'open' : ''}`}>▸</span>
-            {t('dashboard.pinned')}
+          <button
+            type="button"
+            className="bucket-title bucket-title-toggle"
+            onClick={togglePinnedOpen}
+          >
+            <span className={`disclosure-caret ${pinnedOpen ? "open" : ""}`}>
+              ▸
+            </span>
+            {t("dashboard.pinned")}
           </button>
           {pinnedOpen && (
             <>
               {pinnedProjects.length > 0 && (
                 <div className="projects-grid">
                   {pinnedProjects.map((p) => (
-                    <ProjectCard key={p.slug} project={p} variant="grid" pinned onTogglePin={() => togglePinnedProject(p.slug)} />
+                    <ProjectCard
+                      key={p.slug}
+                      project={p}
+                      variant="grid"
+                      pinned
+                      onTogglePin={() => togglePinnedProject(p.slug)}
+                    />
                   ))}
                 </div>
               )}
               {pinnedNotes.length > 0 && (
                 <div className="notes-list dashboard-pinned-notes">
                   {pinnedNotes.map((n) => (
-                    <NoteRow key={n.slug} note={n} updatedLabel={formatTimestamp(n.updated)} pinned onTogglePin={() => togglePinnedNote(n.slug)} />
+                    <NoteRow
+                      key={n.slug}
+                      note={n}
+                      updatedLabel={formatTimestamp(n.updated)}
+                      pinned
+                      onTogglePin={() => togglePinnedNote(n.slug)}
+                    />
                   ))}
                 </div>
               )}
@@ -337,24 +407,37 @@ export default function DashboardPage() {
             {allBucketGroups.length > 1 && (
               <div className="tag-filter-row dashboard-tag-filter-row group-filter-row">
                 <span className="filter-facet-label">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                   </svg>
-                  {t('dashboard.filterByGroup')}
+                  {t("dashboard.filterByGroup")}
                 </span>
                 {allBucketGroups.map((group) => (
                   <button
                     key={group}
                     type="button"
-                    className={`tag-pill tag-pill-filter group-pill-filter ${groupFilters.includes(group) ? 'active' : ''}`}
+                    className={`tag-pill tag-pill-filter group-pill-filter ${groupFilters.includes(group) ? "active" : ""}`}
                     onClick={() => toggleGroupFilter(group)}
                   >
                     {group}
                   </button>
                 ))}
                 {activeGroupFilters.length > 0 && (
-                  <button type="button" className="tag-filter-clear" onClick={clearGroupFilters}>
-                    {t('dashboard.clear')}
+                  <button
+                    type="button"
+                    className="tag-filter-clear"
+                    onClick={clearGroupFilters}
+                  >
+                    {t("dashboard.clear")}
                   </button>
                 )}
               </div>
@@ -363,25 +446,38 @@ export default function DashboardPage() {
             {allBucketTags.length > 0 && (
               <div className="tag-filter-row dashboard-tag-filter-row">
                 <span className="filter-facet-label">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                     <line x1="7" y1="7" x2="7.01" y2="7" />
                   </svg>
-                  {t('dashboard.filterByTag')}
+                  {t("dashboard.filterByTag")}
                 </span>
                 {allBucketTags.map((tag) => (
                   <button
                     key={tag}
                     type="button"
-                    className={`tag-pill tag-pill-filter ${tagFilters.includes(tag) ? 'active' : ''}`}
+                    className={`tag-pill tag-pill-filter ${tagFilters.includes(tag) ? "active" : ""}`}
                     onClick={() => toggleTagFilter(tag)}
                   >
                     {tag}
                   </button>
                 ))}
                 {tagFilters.length > 0 && (
-                  <button type="button" className="tag-filter-clear" onClick={() => setTagFilters([])}>
-                    {t('dashboard.clear')}
+                  <button
+                    type="button"
+                    className="tag-filter-clear"
+                    onClick={() => setTagFilters([])}
+                  >
+                    {t("dashboard.clear")}
                   </button>
                 )}
               </div>
@@ -389,15 +485,29 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {isLoading && <p className="page-sub">{t('dashboard.loadingOpenTasks')}</p>}
-        {isError && <p className="field-error">{error instanceof api.ApiError ? error.message : t('dashboard.failedToLoad')}</p>}
+        {isLoading && (
+          <p className="page-sub">{t("dashboard.loadingOpenTasks")}</p>
+        )}
+        {isError && (
+          <p className="field-error">
+            {error instanceof api.ApiError
+              ? error.message
+              : t("dashboard.failedToLoad")}
+          </p>
+        )}
 
         {!isLoading && !isError && (
           <div className="dashboard-tasks">
-            {renderBucket('doing', t('dashboard.buckets.doing'), doing, { hideIfEmpty: true })}
-            {renderBucket('today', t('dashboard.buckets.today'), dueToday, { emptyLabel: t('dashboard.nothingDueToday') })}
-            {renderBucket('overdue', t('dashboard.buckets.overdue'), overdue, { hideIfEmpty: true })}
-            {renderBucket('thisWeek', t('dashboard.buckets.thisWeek'), week)}
+            {renderBucket("doing", t("dashboard.buckets.doing"), doing, {
+              hideIfEmpty: true,
+            })}
+            {renderBucket("today", t("dashboard.buckets.today"), dueToday, {
+              emptyLabel: t("dashboard.nothingDueToday"),
+            })}
+            {renderBucket("overdue", t("dashboard.buckets.overdue"), overdue, {
+              hideIfEmpty: true,
+            })}
+            {renderBucket("thisWeek", t("dashboard.buckets.thisWeek"), week)}
           </div>
         )}
       </div>

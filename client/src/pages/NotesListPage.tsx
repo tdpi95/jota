@@ -87,18 +87,19 @@ export default function NotesListPage() {
         )}
       </div>
 
-      <div className="notes-list">
+      <div className="notes-grid">
         {visible.map((note) => (
           <NoteRow
             key={note.slug}
             note={note}
+            variant="grid"
             updatedLabel={formatTimestamp(note.updated)}
             pinned={pinnedNoteSlugs.includes(note.slug)}
             onTogglePin={() => togglePinnedNote(note.slug)}
           />
         ))}
-        {visible.length === 0 && <div className="empty-note">{notes.length === 0 ? t('notesList.empty') : t('notesList.noMatches')}</div>}
       </div>
+      {visible.length === 0 && <div className="empty-note">{notes.length === 0 ? t('notesList.empty') : t('notesList.noMatches')}</div>}
     </div>
   );
 }
