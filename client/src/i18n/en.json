@@ -11,7 +11,9 @@
     "active": "Active",
     "settings": "Settings",
     "confirm": "Confirm",
-    "remove": "Remove"
+    "remove": "Remove",
+    "pin": "Pin",
+    "unpin": "Unpin"
   },
   "settings": {
     "title": "Settings",
@@ -248,8 +250,7 @@
     "taskTitlePlaceholder": "Task title…",
     "addTaskSubmit": "Add task",
     "cancel": "Cancel",
-    "recentProjects": "Recent projects",
-    "seeAllProjects": "See all projects →",
+    "pinned": "Pinned",
     "loadingOpenTasks": "Loading open tasks…",
     "failedToLoad": "Failed to load open tasks.",
     "buckets": {

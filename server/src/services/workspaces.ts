@@ -340,25 +340,25 @@ export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number, h
 }
 
 /**
- * Dashboard's "Recent projects" section collapse state — app-wide, not
- * per-workspace, same shape and reasoning as `getCalendarModePreference`
- * above. `undefined` normalizes to `true`, the section's original default
- * before this preference existed.
+ * Dashboard's "Pinned" section collapse state — app-wide, not per-workspace,
+ * same shape and reasoning as `getCalendarModePreference` above. `undefined`
+ * normalizes to `true`, the section's (formerly "Recent projects") original
+ * default before this preference existed.
  */
-export function getDashboardRecentProjectsOpenPreference(homeDir: string = os.homedir()): boolean {
-  return readRegistry(homeDir).dashboardRecentProjectsOpen ?? true;
+export function getDashboardPinnedOpenPreference(homeDir: string = os.homedir()): boolean {
+  return readRegistry(homeDir).dashboardPinnedOpen ?? true;
 }
 
-export function setDashboardRecentProjectsOpenPreference(open: boolean, homeDir: string = os.homedir()): boolean {
+export function setDashboardPinnedOpenPreference(open: boolean, homeDir: string = os.homedir()): boolean {
   const registry = readRegistry(homeDir);
-  registry.dashboardRecentProjectsOpen = open;
+  registry.dashboardPinnedOpen = open;
   writeRegistry(registry, homeDir);
   return open;
 }
 
 /**
  * Dashboard's group-filter selection — app-wide, not per-workspace, same
- * shape and reasoning as `getDashboardRecentProjectsOpenPreference` above.
+ * shape and reasoning as `getDashboardPinnedOpenPreference` above.
  * `undefined` normalizes to `[]` (no filter applied).
  */
 export function getDashboardGroupFilterPreference(homeDir: string = os.homedir()): string[] {
@@ -370,6 +370,36 @@ export function setDashboardGroupFilterPreference(groups: string[], homeDir: str
   registry.dashboardGroupFilter = groups;
   writeRegistry(registry, homeDir);
   return groups;
+}
+
+/**
+ * Dashboard's pinned-projects selection (replaces "Recent projects") —
+ * app-wide, not per-workspace, same shape and reasoning as
+ * `getDashboardGroupFilterPreference` above. `undefined` normalizes to `[]`
+ * (nothing pinned).
+ */
+export function getPinnedProjectsPreference(homeDir: string = os.homedir()): string[] {
+  return readRegistry(homeDir).pinnedProjectSlugs ?? [];
+}
+
+export function setPinnedProjectsPreference(slugs: string[], homeDir: string = os.homedir()): string[] {
+  const registry = readRegistry(homeDir);
+  registry.pinnedProjectSlugs = slugs;
+  writeRegistry(registry, homeDir);
+  return slugs;
+}
+
+/** Dashboard's pinned-notes selection — same shape and reasoning as
+ * `getPinnedProjectsPreference` above, for note slugs. */
+export function getPinnedNotesPreference(homeDir: string = os.homedir()): string[] {
+  return readRegistry(homeDir).pinnedNoteSlugs ?? [];
+}
+
+export function setPinnedNotesPreference(slugs: string[], homeDir: string = os.homedir()): string[] {
+  const registry = readRegistry(homeDir);
+  registry.pinnedNoteSlugs = slugs;
+  writeRegistry(registry, homeDir);
+  return slugs;
 }
 
 export type { WorkspaceEntry };

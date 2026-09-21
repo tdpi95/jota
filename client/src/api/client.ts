@@ -372,24 +372,42 @@ export function getAutosaveIntervalPreference(): Promise<{ autosaveIntervalSecon
   return request('/preferences/autosave-interval');
 }
 
-// Dashboard's "Recent projects" section collapse state — same shape as
+// Dashboard's "Pinned" section collapse state — same shape as
 // calendar-mode above.
-export function getDashboardRecentProjectsOpenPreference(): Promise<{ open: boolean }> {
-  return request('/preferences/dashboard-recent-projects-open');
+export function getDashboardPinnedOpenPreference(): Promise<{ open: boolean }> {
+  return request('/preferences/dashboard-pinned-open');
 }
 
-export function setDashboardRecentProjectsOpenPreference(open: boolean): Promise<{ open: boolean }> {
-  return request('/preferences/dashboard-recent-projects-open', { method: 'PUT', body: JSON.stringify({ open }) });
+export function setDashboardPinnedOpenPreference(open: boolean): Promise<{ open: boolean }> {
+  return request('/preferences/dashboard-pinned-open', { method: 'PUT', body: JSON.stringify({ open }) });
 }
 
 // Dashboard's group-filter selection (milestone 26 follow-up) — same shape
-// as dashboard-recent-projects-open above.
+// as dashboard-pinned-open above.
 export function getDashboardGroupFilterPreference(): Promise<{ groups: string[] }> {
   return request('/preferences/dashboard-group-filter');
 }
 
 export function setDashboardGroupFilterPreference(groups: string[]): Promise<{ groups: string[] }> {
   return request('/preferences/dashboard-group-filter', { method: 'PUT', body: JSON.stringify({ groups }) });
+}
+
+// Dashboard's pinned-projects/pinned-notes selections (replaces "Recent
+// projects") — same shape as dashboard-group-filter above.
+export function getPinnedProjectsPreference(): Promise<{ slugs: string[] }> {
+  return request('/preferences/pinned-projects');
+}
+
+export function setPinnedProjectsPreference(slugs: string[]): Promise<{ slugs: string[] }> {
+  return request('/preferences/pinned-projects', { method: 'PUT', body: JSON.stringify({ slugs }) });
+}
+
+export function getPinnedNotesPreference(): Promise<{ slugs: string[] }> {
+  return request('/preferences/pinned-notes');
+}
+
+export function setPinnedNotesPreference(slugs: string[]): Promise<{ slugs: string[] }> {
+  return request('/preferences/pinned-notes', { method: 'PUT', body: JSON.stringify({ slugs }) });
 }
 
 export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number): Promise<{ autosaveIntervalSeconds: number }> {

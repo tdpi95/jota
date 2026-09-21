@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import * as api from '../api/client';
 import { formatTimestamp } from '../lib/date';
+import { usePinnedNotes } from '../lib/pins';
 import NoteRow from '../components/NoteRow';
 
 /**
@@ -22,6 +23,7 @@ export default function NotesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['notes'], queryFn: () => api.listNotes() });
+  const { pinnedNoteSlugs, togglePinnedNote } = usePinnedNotes();
   const [query, setQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<string[]>([]);
 
@@ -87,7 +89,13 @@ export default function NotesListPage() {
 
       <div className="notes-list">
         {visible.map((note) => (
-          <NoteRow key={note.slug} note={note} updatedLabel={formatTimestamp(note.updated)} />
+          <NoteRow
+            key={note.slug}
+            note={note}
+            updatedLabel={formatTimestamp(note.updated)}
+            pinned={pinnedNoteSlugs.includes(note.slug)}
+            onTogglePin={() => togglePinnedNote(note.slug)}
+          />
         ))}
         {visible.length === 0 && <div className="empty-note">{notes.length === 0 ? t('notesList.empty') : t('notesList.noMatches')}</div>}
       </div>

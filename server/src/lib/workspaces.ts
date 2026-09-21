@@ -94,13 +94,13 @@ export interface WorkspaceRegistry {
    * `getAutosaveIntervalPreference`, the default this preference shipped
    * with (previously a hardcoded 4-second constant with no user control). */
   autosaveIntervalSeconds?: number;
-  /** Dashboard's "Recent projects" section collapse state — app-wide, not
+  /** Dashboard's "Pinned" section collapse state — app-wide, not
    * per-workspace, same reasoning as `theme` above (a personal display
    * preference, not vault content). `undefined` normalizes to `true` in
-   * `services/workspaces.ts`'s `getDashboardRecentProjectsOpenPreference` —
-   * expanded is what the section already defaulted to before this
-   * preference existed. */
-  dashboardRecentProjectsOpen?: boolean;
+   * `services/workspaces.ts`'s `getDashboardPinnedOpenPreference` —
+   * expanded is what the section (formerly "Recent projects") already
+   * defaulted to before this preference existed. */
+  dashboardPinnedOpen?: boolean;
   /** Dashboard's group-filter selection (PLAN.md "organize projects into
    * groups") — app-wide, not per-workspace, same reasoning as `theme` above
    * (a personal display preference, not vault content — group *names* are
@@ -112,6 +112,20 @@ export interface WorkspaceRegistry {
    * `getDashboardGroupFilterPreference` — no filter is what the row already
    * defaulted to before this preference existed. */
   dashboardGroupFilter?: string[];
+  /** Dashboard's pinned-projects selection (replaces the old "Recent
+   * projects" section) — a plain array of project slugs, app-wide, not
+   * per-workspace, same reasoning as `dashboardGroupFilter` above (pinning
+   * is a personal organizing choice, not vault content, even though the
+   * slugs it stores are workspace-scoped identifiers). A slug no longer
+   * present in the active workspace (project deleted, or a leftover from a
+   * different workspace) is silently dropped by the client the same way a
+   * stale group name already is, rather than showing a broken pin.
+   * `undefined` normalizes to `[]` in `services/workspaces.ts`'s
+   * `getPinnedProjectsPreference`. */
+  pinnedProjectSlugs?: string[];
+  /** Dashboard's pinned-notes selection — same shape and reasoning as
+   * `pinnedProjectSlugs` above, for note slugs. */
+  pinnedNoteSlugs?: string[];
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

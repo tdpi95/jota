@@ -14,9 +14,11 @@ import {
   getCalendarGranularityPreference,
   getCalendarModePreference,
   getDashboardGroupFilterPreference,
-  getDashboardRecentProjectsOpenPreference,
+  getDashboardPinnedOpenPreference,
   getLanguagePreference,
   getLaunchAtLoginPreference,
+  getPinnedNotesPreference,
+  getPinnedProjectsPreference,
   getReminderSettings,
   getThemePreference,
   listWorkspaces,
@@ -28,8 +30,10 @@ import {
   setCalendarGranularityPreference,
   setCalendarModePreference,
   setDashboardGroupFilterPreference,
-  setDashboardRecentProjectsOpenPreference,
+  setDashboardPinnedOpenPreference,
   setLanguagePreference,
+  setPinnedNotesPreference,
+  setPinnedProjectsPreference,
   setLaunchAtLoginPreference,
   setReminderSettings,
   setThemePreference,
@@ -297,15 +301,15 @@ test('autosave interval preference defaults to 30 seconds and persists an explic
   assert.equal(getAutosaveIntervalPreference(homeDir), 5);
 });
 
-test('dashboard recent-projects-open preference defaults to true and persists an explicit choice', () => {
+test('dashboard pinned-open preference defaults to true and persists an explicit choice', () => {
   const homeDir = scratchDir('poco-home-');
-  assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), true);
+  assert.equal(getDashboardPinnedOpenPreference(homeDir), true);
 
-  setDashboardRecentProjectsOpenPreference(false, homeDir);
-  assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), false);
+  setDashboardPinnedOpenPreference(false, homeDir);
+  assert.equal(getDashboardPinnedOpenPreference(homeDir), false);
 
-  setDashboardRecentProjectsOpenPreference(true, homeDir);
-  assert.equal(getDashboardRecentProjectsOpenPreference(homeDir), true);
+  setDashboardPinnedOpenPreference(true, homeDir);
+  assert.equal(getDashboardPinnedOpenPreference(homeDir), true);
 });
 
 test('dashboard group-filter preference defaults to empty and persists an explicit choice', () => {
@@ -317,4 +321,26 @@ test('dashboard group-filter preference defaults to empty and persists an explic
 
   setDashboardGroupFilterPreference([], homeDir);
   assert.deepEqual(getDashboardGroupFilterPreference(homeDir), []);
+});
+
+test('pinned-projects preference defaults to empty and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.deepEqual(getPinnedProjectsPreference(homeDir), []);
+
+  setPinnedProjectsPreference(['website-redesign', 'mobile-app'], homeDir);
+  assert.deepEqual(getPinnedProjectsPreference(homeDir), ['website-redesign', 'mobile-app']);
+
+  setPinnedProjectsPreference([], homeDir);
+  assert.deepEqual(getPinnedProjectsPreference(homeDir), []);
+});
+
+test('pinned-notes preference defaults to empty and persists an explicit choice', () => {
+  const homeDir = scratchDir('poco-home-');
+  assert.deepEqual(getPinnedNotesPreference(homeDir), []);
+
+  setPinnedNotesPreference(['reading-list', 'meeting-notes'], homeDir);
+  assert.deepEqual(getPinnedNotesPreference(homeDir), ['reading-list', 'meeting-notes']);
+
+  setPinnedNotesPreference([], homeDir);
+  assert.deepEqual(getPinnedNotesPreference(homeDir), []);
 });

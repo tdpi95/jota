@@ -4,17 +4,17 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import * as api from '../api/client';
+import NoteRow from '../components/NoteRow';
 import ProjectCard from '../components/ProjectCard';
 import QuickAddTaskModal from '../components/QuickAddTaskModal';
 import SearchModal from '../components/SearchModal';
 import TaskRow from '../components/TaskRow';
-import { daysBetween, formatDateLong, todayStr, yearOf } from '../lib/date';
-import { lastActivity } from '../lib/projects';
+import { daysBetween, formatDateLong, formatTimestamp, todayStr, yearOf } from '../lib/date';
+import { usePinnedNotes, usePinnedProjects } from '../lib/pins';
 import { shortcutLabel } from '../lib/shortcuts';
 import { toTask } from '../lib/tasks';
 import type { IndexedTask, TaskStatus } from '../types';
 
-const RECENT_PROJECTS_LIMIT = 3;
 /** Each task bucket (Doing/Today/Overdue/This week) below the fold shows at
  * most this many rows by default — same "+N more"/"Show fewer" collapse
  * pattern used elsewhere (ProjectDetailPage's Done column, HistoryPanel). */
@@ -39,7 +39,8 @@ const SEARCH_SHORTCUT_LABEL = shortcutLabel('K');
  * a project selector; a "Search everything" button opening a search popup —
  * one text input plus clickable tag pills (sourced from open tasks' own
  * tags; note/project-only tags aren't offered as pills, though typing one
- * still matches them); a collapsible "Recent projects" section.
+ * still matches them); a collapsible "Recent projects" section (later
+ * replaced by "Pinned" — see below).
  *
  * Milestone 25 follow-up: the popup was upgraded from the task-only
  * `GET /api/tasks/search` to the cross-type `GET /api/search` (PLAN.md
@@ -58,6 +59,20 @@ const SEARCH_SHORTCUT_LABEL = shortcutLabel('K');
  * `SearchModal` so the global Cmd/Ctrl+K shortcut (`KeyboardShortcuts.tsx`)
  * can open the exact same popup from any page — this page's own search
  * button just sets `searching` and renders it, same as `QuickAddTaskModal`.
+ *
+ * Follow-up (user: "replace recent projects section in dashboard by pinned
+ * projects and notes"): the old "Recent projects" section (top 3 by
+ * most-recent task activity) is replaced by a "Pinned" section showing
+ * every project and note the user has explicitly pinned (`lib/pins.ts`'s
+ * `usePinnedProjects`/`usePinnedNotes`, an app-wide preference in
+ * `~/.poco/config.json` — same storage as the group filter above, not
+ * vault content, since pinning is a personal organizing choice) — no
+ * top-N cap, since pinning is already a deliberate, bounded choice. Same
+ * collapsible disclosure + persisted open/closed state the old section
+ * had (`dashboardPinnedOpen`, renamed from `dashboardRecentProjectsOpen`).
+ * Pin toggles themselves live on `ProjectCard`/`NoteRow` (a small pin icon
+ * button, shared with `/projects` and `/notes` respectively) rather than on
+ * this page, so pinning/unpinning works the same everywhere.
  */
 export default function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -68,30 +83,33 @@ export default function DashboardPage() {
 
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['tasks', 'open'], queryFn: api.getOpenTasks });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
+  const notesQuery = useQuery({ queryKey: ['notes'], queryFn: () => api.listNotes() });
+  const { pinnedProjectSlugs, togglePinnedProject } = usePinnedProjects();
+  const { pinnedNoteSlugs, togglePinnedNote } = usePinnedNotes();
 
   const [addingTask, setAddingTask] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [recentProjectsOpen, setRecentProjectsOpen] = useState(true);
+  const [pinnedOpen, setPinnedOpen] = useState(true);
   const [expandedBuckets, setExpandedBuckets] = useState<Record<string, boolean>>({});
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
 
   // Persists across restarts (`~/.poco/config.json` via
-  // `GET/PUT /api/preferences/dashboard-recent-projects-open`) — same
+  // `GET/PUT /api/preferences/dashboard-pinned-open`) — same
   // fetch-once-and-apply-on-top-of-the-default shape as CalendarPage's
   // `calendarMode`/`granularity` toggles.
-  const { data: recentProjectsOpenData } = useQuery({
-    queryKey: ['dashboardRecentProjectsOpenPreference'],
-    queryFn: () => api.getDashboardRecentProjectsOpenPreference(),
+  const { data: pinnedOpenData } = useQuery({
+    queryKey: ['dashboardPinnedOpenPreference'],
+    queryFn: () => api.getDashboardPinnedOpenPreference(),
   });
   useEffect(() => {
-    if (recentProjectsOpenData) setRecentProjectsOpen(recentProjectsOpenData.open);
-  }, [recentProjectsOpenData]);
-  const setRecentProjectsOpenMutation = useMutation({ mutationFn: (next: boolean) => api.setDashboardRecentProjectsOpenPreference(next) });
-  function toggleRecentProjectsOpen() {
-    const next = !recentProjectsOpen;
-    setRecentProjectsOpen(next);
-    setRecentProjectsOpenMutation.mutate(next);
+    if (pinnedOpenData) setPinnedOpen(pinnedOpenData.open);
+  }, [pinnedOpenData]);
+  const setPinnedOpenMutation = useMutation({ mutationFn: (next: boolean) => api.setDashboardPinnedOpenPreference(next) });
+  function togglePinnedOpen() {
+    const next = !pinnedOpen;
+    setPinnedOpen(next);
+    setPinnedOpenMutation.mutate(next);
   }
 
   function toggleTagFilter(tag: string) {
@@ -100,8 +118,8 @@ export default function DashboardPage() {
 
   // Persists across restarts (`~/.poco/config.json` via
   // `GET/PUT /api/preferences/dashboard-group-filter`) — same
-  // fetch-once-and-apply-on-top-of-the-default shape as `recentProjectsOpen`
-  // just above. Unlike `recentProjectsOpen` (a simple boolean), a stored
+  // fetch-once-and-apply-on-top-of-the-default shape as `pinnedOpen` just
+  // above. Unlike `pinnedOpen` (a simple boolean), a stored
   // group name can go stale (its project renamed/regrouped/deleted, or a
   // different workspace's groups) — `bucketTasks` below always intersects
   // this against the *current* workspace's live group set before applying
@@ -155,7 +173,13 @@ export default function DashboardPage() {
 
   const projects = projectsQuery.data?.projects ?? [];
   const selectableProjects = projects.filter((p) => !p.frontmatter.archived);
-  const recentProjects = [...selectableProjects].sort((a, b) => lastActivity(b) - lastActivity(a)).slice(0, RECENT_PROJECTS_LIMIT);
+  // Ordered by `pinnedProjectSlugs` (i.e. pin order, oldest-pinned-first)
+  // rather than the project list's own order — a stale slug (project
+  // deleted since, or archived) is silently dropped, same reasoning as the
+  // group filter's own staleness handling above.
+  const pinnedProjects = pinnedProjectSlugs.map((slug) => selectableProjects.find((p) => p.slug === slug)).filter((p): p is (typeof selectableProjects)[number] => !!p);
+  const notes = notesQuery.data?.notes ?? [];
+  const pinnedNotes = pinnedNoteSlugs.map((slug) => notes.find((n) => n.slug === slug)).filter((n): n is (typeof notes)[number] => !!n);
 
   const open = data?.tasks ?? [];
 
@@ -280,93 +304,103 @@ export default function DashboardPage() {
 
       {addingTask && <QuickAddTaskModal onClose={() => setAddingTask(false)} />}
 
-      {recentProjects.length > 0 && (
-        <div className="bucket">
-          <button type="button" className="bucket-title bucket-title-toggle" onClick={toggleRecentProjectsOpen}>
-            <span className={`disclosure-caret ${recentProjectsOpen ? 'open' : ''}`}>▸</span>
-            {t('dashboard.recentProjects')}
+      {(pinnedProjects.length > 0 || pinnedNotes.length > 0) && (
+        <div className="dashboard-section dashboard-pinned-section bucket">
+          <button type="button" className="bucket-title bucket-title-toggle" onClick={togglePinnedOpen}>
+            <span className={`disclosure-caret ${pinnedOpen ? 'open' : ''}`}>▸</span>
+            {t('dashboard.pinned')}
           </button>
-          {recentProjectsOpen && (
+          {pinnedOpen && (
             <>
-              <div className="projects-grid">
-                {recentProjects.map((p) => (
-                  <ProjectCard key={p.slug} project={p} variant="grid" />
-                ))}
-              </div>
-              {selectableProjects.length > recentProjects.length && (
-                <Link to="/projects" className="back-link">
-                  {t('dashboard.seeAllProjects')}
-                </Link>
+              {pinnedProjects.length > 0 && (
+                <div className="projects-grid">
+                  {pinnedProjects.map((p) => (
+                    <ProjectCard key={p.slug} project={p} variant="grid" pinned onTogglePin={() => togglePinnedProject(p.slug)} />
+                  ))}
+                </div>
+              )}
+              {pinnedNotes.length > 0 && (
+                <div className="notes-list dashboard-pinned-notes">
+                  {pinnedNotes.map((n) => (
+                    <NoteRow key={n.slug} note={n} updatedLabel={formatTimestamp(n.updated)} pinned onTogglePin={() => togglePinnedNote(n.slug)} />
+                  ))}
+                </div>
               )}
             </>
           )}
         </div>
       )}
 
-      {allBucketGroups.length > 1 && (
-        <div className="tag-filter-row dashboard-tag-filter-row group-filter-row">
-          <span className="filter-facet-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-            {t('dashboard.filterByGroup')}
-          </span>
-          {allBucketGroups.map((group) => (
-            <button
-              key={group}
-              type="button"
-              className={`tag-pill tag-pill-filter group-pill-filter ${groupFilters.includes(group) ? 'active' : ''}`}
-              onClick={() => toggleGroupFilter(group)}
-            >
-              {group}
-            </button>
-          ))}
-          {activeGroupFilters.length > 0 && (
-            <button type="button" className="tag-filter-clear" onClick={clearGroupFilters}>
-              {t('dashboard.clear')}
-            </button>
-          )}
-        </div>
-      )}
+      <div className="dashboard-section dashboard-filters-and-tasks">
+        {(allBucketGroups.length > 1 || allBucketTags.length > 0) && (
+          <div className="dashboard-filters">
+            {allBucketGroups.length > 1 && (
+              <div className="tag-filter-row dashboard-tag-filter-row group-filter-row">
+                <span className="filter-facet-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  {t('dashboard.filterByGroup')}
+                </span>
+                {allBucketGroups.map((group) => (
+                  <button
+                    key={group}
+                    type="button"
+                    className={`tag-pill tag-pill-filter group-pill-filter ${groupFilters.includes(group) ? 'active' : ''}`}
+                    onClick={() => toggleGroupFilter(group)}
+                  >
+                    {group}
+                  </button>
+                ))}
+                {activeGroupFilters.length > 0 && (
+                  <button type="button" className="tag-filter-clear" onClick={clearGroupFilters}>
+                    {t('dashboard.clear')}
+                  </button>
+                )}
+              </div>
+            )}
 
-      {allBucketTags.length > 0 && (
-        <div className="tag-filter-row dashboard-tag-filter-row">
-          <span className="filter-facet-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-              <line x1="7" y1="7" x2="7.01" y2="7" />
-            </svg>
-            {t('dashboard.filterByTag')}
-          </span>
-          {allBucketTags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className={`tag-pill tag-pill-filter ${tagFilters.includes(tag) ? 'active' : ''}`}
-              onClick={() => toggleTagFilter(tag)}
-            >
-              {tag}
-            </button>
-          ))}
-          {tagFilters.length > 0 && (
-            <button type="button" className="tag-filter-clear" onClick={() => setTagFilters([])}>
-              {t('dashboard.clear')}
-            </button>
-          )}
-        </div>
-      )}
+            {allBucketTags.length > 0 && (
+              <div className="tag-filter-row dashboard-tag-filter-row">
+                <span className="filter-facet-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
+                  {t('dashboard.filterByTag')}
+                </span>
+                {allBucketTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`tag-pill tag-pill-filter ${tagFilters.includes(tag) ? 'active' : ''}`}
+                    onClick={() => toggleTagFilter(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+                {tagFilters.length > 0 && (
+                  <button type="button" className="tag-filter-clear" onClick={() => setTagFilters([])}>
+                    {t('dashboard.clear')}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {isLoading && <p className="page-sub">{t('dashboard.loadingOpenTasks')}</p>}
-      {isError && <p className="field-error">{error instanceof api.ApiError ? error.message : t('dashboard.failedToLoad')}</p>}
+        {isLoading && <p className="page-sub">{t('dashboard.loadingOpenTasks')}</p>}
+        {isError && <p className="field-error">{error instanceof api.ApiError ? error.message : t('dashboard.failedToLoad')}</p>}
 
-      {!isLoading && !isError && (
-        <>
-          {renderBucket('doing', t('dashboard.buckets.doing'), doing, { hideIfEmpty: true })}
-          {renderBucket('today', t('dashboard.buckets.today'), dueToday, { emptyLabel: t('dashboard.nothingDueToday') })}
-          {renderBucket('overdue', t('dashboard.buckets.overdue'), overdue, { hideIfEmpty: true })}
-          {renderBucket('thisWeek', t('dashboard.buckets.thisWeek'), week)}
-        </>
-      )}
+        {!isLoading && !isError && (
+          <div className="dashboard-tasks">
+            {renderBucket('doing', t('dashboard.buckets.doing'), doing, { hideIfEmpty: true })}
+            {renderBucket('today', t('dashboard.buckets.today'), dueToday, { emptyLabel: t('dashboard.nothingDueToday') })}
+            {renderBucket('overdue', t('dashboard.buckets.overdue'), overdue, { hideIfEmpty: true })}
+            {renderBucket('thisWeek', t('dashboard.buckets.thisWeek'), week)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

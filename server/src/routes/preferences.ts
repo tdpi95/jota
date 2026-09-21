@@ -147,27 +147,27 @@ router.put('/autosave-interval', (req, res, next) => {
   }
 });
 
-// Dashboard's "Recent projects" section collapse state — same shape as
+// Dashboard's "Pinned" section collapse state — same shape as
 // /calendar-mode above.
-router.get('/dashboard-recent-projects-open', (_req, res) => {
-  res.json({ open: workspaceService.getDashboardRecentProjectsOpenPreference() });
+router.get('/dashboard-pinned-open', (_req, res) => {
+  res.json({ open: workspaceService.getDashboardPinnedOpenPreference() });
 });
 
-router.put('/dashboard-recent-projects-open', (req, res, next) => {
+router.put('/dashboard-pinned-open', (req, res, next) => {
   try {
     const { open } = req.body ?? {};
     if (typeof open !== 'boolean') {
       res.status(400).json({ error: 'open (boolean) is required' });
       return;
     }
-    res.json({ open: workspaceService.setDashboardRecentProjectsOpenPreference(open) });
+    res.json({ open: workspaceService.setDashboardPinnedOpenPreference(open) });
   } catch (err) {
     next(err);
   }
 });
 
 // Dashboard's group-filter selection (milestone 26 follow-up) — same shape
-// as /dashboard-recent-projects-open above.
+// as /dashboard-pinned-open above.
 router.get('/dashboard-group-filter', (_req, res) => {
   res.json({ groups: workspaceService.getDashboardGroupFilterPreference() });
 });
@@ -180,6 +180,42 @@ router.put('/dashboard-group-filter', (req, res, next) => {
       return;
     }
     res.json({ groups: workspaceService.setDashboardGroupFilterPreference(groups) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Dashboard's pinned-projects/pinned-notes selections (replaces "Recent
+// projects") — same shape as /dashboard-group-filter above.
+router.get('/pinned-projects', (_req, res) => {
+  res.json({ slugs: workspaceService.getPinnedProjectsPreference() });
+});
+
+router.put('/pinned-projects', (req, res, next) => {
+  try {
+    const { slugs } = req.body ?? {};
+    if (!Array.isArray(slugs) || !slugs.every((s) => typeof s === 'string')) {
+      res.status(400).json({ error: 'slugs (string[]) is required' });
+      return;
+    }
+    res.json({ slugs: workspaceService.setPinnedProjectsPreference(slugs) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/pinned-notes', (_req, res) => {
+  res.json({ slugs: workspaceService.getPinnedNotesPreference() });
+});
+
+router.put('/pinned-notes', (req, res, next) => {
+  try {
+    const { slugs } = req.body ?? {};
+    if (!Array.isArray(slugs) || !slugs.every((s) => typeof s === 'string')) {
+      res.status(400).json({ error: 'slugs (string[]) is required' });
+      return;
+    }
+    res.json({ slugs: workspaceService.setPinnedNotesPreference(slugs) });
   } catch (err) {
     next(err);
   }

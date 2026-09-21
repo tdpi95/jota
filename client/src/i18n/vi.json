@@ -11,7 +11,9 @@
     "active": "Đang dùng",
     "settings": "Cài đặt",
     "confirm": "Xác nhận",
-    "remove": "Gỡ bỏ"
+    "remove": "Gỡ bỏ",
+    "pin": "Ghim",
+    "unpin": "Bỏ ghim"
   },
   "settings": {
     "title": "Cài đặt",
@@ -248,8 +250,7 @@
     "taskTitlePlaceholder": "Tên công việc…",
     "addTaskSubmit": "Thêm việc",
     "cancel": "Hủy",
-    "recentProjects": "Dự án gần đây",
-    "seeAllProjects": "Xem tất cả dự án →",
+    "pinned": "Đã ghim",
     "loadingOpenTasks": "Đang tải công việc đang mở…",
     "failedToLoad": "Không thể tải công việc đang mở.",
     "buckets": {

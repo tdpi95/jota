@@ -6,11 +6,13 @@ import * as api from '../api/client';
 import Modal from '../components/Modal';
 import ProjectCard from '../components/ProjectCard';
 import ProjectForm from '../components/ProjectForm';
+import { usePinnedProjects } from '../lib/pins';
 
 export default function ProjectsListPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['projects'], queryFn: api.listProjects });
+  const { pinnedProjectSlugs, togglePinnedProject } = usePinnedProjects();
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
@@ -107,7 +109,12 @@ export default function ProjectsListPage() {
           <h2 className="projects-group-heading">{group}</h2>
           <div className="projects-list">
             {groupSections.get(group)!.map((project) => (
-              <ProjectCard key={project.slug} project={project} />
+              <ProjectCard
+                key={project.slug}
+                project={project}
+                pinned={pinnedProjectSlugs.includes(project.slug)}
+                onTogglePin={() => togglePinnedProject(project.slug)}
+              />
             ))}
           </div>
         </div>
