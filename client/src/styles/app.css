@@ -2887,6 +2887,10 @@ textarea {
 .sync-counts b {
   color: var(--ink);
 }
+.sync-checking {
+  display: flex;
+  align-items: center;
+}
 .sync-actions {
   display: flex;
   gap: 8px;
@@ -2896,6 +2900,38 @@ textarea {
   color: var(--ink-muted);
   margin-top: 12px;
   font-family: "JetBrains Mono", monospace;
+}
+/* Small inline busy indicator for an in-flight sync action (Push/Pull/Test
+   connection) — uses currentColor so it matches whichever button/text color
+   it's placed in, in both themes, with no new color tokens needed. */
+.spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 6px;
+  vertical-align: -1.5px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.sync-test-result {
+  display: flex;
+  align-items: center;
+  font-size: 11.5px;
+  gap: 6px;
+}
+.sync-test-result.is-ok {
+  color: var(--good);
+}
+.sync-test-result.is-error {
+  color: var(--danger);
 }
 
 /* Notice banner (e.g. Settings' "git not found") */

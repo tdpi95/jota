@@ -9,7 +9,7 @@ import os from 'node:os';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import * as webdav from '../lib/sync/webdav.js';
-import type { WebDavStatus, WebDavSyncResult } from '../lib/sync/webdav.js';
+import type { WebDavStatus, WebDavSyncResult, WebDavTestResult } from '../lib/sync/webdav.js';
 import { readRegistry, writeRegistry, type WorkspaceSyncConfig } from '../lib/workspaces.js';
 import { getActiveWorkspaceOrThrow } from './workspaces.js';
 
@@ -57,16 +57,41 @@ export function setConfig(
   const entry = registry.workspaces.find((w) => w.id === workspace.id);
   if (!entry) throw new WebdavSyncServiceError(`no workspace with id ${workspace.id}`, 404);
 
+  // A URL change means a genuinely different remote target — the previous
+  // baseline (per-file mtime/etag from the last sync) is meaningless, and
+  // dangerous, against it: see webdav.ts's `resetSyncState` for why a stale
+  // baseline can make a pull delete local files that were simply never on
+  // the new remote. Only the URL matters here, not username/password —
+  // rotating credentials for the same target should keep the baseline.
+  const previousUrl = entry.sync?.provider === 'webdav' ? entry.sync.url : null;
+  const urlChanged = previousUrl !== url;
+
   const sync: WorkspaceSyncConfig = {
     provider: 'webdav',
     url,
     username,
     password: input.password,
-    lastSyncedAt: entry.sync?.provider === 'webdav' ? entry.sync.lastSyncedAt : null,
+    lastSyncedAt: entry.sync?.provider === 'webdav' && !urlChanged ? entry.sync.lastSyncedAt : null,
   };
   entry.sync = sync;
   writeRegistry(registry, homeDir);
+  if (urlChanged) webdav.resetSyncState(workspace.path);
   return sync;
+}
+
+/** `POST /api/vault/webdav/test` — tests the given credentials directly
+ * (the Settings form's current draft, not necessarily the saved config, and
+ * not scoped to any workspace at all — this never touches the registry).
+ * A failed test is returned as data (`{ok: false, ...}`), not thrown, same
+ * as a pull's conflict result — it's an expected, actionable outcome for
+ * the caller to render, not a service failure. */
+export async function testConnection(input: { url: string; username: string; password: string }): Promise<WebDavTestResult> {
+  const url = input.url?.trim();
+  const username = input.username?.trim();
+  if (!url) throw new WebdavSyncServiceError('url is required', 400);
+  if (!username) throw new WebdavSyncServiceError('username is required', 400);
+  if (!input.password) throw new WebdavSyncServiceError('password is required', 400);
+  return webdav.testConnection({ url, username, password: input.password });
 }
 
 function requireWebdavConfig(homeDir: string): {

@@ -154,6 +154,10 @@ export interface WebDavSyncResult {
   conflicts: string[];
 }
 
+/** `lib/sync/webdav.ts`'s `WebDavTestResult` — backs the Settings page's
+ * "Test connection" button. */
+export type WebDavTestResult = { ok: true } | { ok: false; reason: 'auth' | 'not-found' | 'other'; message: string };
+
 /** `lib/vaultGit.ts`'s `CommitInfo` — backs `HistoryPanel` (milestone 15). */
 export interface HistoryCommit {
   hash: string;

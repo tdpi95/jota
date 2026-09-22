@@ -259,11 +259,30 @@ export default function SettingsPage() {
       if (result.conflicts.length === 0) queryClient.invalidateQueries();
     },
   });
+  const anySyncInFlight = pushMutation.isPending || pullMutation.isPending || pushWebdavMutation.isPending || pullWebdavMutation.isPending;
 
   const webdavConfigured = webdavUrlDraft.trim() !== '' && webdavUsernameDraft.trim() !== '' && webdavPasswordDraft !== '';
   function commitWebdavConfig() {
     if (!webdavConfigured) return;
     setWebdavConfigMutation.mutate({ url: webdavUrlDraft.trim(), username: webdavUsernameDraft.trim(), password: webdavPasswordDraft });
+  }
+
+  // "Test connection" checks whatever's currently typed in the form, not
+  // necessarily the saved config — doesn't touch the registry at all. Any
+  // edit to a field resets the result rather than leaving a stale ✓/✗
+  // showing for credentials that no longer match what's in the fields.
+  const testWebdavMutation = useMutation({
+    mutationFn: (input: { url: string; username: string; password: string }) => api.testWebdavConnection(input),
+  });
+  function commitTestWebdavConnection() {
+    if (!webdavConfigured) return;
+    testWebdavMutation.mutate({ url: webdavUrlDraft.trim(), username: webdavUsernameDraft.trim(), password: webdavPasswordDraft });
+  }
+  function editWebdavDraft(setter: (value: string) => void) {
+    return (value: string) => {
+      testWebdavMutation.reset();
+      setter(value);
+    };
   }
 
   // --- Reminder + launch-at-login (Electron only) ---
@@ -531,6 +550,7 @@ export default function SettingsPage() {
       {active && (
         <div className="settings-section">
           <div className="section-title">{t('settings.sync.sectionTitle', { name: active.name })}</div>
+          {/* Disabled while a push/pull is in flight (either provider) — switching tabs mid-sync doesn't cancel it, so it's just confusing to allow. */}
           <div className="lang-picker" role="radiogroup" aria-label={t('settings.sync.sectionTitle', { name: active.name }) ?? undefined} style={{ marginBottom: 14 }}>
             {SYNC_PROVIDERS.map((provider) => (
               <button
@@ -539,6 +559,7 @@ export default function SettingsPage() {
                 role="radio"
                 aria-checked={selectedProvider === provider}
                 className={`ws-row-btn ${selectedProvider === provider ? 'is-active' : ''}`}
+                disabled={anySyncInFlight}
                 onClick={() => setSelectedProvider(provider)}
               >
                 {t(`settings.sync.provider.${provider === 'git-remote' ? 'gitRemote' : provider}`)}
@@ -570,26 +591,41 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="sync-counts">
-                <span>
-                  <b>{syncStatus?.ahead ?? '—'}</b> {t('settings.sync.ahead')}
-                </span>
-                <span>
-                  <b>{syncStatus?.behind ?? '—'}</b> {t('settings.sync.behind')}
-                </span>
+                {statusQuery.isFetching ? (
+                  <span className="sync-checking">
+                    <span className="spinner" />
+                    {t('settings.sync.checking')}
+                  </span>
+                ) : (
+                  <>
+                    <span>
+                      <b>{syncStatus?.ahead ?? '—'}</b> {t('settings.sync.ahead')}
+                    </span>
+                    <span>
+                      <b>{syncStatus?.behind ?? '—'}</b> {t('settings.sync.behind')}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="sync-actions">
-                <button className="btn-primary" disabled={!syncConfigured || pushMutation.isPending} onClick={() => pushMutation.mutate()}>
-                  {t('settings.sync.push')}
+                <button
+                  className="btn-primary"
+                  disabled={!syncConfigured || pushMutation.isPending || pullMutation.isPending}
+                  onClick={() => pushMutation.mutate()}
+                >
+                  {pushMutation.isPending && <span className="spinner" />}
+                  {pushMutation.isPending ? t('settings.sync.pushing') : t('settings.sync.push')}
                 </button>
                 <button
                   className="btn-secondary"
-                  disabled={!syncConfigured || pullMutation.isPending}
+                  disabled={!syncConfigured || pushMutation.isPending || pullMutation.isPending}
                   onClick={() => {
                     setPullResult(null);
                     pullMutation.mutate();
                   }}
                 >
-                  {t('settings.sync.pull')}
+                  {pullMutation.isPending && <span className="spinner" />}
+                  {pullMutation.isPending ? t('settings.sync.pulling') : t('settings.sync.pull')}
                 </button>
                 {activeSync.provider === 'git-remote' && (
                   <button className="icon-btn" title={t('settings.sync.disconnect') ?? undefined} disabled={disconnectMutation.isPending} onClick={() => disconnectMutation.mutate()}>
@@ -601,9 +637,11 @@ export default function SettingsPage() {
                 )}
               </div>
               <div className="sync-status">
-                {!syncConfigured && t('settings.sync.noRemoteConfigured')}
-                {syncConfigured && syncStatus?.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(syncStatus.lastSyncedAt) })}
-                {syncConfigured && !syncStatus?.lastSyncedAt && t('settings.sync.neverSynced')}
+                {pushMutation.isPending && t('settings.sync.pushing')}
+                {pullMutation.isPending && t('settings.sync.pulling')}
+                {!pushMutation.isPending && !pullMutation.isPending && !syncConfigured && t('settings.sync.noRemoteConfigured')}
+                {!pushMutation.isPending && !pullMutation.isPending && syncConfigured && syncStatus?.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(syncStatus.lastSyncedAt) })}
+                {!pushMutation.isPending && !pullMutation.isPending && syncConfigured && !syncStatus?.lastSyncedAt && t('settings.sync.neverSynced')}
               </div>
               {pullResult?.conflict && (
                 <div className="field-error" style={{ marginTop: 10 }}>
@@ -631,44 +669,65 @@ export default function SettingsPage() {
             <div className="sync-panel">
               <div className="sync-field">
                 <label>{t('settings.sync.webdav.urlLabel')}</label>
-                <input value={webdavUrlDraft} onChange={(e) => setWebdavUrlDraft(e.target.value)} placeholder={t('settings.sync.webdav.urlPlaceholder')} />
+                <input value={webdavUrlDraft} onChange={(e) => editWebdavDraft(setWebdavUrlDraft)(e.target.value)} placeholder={t('settings.sync.webdav.urlPlaceholder')} />
               </div>
               <p className="empty-note" style={{ marginTop: -10 }}>{t('settings.sync.webdav.folderNotice')}</p>
               <div className="sync-field">
                 <label>{t('settings.sync.webdav.usernameLabel')}</label>
-                <input value={webdavUsernameDraft} onChange={(e) => setWebdavUsernameDraft(e.target.value)} />
+                <input value={webdavUsernameDraft} onChange={(e) => editWebdavDraft(setWebdavUsernameDraft)(e.target.value)} />
               </div>
               <div className="sync-field">
                 <label>{t('settings.sync.webdav.passwordLabel')}</label>
-                <input type="password" value={webdavPasswordDraft} onChange={(e) => setWebdavPasswordDraft(e.target.value)} />
+                <input type="password" value={webdavPasswordDraft} onChange={(e) => editWebdavDraft(setWebdavPasswordDraft)(e.target.value)} />
               </div>
-              <div className="sync-actions" style={{ marginBottom: 14 }}>
+              <div className="sync-actions" style={{ alignItems: 'center' }}>
                 <button className="btn-secondary" disabled={!webdavConfigured || setWebdavConfigMutation.isPending} onClick={commitWebdavConfig}>
+                  {setWebdavConfigMutation.isPending && <span className="spinner" />}
                   {t('settings.sync.webdav.save')}
                 </button>
+                <button className="btn-secondary" disabled={!webdavConfigured || testWebdavMutation.isPending} onClick={commitTestWebdavConnection}>
+                  {testWebdavMutation.isPending && <span className="spinner" />}
+                  {t('settings.sync.webdav.test')}
+                </button>
+                {testWebdavMutation.data && (
+                  <span className={`sync-test-result ${testWebdavMutation.data.ok ? 'is-ok' : 'is-error'}`}>
+                    {testWebdavMutation.data.ok ? t('settings.sync.webdav.testOk') : testWebdavMutation.data.message}
+                  </span>
+                )}
               </div>
-              <div className="sync-counts">
-                <span>
-                  <b>{webdavStatusQuery.data?.toPush ?? '—'}</b> {t('settings.sync.webdav.toPush')}
-                </span>
-                <span>
-                  <b>{webdavStatusQuery.data?.toPull ?? '—'}</b> {t('settings.sync.webdav.toPull')}
-                </span>
+              <div className="sync-counts" style={{ marginTop: 14 }}>
+                {webdavStatusQuery.isFetching ? (
+                  <span className="sync-checking">
+                    <span className="spinner" />
+                    {t('settings.sync.checking')}
+                  </span>
+                ) : (
+                  <>
+                    <span>
+                      <b>{webdavStatusQuery.data?.toPush ?? '—'}</b> {t('settings.sync.webdav.toPush')}
+                    </span>
+                    <span>
+                      <b>{webdavStatusQuery.data?.toPull ?? '—'}</b> {t('settings.sync.webdav.toPull')}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="sync-actions">
                 <button
                   className="btn-primary"
-                  disabled={activeSync.provider !== 'webdav' || pushWebdavMutation.isPending}
+                  disabled={activeSync.provider !== 'webdav' || pushWebdavMutation.isPending || pullWebdavMutation.isPending}
                   onClick={() => pushWebdavMutation.mutate()}
                 >
-                  {t('settings.sync.push')}
+                  {pushWebdavMutation.isPending && <span className="spinner" />}
+                  {pushWebdavMutation.isPending ? t('settings.sync.webdav.pushing') : t('settings.sync.push')}
                 </button>
                 <button
                   className="btn-secondary"
-                  disabled={activeSync.provider !== 'webdav' || pullWebdavMutation.isPending}
+                  disabled={activeSync.provider !== 'webdav' || pushWebdavMutation.isPending || pullWebdavMutation.isPending}
                   onClick={() => pullWebdavMutation.mutate()}
                 >
-                  {t('settings.sync.pull')}
+                  {pullWebdavMutation.isPending && <span className="spinner" />}
+                  {pullWebdavMutation.isPending ? t('settings.sync.webdav.pulling') : t('settings.sync.pull')}
                 </button>
                 {activeSync.provider === 'webdav' && (
                   <button className="icon-btn" title={t('settings.sync.disconnect') ?? undefined} disabled={disconnectMutation.isPending} onClick={() => disconnectMutation.mutate()}>
@@ -680,9 +739,19 @@ export default function SettingsPage() {
                 )}
               </div>
               <div className="sync-status">
-                {activeSync.provider !== 'webdav' && t('settings.sync.webdav.notConfigured')}
-                {activeSync.provider === 'webdav' && activeSync.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(activeSync.lastSyncedAt) })}
-                {activeSync.provider === 'webdav' && !activeSync.lastSyncedAt && t('settings.sync.neverSynced')}
+                {pushWebdavMutation.isPending && t('settings.sync.webdav.pushing')}
+                {pullWebdavMutation.isPending && t('settings.sync.webdav.pulling')}
+                {!pushWebdavMutation.isPending && !pullWebdavMutation.isPending && activeSync.provider !== 'webdav' && t('settings.sync.webdav.notConfigured')}
+                {!pushWebdavMutation.isPending &&
+                  !pullWebdavMutation.isPending &&
+                  activeSync.provider === 'webdav' &&
+                  activeSync.lastSyncedAt &&
+                  t('settings.sync.lastSynced', { time: formatTimestamp(activeSync.lastSyncedAt) })}
+                {!pushWebdavMutation.isPending &&
+                  !pullWebdavMutation.isPending &&
+                  activeSync.provider === 'webdav' &&
+                  !activeSync.lastSyncedAt &&
+                  t('settings.sync.neverSynced')}
               </div>
               {(pushWebdavMutation.data?.conflicts.length || pullWebdavMutation.data?.conflicts.length || webdavStatusQuery.data?.conflicts.length) ? (
                 <div className="field-error" style={{ marginTop: 10 }}>

@@ -32,6 +32,19 @@ router.put('/config', (req, res, next) => {
   }
 });
 
+router.post('/test', async (req, res, next) => {
+  try {
+    const { url, username, password } = req.body ?? {};
+    if (typeof url !== 'string' || typeof username !== 'string' || typeof password !== 'string') {
+      res.status(400).json({ error: 'url, username, and password are required' });
+      return;
+    }
+    res.json(await webdavSyncService.testConnection({ url, username, password }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/push', async (_req, res, next) => {
   try {
     res.json(await webdavSyncService.push());

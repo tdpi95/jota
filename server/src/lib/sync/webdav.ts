@@ -46,6 +46,35 @@ function createWebDavClient(config: WebDavConfig): WebDAVClient {
   return createClient(config.url, { username: config.username, password: config.password });
 }
 
+export type WebDavTestResult =
+  | { ok: true }
+  | { ok: false; reason: 'auth' | 'not-found' | 'other'; message: string };
+
+/** `PUT /api/vault/webdav/config`'s "Test connection" button — a single
+ * `PROPFIND` against the configured URL, distinguishing "wrong credentials"
+ * from "reachable, but that folder doesn't exist yet on the server" (the
+ * Settings panel tells the user to create the target folder themselves
+ * first, so this is a common, actionable first-try result, not a generic
+ * failure) from anything else (host unreachable, TLS error, ...). Never
+ * throws — the result is data for the caller to render, same as a pull's
+ * conflict list. */
+export async function testConnection(config: WebDavConfig): Promise<WebDavTestResult> {
+  const client = createWebDavClient(config);
+  try {
+    await client.getDirectoryContents('/');
+    return { ok: true };
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status === 401 || status === 403) {
+      return { ok: false, reason: 'auth', message: 'Authentication failed — check the username and password.' };
+    }
+    if (status === 404) {
+      return { ok: false, reason: 'not-found', message: "Reached the server, but that folder doesn't exist yet — create it there first." };
+    }
+    return { ok: false, reason: 'other', message: (err as Error).message || 'Could not reach the server.' };
+  }
+}
+
 // --- ignore rules -----------------------------------------------------
 // Same "skip files that don't match the expected naming pattern" tolerance
 // PLAN.md already documents for passive filesystem sync — a sync-conflict
@@ -59,6 +88,15 @@ const CONFLICTED_COPY_RE = /\(conflicted copy\b/i;
 
 function shouldSyncName(name: string): boolean {
   return !name.startsWith('.') && !CONFLICTED_COPY_RE.test(name);
+}
+
+/** Same check, applied to every segment of a relative path — needed once
+ * `listRemoteFiles` below can list a directory's contents *without* ever
+ * visiting its ancestors individually (a deep listing): checking only a
+ * given entry's own `basename` would miss e.g. `.git/objects/ab/c123`,
+ * since `c123` itself doesn't start with a dot even though `.git` does. */
+function shouldSyncPath(relPath: string): boolean {
+  return relPath.split('/').every(shouldSyncName);
 }
 
 // --- local file listing -------------------------------------------------
@@ -81,22 +119,76 @@ function listLocalFiles(workspacePath: string): Map<string, number> {
 }
 
 // --- remote file listing -------------------------------------------------
-// Manual per-directory recursion, not `getDirectoryContents(path, {deep:
-// true})` — confirmed empirically (a real webdav-server instance) that a
-// `Depth: infinity` PROPFIND from the root can 403 even with full read
-// rights, matching real-world server behavior (many WebDAV servers,
-// including Apache mod_dav, restrict it per RFC 4918 §9.1). A depth-1 walk
-// per directory is the portable choice, at the cost of one round trip per
-// directory instead of one for the whole tree.
+// `getDirectoryContents('/', {deep: true})` (a single `Depth: infinity`
+// PROPFIND) is tried first — confirmed empirically against a real Nextcloud
+// instance that it works and is dramatically faster (one round trip for an
+// entire tree vs. one per directory: ~1.5s for 116 entries, vs. 6+ seconds
+// walking 8 directories one level at a time — the dominant cost behind a
+// live report, "still don't update immediately", once the concurrency fix
+// below turned out not to be the whole story). But it isn't universal:
+// also confirmed empirically that a lightweight test server (`webdav-
+// server`, used by webdav.test.ts) 403s the exact same request even with
+// full read rights, matching documented real-world variance (some servers
+// restrict `Depth: infinity` per RFC 4918 §9.1). So a failed deep listing
+// falls back to the portable depth-1-per-directory walk instead of failing
+// the whole operation — slower on a server that doesn't support it, but
+// correct everywhere.
 
 function isNotFound(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'status' in err && (err as { status?: number }).status === 404;
 }
 
+/** How many WebDAV round trips (sibling directory listings, or ambiguous-
+ * file content compares — see `computeDiff` below) to run at once. A plain
+ * sequential walk of either was the first cut of this code, and against a
+ * real remote server (meaningful per-request latency, not the near-zero
+ * latency of an in-process test server) that meant one directory listing —
+ * or one file fetch-and-compare — at a time, however many there were: a
+ * real, noticeable multi-second stall reported live ("still don't update
+ * immediately"), traced to exactly this. Bounded instead of an unbounded
+ * `Promise.all` so a large vault doesn't open hundreds of concurrent
+ * connections against the server at once. */
+const WEBDAV_CONCURRENCY = 8;
+
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+function addRemoteEntry(files: Map<string, string>, entry: FileStat): void {
+  if (entry.type === 'directory') return;
+  const rel = entry.filename.replace(/^\/+/, '');
+  if (!shouldSyncPath(rel)) return;
+  files.set(rel, entry.etag ?? entry.lastmod);
+}
+
 /** Workspace-relative, forward-slashed path -> etag (falls back to
- * `lastmod` for a server that doesn't expose etags). */
+ * `lastmod` for a server that doesn't expose etags). Tries one deep
+ * (`Depth: infinity`) listing first; if the server rejects that, falls
+ * back to a depth-1 walk with sibling directories at each level listed
+ * concurrently (bounded, see `WEBDAV_CONCURRENCY`) rather than one at a
+ * time. */
 async function listRemoteFiles(client: WebDAVClient): Promise<Map<string, string>> {
   const files = new Map<string, string>();
+
+  try {
+    const entries = await client.getDirectoryContents('/', { deep: true });
+    for (const entry of entries) addRemoteEntry(files, entry);
+    return files;
+  } catch (err) {
+    if (isNotFound(err)) return files; // nothing uploaded yet at all
+    // Any other error (commonly a 403/501 for a server that restricts
+    // `Depth: infinity`) falls through to the portable walk below.
+  }
+
   async function walk(remoteDir: string): Promise<void> {
     let entries: FileStat[];
     try {
@@ -105,14 +197,16 @@ async function listRemoteFiles(client: WebDAVClient): Promise<Map<string, string
       if (isNotFound(err)) return; // nothing uploaded to this branch yet
       throw err;
     }
+    const subdirs: string[] = [];
     for (const entry of entries) {
       if (!shouldSyncName(entry.basename)) continue;
       if (entry.type === 'directory') {
-        await walk(entry.filename);
+        subdirs.push(entry.filename);
       } else {
-        files.set(entry.filename.replace(/^\/+/, ''), entry.etag ?? entry.lastmod);
+        addRemoteEntry(files, entry);
       }
     }
+    await mapWithConcurrency(subdirs, WEBDAV_CONCURRENCY, walk);
   }
   await walk('/');
   return files;
@@ -154,6 +248,18 @@ function saveSyncState(workspacePath: string, state: SyncState): void {
   fs.writeFileSync(file, JSON.stringify(state, null, 2), 'utf8');
 }
 
+/** Called (by `services/webdavSync.ts`'s `setConfig`) whenever the
+ * configured WebDAV URL actually changes — the baseline is meaningless, and
+ * actively dangerous, against a *different* remote: a file the baseline
+ * says was already synced but that's missing on the new target reads as
+ * "the remote deleted this," not "this is a new target," which would make
+ * a `pull` delete every local file that isn't already up there. There's no
+ * way to tell a genuinely empty/new remote apart from that without
+ * resetting the baseline on every URL change. */
+export function resetSyncState(workspacePath: string): void {
+  fs.rmSync(syncStateFilePath(workspacePath), { force: true });
+}
+
 // --- three-way diff -------------------------------------------------------
 
 type FileState = 'created' | 'modified' | 'deleted' | 'same';
@@ -167,25 +273,68 @@ interface DiffEntry {
 /** A path with no stored baseline that exists on only one side is
  * `'created'` on that side and (trivially) `'same'` on the other, since
  * there's nothing to compare against — never guessed at as a conflict. A
- * path with no baseline present differently on *both* sides is `'created'`
- * on both, which the caller treats as a conflict — the safe default PLAN.md
- * calls for when there's no baseline to reason from. */
+ * path with no baseline present on *both* sides is `'created'` on both —
+ * `computeDiff` below resolves that ambiguity by content before ever
+ * treating it as a conflict, rather than guessing. */
 function classify(currentVal: number | string | undefined, baselineVal: number | string | undefined): FileState {
   if (baselineVal === undefined) return currentVal === undefined ? 'same' : 'created';
   if (currentVal === undefined) return 'deleted';
   return currentVal === baselineVal ? 'same' : 'modified';
 }
 
-function computeDiff(local: Map<string, number>, remote: Map<string, string>, baseline: SyncState): DiffEntry[] {
-  const paths = new Set<string>([...local.keys(), ...remote.keys(), ...Object.keys(baseline)]);
+/**
+ * A path with no baseline present on both sides (`created`/`created`) is
+ * genuinely ambiguous from metadata alone — and a real, common case, not an
+ * edge case: it's exactly what happens right after a baseline reset (a
+ * WebDAV URL change, `.poco/cache` deleted, a second machine connecting to
+ * an already-synced remote for the first time, ...) against a target that
+ * already has the same content. Naively treating every such path as a
+ * conflict — the original implementation's choice — turns a routine
+ * reconnect into a wall of false conflicts. So before deciding, the actual
+ * bytes are compared (concurrently, see `mapWithConcurrency` above):
+ * identical content resolves silently (the baseline is recorded
+ * immediately, mutating `baseline` in place, so the next call doesn't redo
+ * the fetch), and only a genuine mismatch is left as a real conflict for
+ * the caller to surface.
+ */
+async function computeDiff(
+  workspacePath: string,
+  client: WebDAVClient,
+  local: Map<string, number>,
+  remote: Map<string, string>,
+  baseline: SyncState
+): Promise<DiffEntry[]> {
+  const paths = [...new Set<string>([...local.keys(), ...remote.keys(), ...Object.keys(baseline)])];
   const entries: DiffEntry[] = [];
+  const ambiguous: string[] = [];
+
   for (const p of paths) {
     const b = baseline[p];
     const localState = classify(local.get(p), b?.localMtimeMs);
     const remoteState = classify(remote.get(p), b?.remoteEtag);
+    if (localState === 'created' && remoteState === 'created') {
+      ambiguous.push(p);
+      continue;
+    }
     if (localState === 'same' && remoteState === 'same') continue;
     entries.push({ path: p, local: localState, remote: remoteState });
   }
+
+  const resolutions = await mapWithConcurrency(ambiguous, WEBDAV_CONCURRENCY, async (p) => {
+    const abs = path.join(workspacePath, ...p.split('/'));
+    const [localData, remoteData] = await Promise.all([fs.promises.readFile(abs), client.getFileContents(toRemotePath(p)) as Promise<Buffer>]);
+    const identical = Buffer.isBuffer(localData) && Buffer.isBuffer(remoteData) && localData.equals(remoteData);
+    return { path: p, identical };
+  });
+
+  for (const { path: p, identical } of resolutions) {
+    if (identical) {
+      baseline[p] = { localMtimeMs: local.get(p)!, remoteEtag: remote.get(p)! };
+    } else {
+      entries.push({ path: p, local: 'created', remote: 'created' });
+    }
+  }
+
   return entries;
 }
 
@@ -205,7 +354,7 @@ export async function push(workspacePath: string, config: WebDavConfig): Promise
   const local = listLocalFiles(workspacePath);
   const remote = await listRemoteFiles(client);
   const baseline = loadSyncState(workspacePath);
-  const diff = computeDiff(local, remote, baseline);
+  const diff = await computeDiff(workspacePath, client, local, remote, baseline);
 
   const synced: string[] = [];
   const conflicts: string[] = [];
@@ -243,7 +392,7 @@ export async function pull(workspacePath: string, config: WebDavConfig): Promise
   const local = listLocalFiles(workspacePath);
   const remote = await listRemoteFiles(client);
   const baseline = loadSyncState(workspacePath);
-  const diff = computeDiff(local, remote, baseline);
+  const diff = await computeDiff(workspacePath, client, local, remote, baseline);
 
   const synced: string[] = [];
   const conflicts: string[] = [];
@@ -276,12 +425,17 @@ export async function pull(workspacePath: string, config: WebDavConfig): Promise
   return { synced, conflicts };
 }
 
+/** Read-only from the caller's perspective (never touches `lastSyncedAt`),
+ * but does persist any baseline entries `computeDiff` resolves via a
+ * content compare — a pure cache optimization (so a repeatedly-polled
+ * status doesn't redo the same fetch/compare every time), not user-visible
+ * state. */
 export async function status(workspacePath: string, config: WebDavConfig, lastSyncedAt: string | null): Promise<WebDavStatus> {
   const client = createWebDavClient(config);
   const local = listLocalFiles(workspacePath);
   const remote = await listRemoteFiles(client);
   const baseline = loadSyncState(workspacePath);
-  const diff = computeDiff(local, remote, baseline);
+  const diff = await computeDiff(workspacePath, client, local, remote, baseline);
 
   let toPush = 0;
   let toPull = 0;
@@ -297,5 +451,6 @@ export async function status(workspacePath: string, config: WebDavConfig, lastSy
     }
   }
 
+  saveSyncState(workspacePath, baseline);
   return { toPush, toPull, conflicts, lastSyncedAt };
 }

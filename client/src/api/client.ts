@@ -24,6 +24,7 @@ import type {
   TaskStatus,
   WebDavStatus,
   WebDavSyncResult,
+  WebDavTestResult,
   Workspace,
   WorkspaceSyncConfig,
 } from '../types';
@@ -327,6 +328,13 @@ export function getWebdavConfig(): Promise<{ sync: WorkspaceSyncConfig }> {
 
 export function setWebdavConfig(input: { url: string; username: string; password: string }): Promise<{ sync: WorkspaceSyncConfig }> {
   return request('/vault/webdav/config', { method: 'PUT', body: JSON.stringify(input) });
+}
+
+/** Tests the given credentials directly — not necessarily the saved config,
+ * and not tied to any workspace — so the "Test connection" button works
+ * against whatever's currently typed into the form, before ever saving it. */
+export function testWebdavConnection(input: { url: string; username: string; password: string }): Promise<WebDavTestResult> {
+  return request('/vault/webdav/test', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function pushWebdav(): Promise<WebDavSyncResult> {
