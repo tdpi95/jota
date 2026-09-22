@@ -48,6 +48,13 @@
     },
     "sync": {
       "sectionTitle": "Đồng bộ từ xa — {{name}}",
+      "provider": {
+        "none": "Không có",
+        "gitRemote": "Git remote",
+        "webdav": "WebDAV"
+      },
+      "disconnect": "Ngắt kết nối",
+      "noneNote": "Không gian làm việc này chưa cấu hình phương thức đồng bộ nào.",
       "remoteUrlLabel": "URL từ xa",
       "remoteUrlPlaceholder": "git@example.com:you/notes.git",
       "ahead": "trước",
@@ -58,7 +65,19 @@
       "lastSynced": "Đồng bộ lần cuối {{time}}",
       "neverSynced": "Chưa từng đồng bộ.",
       "conflictNotice": "Pull phát hiện xung đột nên đã bị hủy — không có gì thay đổi. Các file xung đột:",
-      "actionFailed": "Thao tác đồng bộ thất bại."
+      "actionFailed": "Thao tác đồng bộ thất bại.",
+      "webdav": {
+        "urlLabel": "URL WebDAV",
+        "urlPlaceholder": "https://cloud.example.com/remote.php/dav/files/you/poco",
+        "folderNotice": "Hãy trỏ đến một thư mục con riêng (như ví dụ trên), không phải thư mục gốc của tài khoản WebDAV — poco sẽ tạo các thư mục projects/journal/notes ngay trong URL bạn nhập, lẫn với mọi thứ khác đã có sẵn nếu bạn dùng thư mục gốc.",
+        "usernameLabel": "Tên đăng nhập",
+        "passwordLabel": "Mật khẩu",
+        "save": "Lưu kết nối",
+        "toPush": "cần push",
+        "toPull": "cần pull",
+        "notConfigured": "Chưa cấu hình kết nối WebDAV.",
+        "conflictNotice": "Một số file đã thay đổi ở cả hai phía kể từ lần đồng bộ trước và được giữ nguyên — hãy tự xử lý rồi đồng bộ lại:"
+      }
     },
     "reminder": {
       "sectionTitle": "Nhắc nhở hằng ngày",
@@ -83,7 +102,7 @@
     },
     "desktopOnlyNotice": "Nhắc nhở hằng ngày và tùy chọn khởi động cùng hệ thống chỉ khả dụng trên ứng dụng desktop.",
     "git": {
-      "notFoundNotice": "Không tìm thấy Git trên máy này — lịch sử hoàn tác và đồng bộ từ xa sẽ không hoạt động cho đến khi được cài đặt.",
+      "notFoundNotice": "Không tìm thấy Git trên máy này — lịch sử hoàn tác và tùy chọn đồng bộ qua git-remote sẽ không hoạt động cho đến khi được cài đặt. Đồng bộ WebDAV thì không cần Git.",
       "downloadLink": "Tải Git"
     },
     "agentAccess": {

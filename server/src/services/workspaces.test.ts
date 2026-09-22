@@ -8,6 +8,7 @@ import { getIndexStatus } from '../lib/index/reindex.js';
 import { readRegistry, writeRegistry } from '../lib/workspaces.js';
 import {
   addWorkspace,
+  clearSyncProvider,
   getAccentPalettePreference,
   getActiveWorkspace,
   getAutosaveIntervalPreference,
@@ -356,4 +357,19 @@ test('note view mode preference defaults to edit and persists an explicit choice
 
   setNoteViewModePreference('edit', homeDir);
   assert.equal(getNoteViewModePreference(homeDir), 'edit');
+});
+
+test('clearSyncProvider resets an active provider back to none, regardless of which one it was', () => {
+  const homeDir = scratchDir('poco-home-');
+  const vault = scratchDir('poco-vault-');
+  const ws = addWorkspace({ path: vault }, homeDir);
+
+  const registry = readRegistry(homeDir);
+  const entry = registry.workspaces.find((w) => w.id === ws.id)!;
+  entry.sync = { provider: 'webdav', url: 'https://example.com/dav', username: 'alice', password: 'secret', lastSyncedAt: null };
+  writeRegistry(registry, homeDir);
+
+  const cleared = clearSyncProvider(homeDir);
+  assert.deepEqual(cleared, { provider: 'none' });
+  assert.deepEqual(readRegistry(homeDir).workspaces.find((w) => w.id === ws.id)?.sync, { provider: 'none' });
 });

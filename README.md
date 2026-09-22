@@ -9,7 +9,7 @@ you can read, edit, `grep`, sync, or back up with any tool you already use.
 Ships as an **Electron desktop app**, with AI-agent access (Claude Code,
 Claude Desktop, or any other MCP client) via a built-in **MCP server**,
 git-backed versioning as an undo mechanism for any edit — human or agent —
-and optional git-remote sync.
+and optional sync to a git remote or a WebDAV server (e.g. Nextcloud).
 
 ## Screenshots
 
@@ -77,8 +77,13 @@ that exact layout from the ground up.
 - **Git-backed history**: every workspace is its own git repo, auto-committed
   on every write, tagged by origin (`[api]` vs `[mcp:<tool>]`) — any unwanted
   change (yours or an AI agent's) is a one-click revert away, with a diff
-  view. Optional push/pull to a remote for backup/sync, with structured
-  conflict surfacing.
+  view.
+- **Remote sync**: push/pull to a git remote, or sync directly to a WebDAV
+  server (Nextcloud, ownCloud, etc.) with no git remote needed — pick one
+  provider per workspace in Settings. Both surface conflicts (a file changed
+  on both sides since the last sync) rather than silently overwriting either
+  side. WebDAV sync works even on a machine with no git installed at all —
+  only local undo history and the git-remote option need it.
 - **MCP server** for agent access — 20 read/write tools over the same
   service layer the app itself uses (projects, tasks, journal entries and
   links, notes, and a cross-type `search_everything`), so any MCP-capable
@@ -95,8 +100,10 @@ that exact layout from the ground up.
 
 - [Node.js](https://nodejs.org/) **≥ 22.5** (for the built-in `node:sqlite`
   module — no native module to compile)
-- [git](https://git-scm.com/) (each workspace is a git repo; the app shells
-  out to your local git install)
+- [git](https://git-scm.com/) — needed for the local undo/history feature and
+  for git-remote sync (each workspace is a git repo; the app shells out to
+  your local git install). Not required for WebDAV sync, which talks to the
+  server directly over HTTP.
 
 Check your Node version:
 

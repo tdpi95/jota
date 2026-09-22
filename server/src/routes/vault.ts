@@ -61,4 +61,17 @@ router.post('/revert/:commit', (req, res, next) => {
   }
 });
 
+// Provider-agnostic "disconnect" — resets the active workspace's sync
+// provider to `{provider: 'none'}` regardless of whether git-remote or
+// webdav was active (milestone 29's Settings provider selector, PLAN.md
+// "one provider active per workspace"). Lives here, not under
+// /api/vault/git or /api/vault/webdav, since it isn't specific to either.
+router.delete('/sync', (_req, res, next) => {
+  try {
+    res.json({ sync: workspaceService.clearSyncProvider() });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

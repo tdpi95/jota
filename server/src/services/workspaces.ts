@@ -10,7 +10,7 @@ import path from 'node:path';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import { ensureGitHistory } from '../lib/vaultGit.js';
-import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WorkspaceEntry } from '../lib/workspaces.js';
+import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WorkspaceEntry, type WorkspaceSyncConfig } from '../lib/workspaces.js';
 
 /**
  * Best-effort reconciliation on open/add (PLAN.md "Sync strategy —
@@ -158,6 +158,21 @@ function findEntryOrThrow(id: string, registry: ReturnType<typeof readRegistry>)
   const entry = registry.workspaces.find((w) => w.id === id);
   if (!entry) throw new WorkspaceServiceError(`no workspace with id ${id}`, 404);
   return entry;
+}
+
+/** `DELETE /api/vault/sync` — resets the active workspace's sync provider
+ * back to `{provider: 'none'}`, regardless of which one (git-remote or
+ * webdav) was active. Provider-agnostic and just a registry mutation (no
+ * git/WebDAV call of its own — there's nothing to "disconnect" on either
+ * side, only the app's own record of which one it treats as active), so it
+ * lives here rather than in either provider's own sync service. */
+export function clearSyncProvider(homeDir: string = os.homedir()): WorkspaceSyncConfig {
+  const active = getActiveWorkspaceOrThrow(homeDir);
+  const registry = readRegistry(homeDir);
+  const entry = findEntryOrThrow(active.id, registry);
+  entry.sync = { provider: 'none' };
+  writeRegistry(registry, homeDir);
+  return entry.sync;
 }
 
 /** `window.poco.getReminderSettings()` (via `electron/src/main.ts`'s IPC

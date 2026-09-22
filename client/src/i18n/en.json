@@ -48,6 +48,13 @@
     },
     "sync": {
       "sectionTitle": "Remote sync — {{name}}",
+      "provider": {
+        "none": "None",
+        "gitRemote": "Git remote",
+        "webdav": "WebDAV"
+      },
+      "disconnect": "Disconnect",
+      "noneNote": "No sync provider configured for this workspace.",
       "remoteUrlLabel": "Remote URL",
       "remoteUrlPlaceholder": "git@example.com:you/notes.git",
       "ahead": "ahead",
@@ -58,7 +65,19 @@
       "lastSynced": "Last synced {{time}}",
       "neverSynced": "Never synced.",
       "conflictNotice": "Pull found conflicts and was aborted — nothing was changed. Conflicting files:",
-      "actionFailed": "Sync action failed."
+      "actionFailed": "Sync action failed.",
+      "webdav": {
+        "urlLabel": "WebDAV URL",
+        "urlPlaceholder": "https://cloud.example.com/remote.php/dav/files/you/poco",
+        "folderNotice": "Point this at a dedicated subfolder (like the example above), not the root of your WebDAV account — poco will create projects/journal/notes folders directly inside whatever URL you enter, mixed in with everything else already there if you use the root.",
+        "usernameLabel": "Username",
+        "passwordLabel": "Password",
+        "save": "Save connection",
+        "toPush": "to push",
+        "toPull": "to pull",
+        "notConfigured": "No WebDAV connection configured yet.",
+        "conflictNotice": "Some files changed on both sides since the last sync and were left untouched — resolve manually, then sync again:"
+      }
     },
     "reminder": {
       "sectionTitle": "Daily reminder",
@@ -83,7 +102,7 @@
     },
     "desktopOnlyNotice": "The daily reminder and launch-at-login toggle are only available in the desktop app.",
     "git": {
-      "notFoundNotice": "Git wasn't found on this machine — undo history and remote sync won't work until it's installed.",
+      "notFoundNotice": "Git wasn't found on this machine — undo history and the git-remote sync option won't work until it's installed. WebDAV sync doesn't need it.",
       "downloadLink": "Download Git"
     },
     "agentAccess": {

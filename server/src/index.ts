@@ -24,6 +24,7 @@ import systemRouter from './routes/system.js';
 import taskQueriesRouter from './routes/taskQueries.js';
 import tasksRouter from './routes/tasks.js';
 import vaultRouter from './routes/vault.js';
+import webdavSyncRouter from './routes/webdavSync.js';
 import workspacesRouter from './routes/workspaces.js';
 import * as workspaceService from './services/workspaces.js';
 
@@ -44,6 +45,7 @@ export function createApp() {
   app.use('/api/workspaces', workspacesRouter);
   app.use('/api/index', indexRouter);
   app.use('/api/vault/git', syncRouter);
+  app.use('/api/vault/webdav', webdavSyncRouter);
   app.use('/api/vault', vaultRouter);
   app.use('/api/projects', projectsRouter);
   app.use('/api/projects/:slug/tasks', tasksRouter);

@@ -15,10 +15,18 @@ import path from 'node:path';
 /** A workspace's remote-sync configuration (PLAN.md "Remote & cloud sync").
  * Absent/undefined on an entry is equivalent to `{ provider: 'none' }` — old
  * registry entries written before milestone 6 never gain the field until
- * they're explicitly given a remote. */
+ * they're explicitly given a remote. Exactly one provider is active at a
+ * time (PLAN.md milestone 29's "one provider active per workspace" — chosen
+ * over letting git-remote and webdav run concurrently, which could race on
+ * the same files with no coordination between them); switching providers
+ * overwrites this field outright rather than merging. `webdav`'s
+ * url/username/password are stored in plain text, same trust model already
+ * accepted for `git-remote`'s `remoteUrl` (confirmed via `AskUserQuestion`
+ * at milestone 29 kickoff — no OS keychain integration). */
 export type WorkspaceSyncConfig =
   | { provider: 'none' }
-  | { provider: 'git-remote'; remoteUrl: string; lastSyncedAt: string | null };
+  | { provider: 'git-remote'; remoteUrl: string; lastSyncedAt: string | null }
+  | { provider: 'webdav'; url: string; username: string; password: string; lastSyncedAt: string | null };
 
 export interface WorkspaceEntry {
   id: string;

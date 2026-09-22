@@ -22,6 +22,8 @@ import type {
   SyncStatus,
   Task,
   TaskStatus,
+  WebDavStatus,
+  WebDavSyncResult,
   Workspace,
   WorkspaceSyncConfig,
 } from '../types';
@@ -312,6 +314,37 @@ export function pullVault(): Promise<PullResult> {
 
 export function getSyncStatus(): Promise<SyncStatus> {
   return request('/vault/git/status');
+}
+
+// --- WebDAV sync (Settings page's Sync panel, milestone 29) — additive
+// alongside git-remote above; only one provider is active per workspace at
+// a time (PLAN.md), whichever one's `config`/`remote` endpoint was called
+// last. ---
+
+export function getWebdavConfig(): Promise<{ sync: WorkspaceSyncConfig }> {
+  return request('/vault/webdav/config');
+}
+
+export function setWebdavConfig(input: { url: string; username: string; password: string }): Promise<{ sync: WorkspaceSyncConfig }> {
+  return request('/vault/webdav/config', { method: 'PUT', body: JSON.stringify(input) });
+}
+
+export function pushWebdav(): Promise<WebDavSyncResult> {
+  return request('/vault/webdav/push', { method: 'POST' });
+}
+
+export function pullWebdav(): Promise<WebDavSyncResult> {
+  return request('/vault/webdav/pull', { method: 'POST' });
+}
+
+export function getWebdavStatus(): Promise<WebDavStatus> {
+  return request('/vault/webdav/status');
+}
+
+/** Provider-agnostic "disconnect" — resets the active workspace's sync
+ * provider back to `{provider: 'none'}` regardless of which one was active. */
+export function clearSyncProvider(): Promise<{ sync: WorkspaceSyncConfig }> {
+  return request('/vault/sync', { method: 'DELETE' });
 }
 
 // --- Preferences ---

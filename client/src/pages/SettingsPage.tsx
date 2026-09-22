@@ -7,7 +7,10 @@ import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
 import { getPocoBridge, type ReminderSettings } from '../lib/pocoBridge';
 import { ACCENT_PALETTE_SWATCH, ACCENT_PALETTES, applyAccentPalette, applyTheme, THEMES, type AccentPalette, type ThemeMode } from '../lib/theme';
-import type { PullResult } from '../types';
+import type { PullResult, WorkspaceSyncConfig } from '../types';
+
+const SYNC_PROVIDERS = ['none', 'git-remote', 'webdav'] as const;
+type SyncProviderTab = (typeof SYNC_PROVIDERS)[number];
 
 const DEFAULT_REMINDER: ReminderSettings = { enabled: true, time: '20:00' };
 
@@ -145,20 +148,44 @@ export default function SettingsPage() {
   }
 
   // --- Remote sync (active workspace only) ---
+  // PLAN.md milestone 29's "one provider active per workspace" model:
+  // `GET /api/vault/git/remote` and `GET /api/vault/webdav/config` both read
+  // the exact same underlying registry field (`workspace.sync`), just two
+  // different views onto it — so either call tells us which provider (if
+  // any) is actually active right now. `selectedProvider` is a separate,
+  // purely local "which tab is showing" choice: it starts out mirroring
+  // whichever provider is active, but switching tabs doesn't change
+  // anything on the server by itself — only actually saving that tab's
+  // config (or hitting Disconnect) does, matching "switching providers is
+  // an explicit user action, never automatic".
 
-  const remoteQuery = useQuery({ queryKey: ['sync', 'remote'], queryFn: api.getSyncRemote, enabled: active !== null });
-  const statusQuery = useQuery({ queryKey: ['sync', 'status'], queryFn: api.getSyncStatus, enabled: active !== null });
-  const [remoteUrlDraft, setRemoteUrlDraft] = useState('');
-  const [pullResult, setPullResult] = useState<PullResult | null>(null);
-
+  const syncConfigQuery = useQuery({ queryKey: ['sync', 'config'], queryFn: api.getSyncRemote, enabled: active !== null });
+  const activeSync: WorkspaceSyncConfig = syncConfigQuery.data?.sync ?? { provider: 'none' };
+  const [selectedProvider, setSelectedProvider] = useState<SyncProviderTab>('none');
   useEffect(() => {
-    const sync = remoteQuery.data?.sync;
-    setRemoteUrlDraft(sync?.provider === 'git-remote' ? sync.remoteUrl : '');
-  }, [remoteQuery.data]);
+    setSelectedProvider(activeSync.provider);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSync.provider, active?.id]);
 
   function invalidateSync() {
     queryClient.invalidateQueries({ queryKey: ['sync'] });
   }
+
+  const disconnectMutation = useMutation({
+    mutationFn: api.clearSyncProvider,
+    onSuccess: invalidateSync,
+  });
+
+  // --- Git-remote provider ---
+
+  const statusQuery = useQuery({ queryKey: ['sync', 'status'], queryFn: api.getSyncStatus, enabled: active !== null && selectedProvider === 'git-remote' });
+  const [remoteUrlDraft, setRemoteUrlDraft] = useState('');
+  const [pullResult, setPullResult] = useState<PullResult | null>(null);
+
+  useEffect(() => {
+    setRemoteUrlDraft(activeSync.provider === 'git-remote' ? activeSync.remoteUrl : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSync]);
 
   const setRemoteMutation = useMutation({
     mutationFn: (url: string) => api.setSyncRemote(url),
@@ -182,9 +209,61 @@ export default function SettingsPage() {
 
   function commitRemoteUrl() {
     const url = remoteUrlDraft.trim();
-    const current = remoteQuery.data?.sync;
-    const currentUrl = current?.provider === 'git-remote' ? current.remoteUrl : '';
+    const currentUrl = activeSync.provider === 'git-remote' ? activeSync.remoteUrl : '';
     if (url && url !== currentUrl) setRemoteMutation.mutate(url);
+  }
+
+  // --- WebDAV provider (milestone 29) ---
+
+  // Gated on `activeSync.provider`, not `selectedProvider` — unlike git's
+  // status endpoint (safe to call with no remote configured), the webdav
+  // status endpoint 400s with no WebDAV connection active, which merely
+  // *viewing* the tab (before ever saving a connection, or right after
+  // disconnecting) would otherwise trigger on every keystroke in the form.
+  const webdavStatusQuery = useQuery({
+    queryKey: ['sync', 'webdav-status'],
+    queryFn: api.getWebdavStatus,
+    enabled: active !== null && selectedProvider === 'webdav' && activeSync.provider === 'webdav',
+  });
+  const [webdavUrlDraft, setWebdavUrlDraft] = useState('');
+  const [webdavUsernameDraft, setWebdavUsernameDraft] = useState('');
+  const [webdavPasswordDraft, setWebdavPasswordDraft] = useState('');
+
+  useEffect(() => {
+    if (activeSync.provider === 'webdav') {
+      setWebdavUrlDraft(activeSync.url);
+      setWebdavUsernameDraft(activeSync.username);
+      setWebdavPasswordDraft(activeSync.password);
+    } else {
+      setWebdavUrlDraft('');
+      setWebdavUsernameDraft('');
+      setWebdavPasswordDraft('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSync]);
+
+  const setWebdavConfigMutation = useMutation({
+    mutationFn: (input: { url: string; username: string; password: string }) => api.setWebdavConfig(input),
+    onSuccess: invalidateSync,
+  });
+  const pushWebdavMutation = useMutation({
+    mutationFn: api.pushWebdav,
+    onSuccess: invalidateSync,
+  });
+  const pullWebdavMutation = useMutation({
+    mutationFn: api.pullWebdav,
+    onSuccess: (result) => {
+      invalidateSync();
+      // A clean pull can change any file the remote had a newer copy of —
+      // same "refetch everything" reasoning as the git-remote pull above.
+      if (result.conflicts.length === 0) queryClient.invalidateQueries();
+    },
+  });
+
+  const webdavConfigured = webdavUrlDraft.trim() !== '' && webdavUsernameDraft.trim() !== '' && webdavPasswordDraft !== '';
+  function commitWebdavConfig() {
+    if (!webdavConfigured) return;
+    setWebdavConfigMutation.mutate({ url: webdavUrlDraft.trim(), username: webdavUsernameDraft.trim(), password: webdavPasswordDraft });
   }
 
   // --- Reminder + launch-at-login (Electron only) ---
@@ -452,65 +531,180 @@ export default function SettingsPage() {
       {active && (
         <div className="settings-section">
           <div className="section-title">{t('settings.sync.sectionTitle', { name: active.name })}</div>
-          <div className="sync-panel">
-            <div className="sync-field">
-              <label>{t('settings.sync.remoteUrlLabel')}</label>
-              <input
-                value={remoteUrlDraft}
-                onChange={(e) => setRemoteUrlDraft(e.target.value)}
-                onBlur={commitRemoteUrl}
-                onKeyDown={(e) => e.key === 'Enter' && commitRemoteUrl()}
-                placeholder={t('settings.sync.remoteUrlPlaceholder')}
-              />
-            </div>
-            <div className="sync-counts">
-              <span>
-                <b>{syncStatus?.ahead ?? '—'}</b> {t('settings.sync.ahead')}
-              </span>
-              <span>
-                <b>{syncStatus?.behind ?? '—'}</b> {t('settings.sync.behind')}
-              </span>
-            </div>
-            <div className="sync-actions">
-              <button className="btn-primary" disabled={!syncConfigured || pushMutation.isPending} onClick={() => pushMutation.mutate()}>
-                {t('settings.sync.push')}
-              </button>
+          <div className="lang-picker" role="radiogroup" aria-label={t('settings.sync.sectionTitle', { name: active.name }) ?? undefined} style={{ marginBottom: 14 }}>
+            {SYNC_PROVIDERS.map((provider) => (
               <button
-                className="btn-secondary"
-                disabled={!syncConfigured || pullMutation.isPending}
-                onClick={() => {
-                  setPullResult(null);
-                  pullMutation.mutate();
-                }}
+                key={provider}
+                type="button"
+                role="radio"
+                aria-checked={selectedProvider === provider}
+                className={`ws-row-btn ${selectedProvider === provider ? 'is-active' : ''}`}
+                onClick={() => setSelectedProvider(provider)}
               >
-                {t('settings.sync.pull')}
+                {t(`settings.sync.provider.${provider === 'git-remote' ? 'gitRemote' : provider}`)}
               </button>
-            </div>
-            <div className="sync-status">
-              {!syncConfigured && t('settings.sync.noRemoteConfigured')}
-              {syncConfigured && syncStatus?.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(syncStatus.lastSyncedAt) })}
-              {syncConfigured && !syncStatus?.lastSyncedAt && t('settings.sync.neverSynced')}
-            </div>
-            {pullResult?.conflict && (
-              <div className="field-error" style={{ marginTop: 10 }}>
-                {t('settings.sync.conflictNotice')}
-                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                  {pullResult.files.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {(() => {
-              const err = setRemoteMutation.error ?? pushMutation.error ?? pullMutation.error;
-              if (!err) return null;
-              return (
-                <div className="field-error" style={{ marginTop: 10 }}>
-                  {err instanceof api.ApiError ? err.message : t('settings.sync.actionFailed')}
-                </div>
-              );
-            })()}
+            ))}
           </div>
+
+          {selectedProvider === 'none' && (
+            <div className="sync-panel">
+              <p className="empty-note">{t('settings.sync.noneNote')}</p>
+              {activeSync.provider !== 'none' && (
+                <button className="btn-secondary" style={{ marginTop: 10 }} disabled={disconnectMutation.isPending} onClick={() => disconnectMutation.mutate()}>
+                  {t('settings.sync.disconnect')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {selectedProvider === 'git-remote' && (
+            <div className="sync-panel">
+              <div className="sync-field">
+                <label>{t('settings.sync.remoteUrlLabel')}</label>
+                <input
+                  value={remoteUrlDraft}
+                  onChange={(e) => setRemoteUrlDraft(e.target.value)}
+                  onBlur={commitRemoteUrl}
+                  onKeyDown={(e) => e.key === 'Enter' && commitRemoteUrl()}
+                  placeholder={t('settings.sync.remoteUrlPlaceholder')}
+                />
+              </div>
+              <div className="sync-counts">
+                <span>
+                  <b>{syncStatus?.ahead ?? '—'}</b> {t('settings.sync.ahead')}
+                </span>
+                <span>
+                  <b>{syncStatus?.behind ?? '—'}</b> {t('settings.sync.behind')}
+                </span>
+              </div>
+              <div className="sync-actions">
+                <button className="btn-primary" disabled={!syncConfigured || pushMutation.isPending} onClick={() => pushMutation.mutate()}>
+                  {t('settings.sync.push')}
+                </button>
+                <button
+                  className="btn-secondary"
+                  disabled={!syncConfigured || pullMutation.isPending}
+                  onClick={() => {
+                    setPullResult(null);
+                    pullMutation.mutate();
+                  }}
+                >
+                  {t('settings.sync.pull')}
+                </button>
+                {activeSync.provider === 'git-remote' && (
+                  <button className="icon-btn" title={t('settings.sync.disconnect') ?? undefined} disabled={disconnectMutation.isPending} onClick={() => disconnectMutation.mutate()}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div className="sync-status">
+                {!syncConfigured && t('settings.sync.noRemoteConfigured')}
+                {syncConfigured && syncStatus?.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(syncStatus.lastSyncedAt) })}
+                {syncConfigured && !syncStatus?.lastSyncedAt && t('settings.sync.neverSynced')}
+              </div>
+              {pullResult?.conflict && (
+                <div className="field-error" style={{ marginTop: 10 }}>
+                  {t('settings.sync.conflictNotice')}
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                    {pullResult.files.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(() => {
+                const err = setRemoteMutation.error ?? pushMutation.error ?? pullMutation.error;
+                if (!err) return null;
+                return (
+                  <div className="field-error" style={{ marginTop: 10 }}>
+                    {err instanceof api.ApiError ? err.message : t('settings.sync.actionFailed')}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {selectedProvider === 'webdav' && (
+            <div className="sync-panel">
+              <div className="sync-field">
+                <label>{t('settings.sync.webdav.urlLabel')}</label>
+                <input value={webdavUrlDraft} onChange={(e) => setWebdavUrlDraft(e.target.value)} placeholder={t('settings.sync.webdav.urlPlaceholder')} />
+              </div>
+              <p className="empty-note" style={{ marginTop: -10 }}>{t('settings.sync.webdav.folderNotice')}</p>
+              <div className="sync-field">
+                <label>{t('settings.sync.webdav.usernameLabel')}</label>
+                <input value={webdavUsernameDraft} onChange={(e) => setWebdavUsernameDraft(e.target.value)} />
+              </div>
+              <div className="sync-field">
+                <label>{t('settings.sync.webdav.passwordLabel')}</label>
+                <input type="password" value={webdavPasswordDraft} onChange={(e) => setWebdavPasswordDraft(e.target.value)} />
+              </div>
+              <div className="sync-actions" style={{ marginBottom: 14 }}>
+                <button className="btn-secondary" disabled={!webdavConfigured || setWebdavConfigMutation.isPending} onClick={commitWebdavConfig}>
+                  {t('settings.sync.webdav.save')}
+                </button>
+              </div>
+              <div className="sync-counts">
+                <span>
+                  <b>{webdavStatusQuery.data?.toPush ?? '—'}</b> {t('settings.sync.webdav.toPush')}
+                </span>
+                <span>
+                  <b>{webdavStatusQuery.data?.toPull ?? '—'}</b> {t('settings.sync.webdav.toPull')}
+                </span>
+              </div>
+              <div className="sync-actions">
+                <button
+                  className="btn-primary"
+                  disabled={activeSync.provider !== 'webdav' || pushWebdavMutation.isPending}
+                  onClick={() => pushWebdavMutation.mutate()}
+                >
+                  {t('settings.sync.push')}
+                </button>
+                <button
+                  className="btn-secondary"
+                  disabled={activeSync.provider !== 'webdav' || pullWebdavMutation.isPending}
+                  onClick={() => pullWebdavMutation.mutate()}
+                >
+                  {t('settings.sync.pull')}
+                </button>
+                {activeSync.provider === 'webdav' && (
+                  <button className="icon-btn" title={t('settings.sync.disconnect') ?? undefined} disabled={disconnectMutation.isPending} onClick={() => disconnectMutation.mutate()}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div className="sync-status">
+                {activeSync.provider !== 'webdav' && t('settings.sync.webdav.notConfigured')}
+                {activeSync.provider === 'webdav' && activeSync.lastSyncedAt && t('settings.sync.lastSynced', { time: formatTimestamp(activeSync.lastSyncedAt) })}
+                {activeSync.provider === 'webdav' && !activeSync.lastSyncedAt && t('settings.sync.neverSynced')}
+              </div>
+              {(pushWebdavMutation.data?.conflicts.length || pullWebdavMutation.data?.conflicts.length || webdavStatusQuery.data?.conflicts.length) ? (
+                <div className="field-error" style={{ marginTop: 10 }}>
+                  {t('settings.sync.webdav.conflictNotice')}
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                    {(pushWebdavMutation.data?.conflicts ?? pullWebdavMutation.data?.conflicts ?? webdavStatusQuery.data?.conflicts ?? []).map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {(() => {
+                const err = setWebdavConfigMutation.error ?? pushWebdavMutation.error ?? pullWebdavMutation.error;
+                if (!err) return null;
+                return (
+                  <div className="field-error" style={{ marginTop: 10 }}>
+                    {err instanceof api.ApiError ? err.message : t('settings.sync.actionFailed')}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 

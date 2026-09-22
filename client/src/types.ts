@@ -110,8 +110,15 @@ export interface IndexedTask {
 
 /** `lib/workspaces.ts`'s `WorkspaceSyncConfig` — absent/undefined on a
  * `Workspace` means the same thing as `{provider: 'none'}` (an entry written
- * before remote sync existed never gains the field until a remote is set). */
-export type WorkspaceSyncConfig = { provider: 'none' } | { provider: 'git-remote'; remoteUrl: string; lastSyncedAt: string | null };
+ * before remote sync existed never gains the field until a remote is set).
+ * Exactly one provider is active at a time (PLAN.md milestone 29's "one
+ * provider active per workspace" model) — the Settings page's provider
+ * selector switches which one this is by writing to that provider's own
+ * config endpoint, or clears it back to `'none'` via `DELETE /api/vault/sync`. */
+export type WorkspaceSyncConfig =
+  | { provider: 'none' }
+  | { provider: 'git-remote'; remoteUrl: string; lastSyncedAt: string | null }
+  | { provider: 'webdav'; url: string; username: string; password: string; lastSyncedAt: string | null };
 
 export interface Workspace {
   id: string;
@@ -122,7 +129,7 @@ export interface Workspace {
 }
 
 /** `lib/sync/types.ts`'s `SyncStatus`/`PullResult` — back the Settings page's
- * Sync panel (milestone 16). */
+ * Sync panel (milestone 16, git-remote provider only). */
 export interface SyncStatus {
   remoteUrl: string | null;
   ahead: number | null;
@@ -132,6 +139,20 @@ export interface SyncStatus {
 }
 
 export type PullResult = { conflict: false } | { conflict: true; files: string[] };
+
+/** `lib/sync/webdav.ts`'s `WebDavStatus`/`WebDavSyncResult` — back the
+ * Settings page's Sync panel when the WebDAV provider is active (milestone 29). */
+export interface WebDavStatus {
+  toPush: number;
+  toPull: number;
+  conflicts: string[];
+  lastSyncedAt: string | null;
+}
+
+export interface WebDavSyncResult {
+  synced: string[];
+  conflicts: string[];
+}
 
 /** `lib/vaultGit.ts`'s `CommitInfo` — backs `HistoryPanel` (milestone 15). */
 export interface HistoryCommit {
