@@ -306,8 +306,8 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <div className="page-title-row">
-            {/* <h1 className="page-title">{t('dashboard.title')}</h1> */}
-            <h1 className="page-title">Poco</h1>
+            <h1 className="page-title">{t("dashboard.title")}</h1>
+            {/* <h1 className="page-title">Poco</h1> */}
             <img className="dashboard-title-plane" src={planeImg} alt="" />
           </div>
           <div className="page-sub">{formatDateLong(today, language)}</div>

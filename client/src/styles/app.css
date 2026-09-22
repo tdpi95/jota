@@ -4,9 +4,8 @@
    panel, Workspace switcher + Settings/Sync panel) actually need. */
 
 /* JetBrains Mono — the app's one monospace typeface (badges/IDs/hashes,
-   the journal editor). Embedded (not just named and left to the OS to
-   resolve, like Manrope still is) so it renders identically
-   regardless of what's installed on the machine: files live in
+   the journal editor). Embedded so it renders identically regardless of
+   what's installed on the machine: files live in
    client/public/fonts/jetbrains-mono/ (Vite copies `public/` verbatim into
    `dist/`, which is exactly what both the dev server and the packaged
    Electron app serve — see electron-builder.yml's client/dist
@@ -44,6 +43,30 @@
   font-display: swap;
 }
 
+/* Inter — the app's sans-serif typeface (body text, UI chrome). Embedded
+   the same way as JetBrains Mono above: client/public/fonts/inter/, SIL
+   Open Font License (OFL.txt alongside), served as static files. Each
+   file is the variable font instanced down to the wght range (400-700)
+   and opsz (14, i.e. text-optical-size) this app actually uses, rather
+   than shipping the full 100-900 weight / 14-32 optical-size design
+   space — one file covers every weight in that range via `font-weight:
+   400 700` instead of separate static files per weight. */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter/Inter-Variable.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter/Inter-Italic-Variable.woff2")
+    format("woff2-variations");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Theming (PLAN.md "Theming", milestone 21): every color in this file is one
    of these custom properties (or an alpha variant of one) — a component
    rule must never hardcode a color literal, the same discipline this file
@@ -51,9 +74,11 @@
    value `[data-palette]` below overrides; every accent-family token derives
    its hue from it (not a literal), which is the whole point of using oklch
    here — swapping the hue alone keeps the same lightness/chroma feel across
-   palettes. `--paper`/`--paper-card` also derive their hue from it (at very
-   low chroma) so the page background carries a faint tint of the active
-   palette instead of staying a fixed neutral. `[data-theme="dark"]` overrides every other token for the dark
+   palettes. `--paper`/`--paper-card` also derive their hue from it, at a
+   chroma low enough (0.003-0.006) that the page background reads as
+   effectively neutral — just enough tint that it doesn't look like a flat
+   fixed grey next to the active palette's accent, without competing with
+   it. `[data-theme="dark"]` overrides every other token for the dark
    variant, still referencing `var(--accent-hue)` so a palette choice
    applies identically in both themes. Both attributes are set on <html> by
    `client/src/lib/theme.ts`, resolved before first render in `main.tsx`. */
@@ -61,8 +86,8 @@
   color-scheme: light;
   --accent-hue: 45; /* "default" palette — the original single accent color */
 
-  --paper: oklch(97.3% 0.009 var(--accent-hue));
-  --paper-card: oklch(99% 0.006 var(--accent-hue));
+  --paper: oklch(97.3% 0.004 var(--accent-hue));
+  --paper-card: oklch(99% 0.003 var(--accent-hue));
   --ink: oklch(24% 0.02 75);
   --ink-muted: oklch(48% 0.02 75);
   --hairline: oklch(87% 0.015 75);
@@ -116,7 +141,15 @@
      --md-heading is accent-family (not --ink) so headings stand out from
      plain bold text, which stays --ink (MarkdownEditor.tsx keeps t.strong
      and heading1-6 as separate rules specifically so this doesn't tint
-     every bold word too). --md-code-bg is a translucent --ink wash, not an
+     every bold word too). --md-link is a fixed hue too, like --md-code,
+     rather than reusing --accent: a link needs to read as its own kind of
+     thing, distinct from a heading, and tying both to --accent made every
+     heading look like a giant link (and vice versa) with no visual cue to
+     tell them apart. Picked a hue (210, azure) that doesn't collide with
+     any --accent-hue option (45/145/250/305), --good (155), --danger (25),
+     or --md-code (350), so links stay visually distinct regardless of
+     accent palette or theme, the same reasoning --md-code already
+     documents for itself. --md-code-bg is a translucent --ink wash, not an
      opaque --surface-muted fill: the fenced-code-block line background
      (MarkdownEditor.tsx's codeBlockBackground) paints as part of .cm-line,
      which CodeMirror stacks *above* its selection-highlight layer (a
@@ -127,7 +160,7 @@
      solid muted-surface fill did. */
   --md-mark: var(--ink-muted);
   --md-heading: var(--accent);
-  --md-link: var(--accent);
+  --md-link: oklch(52% 0.15 210);
   --md-url: var(--ink-muted);
   --md-quote: var(--ink-muted);
   --md-code: oklch(52% 0.14 350);
@@ -135,10 +168,10 @@
 
   /* Cmd/Ctrl+F match highlight (MarkdownEditor.tsx's search() extension) —
      a fixed warm hue, independent of --accent-hue and every --md-* token
-     above, and deliberately *not* --accent itself: a match inside a heading
-     or link (both --md-heading/--md-link = var(--accent)) would otherwise
-     highlight in the exact same color as that text, and CSS can't fix this
-     with a `color` override on the highlight span — the heading/link text
+     above, and deliberately not reused from any of them: a match inside a
+     heading, link, or code span would otherwise highlight in the exact
+     same color as that text, and CSS can't fix this with a `color`
+     override on the highlight span — the syntax-highlighted text
      sits in its *own* nested span with its own explicit color from
      syntaxHighlighting(), which (being a direct, not inherited, rule on
      that element) always wins over a parent's inherited-or-not `color`,
@@ -170,8 +203,8 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --paper: oklch(22% 0.012 var(--accent-hue));
-  --paper-card: oklch(27% 0.012 var(--accent-hue));
+  --paper: oklch(22% 0.007 var(--accent-hue));
+  --paper-card: oklch(27% 0.006 var(--accent-hue));
   --ink: oklch(94% 0.008 75);
   --ink-muted: oklch(70% 0.012 75);
   --hairline: oklch(38% 0.014 75);
@@ -204,7 +237,7 @@
 
   --md-mark: var(--ink-muted);
   --md-heading: var(--accent);
-  --md-link: var(--accent);
+  --md-link: oklch(72% 0.15 210);
   --md-url: var(--ink-muted);
   --md-quote: var(--ink-muted);
   --md-code: oklch(72% 0.14 350);
@@ -220,7 +253,7 @@
 body {
   margin: 0;
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -297,7 +330,7 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -817,7 +850,7 @@ textarea {
 }
 .page-title {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -1312,7 +1345,7 @@ textarea {
 }
 .projects-group-heading {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -1387,7 +1420,7 @@ textarea {
 }
 .project-name {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -1538,7 +1571,7 @@ textarea {
 }
 .note-title {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -1604,7 +1637,7 @@ textarea {
   border: none;
   background: transparent;
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -1763,7 +1796,7 @@ textarea {
   padding: 20px;
   resize: none;
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -2188,7 +2221,7 @@ textarea {
 }
 .journal-date {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -2325,7 +2358,7 @@ textarea {
      this panel is app chrome, not document content, so it was already the
      odd one out inheriting the editor's code font to begin with. */
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -2629,7 +2662,7 @@ textarea {
    and per-entry clamp/expand. */
 .journal-list-section-title {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -2706,7 +2739,7 @@ textarea {
 
 .md-textarea {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -2776,7 +2809,7 @@ textarea {
   font-weight: 700;
   font-size: 13.5px;
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -3009,7 +3042,7 @@ textarea {
 }
 .modal-header h2 {
   font-family:
-    "Manrope",
+    "Inter",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",

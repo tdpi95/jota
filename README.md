@@ -127,6 +127,19 @@ process embeds the Express server and points a `BrowserWindow` at it — the
 renderer talks to `/api/...` over plain HTTP, same as a web app would).
 First run prompts you to pick a workspace folder.
 
+> **Linux: `npm run dev` fails with a SUID sandbox error from a system
+> terminal, but works from VS Code's integrated terminal?** On Ubuntu
+> 23.10+/24.04 (`kernel.apparmor_restrict_unprivileged_userns=1`), Electron's
+> sandbox needs the setuid-root helper `npm install` ships, but strips the
+> permissions off of. VS Code's own AppArmor profile grants its process tree
+> an exemption, which is why its integrated terminal is unaffected. Fix it
+> (re-run after every `npm install`, which strips it again):
+>
+> ```bash
+> sudo chown root:root node_modules/electron/dist/chrome-sandbox
+> sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+> ```
+
 ### Run the tests
 
 ```bash
