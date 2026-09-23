@@ -1,7 +1,7 @@
 {
   "name": "poco-electron",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "poco — a local-first, markdown-backed daily-tasks and journal app",
   "author": "poco",
   "main": "dist/main.js",
