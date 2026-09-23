@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            artifact-glob: release/*.AppImage
+          - os: windows-latest
+            target: win
+            artifact-glob: release/*.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run package:${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poco-${{ matrix.target }}
+          path: ${{ matrix.artifact-glob }}
+          if-no-files-found: error

@@ -4,9 +4,11 @@
 # electron-builder against this file.
 #
 # Basic config only, per PLAN.md: proves the app packages and runs
-# standalone on this dev machine's platform (Linux). Windows/macOS
-# installer polish (platform-native icons, code signing, notarization) is
-# explicitly out of scope here — see PROGRESS.md's milestone 18 notes.
+# standalone on Linux and Windows (built in CI, see
+# .github/workflows/build.yml — Linux and Windows runners each build
+# their own target natively, no cross-compilation). macOS, code signing,
+# and Windows Store/notarization-grade polish are explicitly out of scope
+# here — see PROGRESS.md's milestone 18 notes.
 appId: com.poco.app
 productName: Poco
 # package.json pins "electron": "^44.3.0" (a range, for normal npm installs)
@@ -113,6 +115,11 @@ extraResources:
       - '!@electron-internal/**'
       - '!@peculiar/**'
       - '!pkijs/**'
+
+win:
+  target: nsis
+  # No build/icon.ico is checked in — electron-builder auto-generates one
+  # from build/icon.png (1024x1024, well above its minimum) at build time.
 
 linux:
   target: AppImage

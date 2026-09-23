@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/assets','dist/assets',{recursive:true})\"",
-    "package": "npm run build && electron-builder --linux AppImage"
+    "package": "npm run package:linux",
+    "package:linux": "npm run build && electron-builder --linux AppImage",
+    "package:win": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "tree-kill": "^1.2.2"
