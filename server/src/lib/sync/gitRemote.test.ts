@@ -35,7 +35,13 @@ function seededWorkspace(): string {
 
 function cloneWorkspace(remote: string): string {
   const dir = scratchDir('poco-sync-clone-');
-  execFileSync('git', ['clone', remote, dir], { stdio: 'ignore' });
+  // -c core.autocrlf=false applies before clone's own initial checkout —
+  // ensureGitRepo's identical override below only takes effect on repo
+  // config from here on, too late to undo a CRLF conversion the clone's
+  // checkout already made (matters on a machine whose global git config
+  // defaults core.autocrlf=true, e.g. GitHub-hosted Windows runners, or a
+  // typical Windows git installer default).
+  execFileSync('git', ['-c', 'core.autocrlf=false', 'clone', remote, dir], { stdio: 'ignore' });
   ensureGitRepo(dir); // sets a local identity if none resolves, needed for later merge commits
   return dir;
 }

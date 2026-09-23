@@ -1,0 +1,11 @@
+# Force LF on checkout for tracked text files, regardless of platform or
+# whatever core.autocrlf a contributor's (or CI runner's) git has —
+# GitHub-hosted Windows runners default to core.autocrlf=true, which was
+# silently checking out .ts sources and test fixtures with CRLF and
+# breaking round-trip/byte-for-byte tests that compare against a hardcoded
+# `\n`-only expectation. Binary assets are left alone.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary

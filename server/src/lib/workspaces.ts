@@ -199,6 +199,15 @@ export function ensureGitRepo(workspacePath: string): void {
       execFileSync('git', ['init'], { cwd: workspacePath, stdio: 'ignore' });
     }
     ensureGitIdentity(workspacePath);
+    // Forced on every call (not just at init), overriding whatever a
+    // contributor's or a checkout-out clone's own git config says (Windows'
+    // git installer, and GitHub-hosted Windows runners, both default
+    // core.autocrlf=true): without this, checking out/reverting/pulling
+    // would silently rewrite this vault's markdown LF line endings to CRLF
+    // on Windows, corrupting the byte-for-byte round-trip this app's own
+    // parser/serializer promise (and mismatching every other platform's
+    // copy of the same file over sync).
+    execFileSync('git', ['config', 'core.autocrlf', 'false'], { cwd: workspacePath, stdio: 'ignore' });
   } catch (err) {
     console.error(`[workspaces] git init failed for ${workspacePath}:`, (err as Error).message);
   }

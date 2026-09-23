@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 
 import { APPIMAGE_MCP_SERVER_FLAG, getMcpLaunchInfo } from './mcpInfo.js';
@@ -11,16 +12,26 @@ import { APPIMAGE_MCP_SERVER_FLAG, getMcpLaunchInfo } from './mcpInfo.js';
 // mount-path bug part 15's fix still had). No fs/child_process needed: the
 // function under test only ever looks at the URL string and env object
 // it's given.
+//
+// The two non-AppImage cases build their fixture URL via `pathToFileURL` +
+// `path.resolve` rather than a hardcoded `file:///repo/...` string: a bare
+// POSIX-style absolute path isn't a valid Windows file URL (no drive
+// letter), and the real caller (`import.meta.url`) is always produced the
+// same platform-correct way this reconstructs. The AppImage-only fixtures
+// below stay hardcoded POSIX paths since `$APPIMAGE` short-circuits before
+// `fileURLToPath` is ever reached, and the feature itself is Linux-only.
 
 test('a .ts caller URL (dev) resolves a .ts entrypoint launched via npx tsx', () => {
-  const info = getMcpLaunchInfo('file:///repo/server/src/routes/system.ts', {});
+  const callerUrl = pathToFileURL(path.resolve('/repo/server/src/routes/system.ts')).href;
+  const info = getMcpLaunchInfo(callerUrl, {});
 
   assert.equal(info.command, 'npx');
   assert.deepEqual(info.args, ['tsx', path.resolve('/repo/server/src/mcp/index.ts')]);
 });
 
 test('a .js caller URL (compiled, no $APPIMAGE — a plain prod run) resolves a .js entrypoint launched via plain node', () => {
-  const info = getMcpLaunchInfo('file:///repo/server/dist/routes/system.js', {});
+  const callerUrl = pathToFileURL(path.resolve('/repo/server/dist/routes/system.js')).href;
+  const info = getMcpLaunchInfo(callerUrl, {});
 
   assert.equal(info.command, 'node');
   assert.deepEqual(info.args, [path.resolve('/repo/server/dist/mcp/index.js')]);
