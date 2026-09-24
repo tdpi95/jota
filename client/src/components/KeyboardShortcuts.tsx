@@ -14,8 +14,8 @@ import SearchModal from './SearchModal';
 const NAV_SHORTCUTS: Record<string, string> = {
   '1': '/',
   '2': '/projects',
-  '3': '/notes',
-  '4': '/journal',
+  '3': '/journal',
+  '4': '/notes',
   '5': '/calendar',
   ',': '/settings',
 };
@@ -35,7 +35,7 @@ const NAV_SHORTCUTS: Record<string, string> = {
  * - Cmd/Ctrl+T — quick-add a task from anywhere, via the same
  *   `QuickAddTaskModal` the Dashboard's own "+ Add task" button opens.
  * - Cmd/Ctrl+J — jump to today's journal entry with the editor already
- *   focused, ready to type (vs. plain Cmd/Ctrl+4, which just opens the
+ *   focused, ready to type (vs. plain Cmd/Ctrl+3, which just opens the
  *   page).
  *
  * No Shift needed for K/T/J — nothing else in the app claims plain

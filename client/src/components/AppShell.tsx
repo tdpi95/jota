@@ -15,8 +15,8 @@ import WorkspaceSwitcher from './WorkspaceSwitcher';
 const NAV_SHORTCUT_HINTS: Record<string, string> = {
   dashboard: shortcutLabel('1'),
   projects: shortcutLabel('2'),
-  notes: shortcutLabel('3'),
-  journal: shortcutLabel('4'),
+  journal: shortcutLabel('3'),
+  notes: shortcutLabel('4'),
   calendar: shortcutLabel('5'),
   settings: shortcutLabel(','),
 };
@@ -89,8 +89,8 @@ export default function AppShell() {
         <nav className="nav">
           <NavItem to="/" end label={t('appShell.nav.dashboard')} icon="dashboard" />
           <NavItem to="/projects" label={t('appShell.nav.projects')} icon="projects" />
-          <NavItem to="/notes" label={t('appShell.nav.notes')} icon="notes" />
           <NavItem to="/journal" label={t('appShell.nav.journal')} icon="journal" />
+          <NavItem to="/notes" label={t('appShell.nav.notes')} icon="notes" />
           <NavItem to="/calendar" label={t('appShell.nav.calendar')} icon="calendar" />
           <NavItem to="/settings" label={t('appShell.nav.settings')} icon="settings" />
         </nav>
