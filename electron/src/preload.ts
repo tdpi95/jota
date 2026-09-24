@@ -14,7 +14,7 @@ export interface ReminderSettings {
   time: string | null;
 }
 
-export interface PocoBridge {
+export interface JotaBridge {
   pickFolder: () => Promise<string | null>;
   getLaunchAtLogin: () => Promise<boolean>;
   setLaunchAtLogin: (enabled: boolean) => Promise<void>;
@@ -44,17 +44,17 @@ export interface PocoBridge {
   setDesktopEntryInstalled: (enabled: boolean) => Promise<void>;
 }
 
-const pocoBridge: PocoBridge = {
-  pickFolder: () => ipcRenderer.invoke('poco:pick-folder'),
-  getLaunchAtLogin: () => ipcRenderer.invoke('poco:get-launch-at-login'),
-  setLaunchAtLogin: (enabled) => ipcRenderer.invoke('poco:set-launch-at-login', enabled),
-  getReminderSettings: () => ipcRenderer.invoke('poco:get-reminder-settings'),
-  setReminderSettings: (settings) => ipcRenderer.invoke('poco:set-reminder-settings', settings),
-  openWorkspaceFolder: (path) => ipcRenderer.invoke('poco:open-workspace-folder', path),
-  openAttachment: (relPath) => ipcRenderer.invoke('poco:open-attachment', relPath),
-  canCreateDesktopEntry: () => ipcRenderer.invoke('poco:can-create-desktop-entry'),
-  isDesktopEntryInstalled: () => ipcRenderer.invoke('poco:is-desktop-entry-installed'),
-  setDesktopEntryInstalled: (enabled) => ipcRenderer.invoke('poco:set-desktop-entry-installed', enabled),
+const jotaBridge: JotaBridge = {
+  pickFolder: () => ipcRenderer.invoke('jota:pick-folder'),
+  getLaunchAtLogin: () => ipcRenderer.invoke('jota:get-launch-at-login'),
+  setLaunchAtLogin: (enabled) => ipcRenderer.invoke('jota:set-launch-at-login', enabled),
+  getReminderSettings: () => ipcRenderer.invoke('jota:get-reminder-settings'),
+  setReminderSettings: (settings) => ipcRenderer.invoke('jota:set-reminder-settings', settings),
+  openWorkspaceFolder: (path) => ipcRenderer.invoke('jota:open-workspace-folder', path),
+  openAttachment: (relPath) => ipcRenderer.invoke('jota:open-attachment', relPath),
+  canCreateDesktopEntry: () => ipcRenderer.invoke('jota:can-create-desktop-entry'),
+  isDesktopEntryInstalled: () => ipcRenderer.invoke('jota:is-desktop-entry-installed'),
+  setDesktopEntryInstalled: (enabled) => ipcRenderer.invoke('jota:set-desktop-entry-installed', enabled),
 };
 
-contextBridge.exposeInMainWorld('poco', pocoBridge);
+contextBridge.exposeInMainWorld('jota', jotaBridge);

@@ -9,8 +9,8 @@
 # their own target natively, no cross-compilation). macOS, code signing,
 # and Windows Store/notarization-grade polish are explicitly out of scope
 # here — see PROGRESS.md's milestone 18 notes.
-appId: com.poco.app
-productName: Poco
+appId: com.jota.app
+productName: Jota
 # package.json pins "electron": "^44.3.0" (a range, for normal npm installs)
 # but electron-builder needs an exact version to know which prebuilt
 # Electron binary to download/reuse — kept in sync with the installed
@@ -124,12 +124,12 @@ win:
 linux:
   target: AppImage
   # electron-builder's Linux default is the npm package name
-  # ("poco-electron", this workspace's package.json "name" — kept as-is
+  # ("jota-electron", this workspace's package.json "name" — kept as-is
   # since renaming it would ripple into other tooling) rather than
   # productName, unlike every other platform. Overridden here purely
   # cosmetically, so the installed icon file/binary/.desktop id all read
-  # "poco" instead of the internal workspace name.
-  executableName: poco
+  # "jota" instead of the internal workspace name.
+  executableName: jota
   # The existing 512×512 app icon (already used for the dev BrowserWindow) —
   # electron-builder resizes it into the full hicolor icon theme set and
   # wires it up as both the AppImage's own .DirIcon and the bundled

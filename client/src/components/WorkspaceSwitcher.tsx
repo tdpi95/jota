@@ -3,15 +3,15 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
-import { getPocoBridge } from '../lib/pocoBridge';
+import { getJotaBridge } from '../lib/jotaBridge';
 
 /**
  * Sidebar workspace control (PLAN.md "Frontend" — `AppShell`'s
  * `WorkspaceSwitcher`): the active workspace's name, a dropdown listing
  * every registered workspace to switch among, and "+ Open folder" to
- * register a new one. `window.poco.pickFolder()` (the native OS picker,
+ * register a new one. `window.jota.pickFolder()` (the native OS picker,
  * milestone 3) is the primary way to supply a path — the plain text-input
- * fallback below only appears when `window.poco` isn't present at all
+ * fallback below only appears when `window.jota` isn't present at all
  * (e.g. the client opened as a bare page outside the Electron shell), which
  * isn't the app's real supported path but keeps this usable for a quick
  * check.
@@ -52,7 +52,7 @@ export default function WorkspaceSwitcher() {
   });
 
   async function handleOpenFolder() {
-    const bridge = getPocoBridge();
+    const bridge = getJotaBridge();
     if (!bridge) {
       // No native picker available outside Electron — fall back to the
       // inline path input rendered below instead of silently doing nothing.
@@ -67,7 +67,7 @@ export default function WorkspaceSwitcher() {
     if (path) addMutation.mutate({ path });
   }
 
-  const hasBridge = getPocoBridge() !== null;
+  const hasBridge = getJotaBridge() !== null;
 
   return (
     <div className="ws-switcher">

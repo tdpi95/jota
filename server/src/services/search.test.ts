@@ -19,7 +19,7 @@ import { createTask } from './tasks.js';
 // by its own natural date field.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-search-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-search-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'journal'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'notes'), { recursive: true });

@@ -15,7 +15,7 @@ import { createTask, deleteTask, getJournalLinksForTask, listOpenTasks, searchTa
 // file, the index row, and a new git commit all agree.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-tasks-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-tasks-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;

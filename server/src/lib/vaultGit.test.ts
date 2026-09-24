@@ -13,7 +13,7 @@ import { commitChange, ensureGitHistory, getDiff, getHeadCommit, getHistory, isG
 // `git log` both reflect the undo.
 
 function scratchRepo(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-vaultgit-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-vaultgit-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;
@@ -121,7 +121,7 @@ test('getHeadCommit returns null for a repo with no commits, then the current HE
 });
 
 test('ensureGitHistory makes exactly one initial commit of pre-existing content, idempotently', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-vaultgit-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-vaultgit-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'projects', 'seed.md'), '# seed\n', 'utf8');
 
@@ -134,11 +134,11 @@ test('ensureGitHistory makes exactly one initial commit of pre-existing content,
   assert.equal(getHistory(dir).length, 1);
 });
 
-test('ensureGitHistory does not commit .poco/ once it is gitignored', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-vaultgit-'));
-  fs.mkdirSync(path.join(dir, '.poco', 'cache'), { recursive: true });
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.poco/\n', 'utf8');
-  fs.writeFileSync(path.join(dir, '.poco', 'cache', 'index.sqlite3'), 'binary-ish', 'utf8');
+test('ensureGitHistory does not commit .jota/ once it is gitignored', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-vaultgit-'));
+  fs.mkdirSync(path.join(dir, '.jota', 'cache'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.jota/\n', 'utf8');
+  fs.writeFileSync(path.join(dir, '.jota', 'cache', 'index.sqlite3'), 'binary-ish', 'utf8');
 
   ensureGitHistory(dir);
   const diff = getDiff(dir, getHistory(dir)[0].hash);

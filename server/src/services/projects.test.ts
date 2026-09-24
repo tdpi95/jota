@@ -12,7 +12,7 @@ import { COLOR_PALETTE, DEFAULT_GROUP, createProject, deleteProject, getProject,
 // project, confirm the file, index, and git history all agree.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-projects-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-projects-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;

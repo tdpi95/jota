@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import * as api from "../api/client";
-import planeImg from "../assets/poco-plane.png";
+import planeImg from "../assets/jota-plane.png";
 import NoteRow from "../components/NoteRow";
 import ProjectCard from "../components/ProjectCard";
 import QuickAddTaskModal from "../components/QuickAddTaskModal";
@@ -63,7 +63,7 @@ export default function DashboardPage() {
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
 
-  // Persists across restarts (`~/.poco/config.json` via
+  // Persists across restarts (`~/.jota/config.json` via
   // `GET/PUT /api/preferences/dashboard-pinned-open`) — same
   // fetch-once-and-apply-on-top-of-the-default shape as CalendarPage's
   // `calendarMode`/`granularity` toggles.
@@ -91,7 +91,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Persists across restarts (`~/.poco/config.json` via
+  // Persists across restarts (`~/.jota/config.json` via
   // `GET/PUT /api/preferences/dashboard-group-filter`) — same
   // fetch-once-and-apply-on-top-of-the-default shape as `pinnedOpen` just
   // above. Unlike `pinnedOpen` (a simple boolean), a stored
@@ -307,7 +307,7 @@ export default function DashboardPage() {
         <div>
           <div className="page-title-row">
             <h1 className="page-title">{t("dashboard.title")}</h1>
-            {/* <h1 className="page-title">Poco</h1> */}
+            {/* <h1 className="page-title">Jota</h1> */}
             <img className="dashboard-title-plane" src={planeImg} alt="" />
           </div>
           <div className="page-sub">{formatDateLong(today, language)}</div>

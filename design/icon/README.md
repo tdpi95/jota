@@ -19,7 +19,7 @@ the matching resize above.
 
 Source files for the *previous* shipped design (Claude Design canvas):
 `Main.dc.html` was that design — "Stacked Tiles," three overlapping
-rounded-square tiles (sized from poco's own paper/accent-soft/today-bg color
+rounded-square tiles (sized from jota's own paper/accent-soft/today-bg color
 tokens) ascending small-to-large toward the top-right, like a thought bubble
 building up. `DirectionB.dc.html` ("Folded Note") and `DirectionC.dc.html`
 (a geometric "p" glyph) are the two alternates explored alongside it — kept

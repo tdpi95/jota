@@ -109,7 +109,7 @@ export default function CalendarPage() {
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [showJournalList, setShowJournalList] = useState(false);
 
-  // Persists across restarts (`~/.poco/config.json` via
+  // Persists across restarts (`~/.jota/config.json` via
   // `GET/PUT /api/preferences/calendar-mode`) — fetched once on mount and
   // applied on top of the `'due'` default above; a real user choice always
   // wins once it arrives, so this only ever moves the toggle away from

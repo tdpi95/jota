@@ -1,11 +1,11 @@
 {
-  "name": "poco-electron",
+  "name": "jota-electron",
   "private": true,
   "version": "0.1.1",
-  "description": "poco — a local-first, markdown-backed daily-tasks and journal app",
-  "author": "poco",
+  "description": "Jota — Journal + Tasks, in plain markdown",
+  "author": "jota",
   "main": "dist/main.js",
-  "desktopName": "poco.desktop",
+  "desktopName": "jota.desktop",
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/assets','dist/assets',{recursive:true})\"",

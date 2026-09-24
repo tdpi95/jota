@@ -1,5 +1,5 @@
 // react-i18next setup (PLAN.md "Localization"). The active language is a
-// single app-wide preference (`~/.poco/config.json`'s `language` field,
+// single app-wide preference (`~/.jota/config.json`'s `language` field,
 // via `GET/PUT /api/preferences/language` — see api/client.ts), not a
 // per-workspace or browser-detected setting: `main.tsx` fetches it once
 // before the first render and calls `i18n.changeLanguage`, and

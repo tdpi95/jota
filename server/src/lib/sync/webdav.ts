@@ -9,7 +9,7 @@
 // principle — but WebDAV has no merge/diff concept to lean on, so detection
 // is a per-file three-way compare against a stored baseline snapshot (this
 // file's local mtime + the server's etag at the last successful sync,
-// cached at `<workspace>/.poco/cache/webdav-sync-state.json`, gitignored
+// cached at `<workspace>/.jota/cache/webdav-sync-state.json`, gitignored
 // like index.sqlite3 — safe to delete, at the cost of every file being
 // re-diffed as if never synced on the next push/pull). A file changed on
 // both sides since that baseline is left untouched on both ends and
@@ -79,7 +79,7 @@ export async function testConnection(config: WebDavConfig): Promise<WebDavTestRe
 // Same "skip files that don't match the expected naming pattern" tolerance
 // PLAN.md already documents for passive filesystem sync — a sync-conflict
 // artifact or stray file is skipped, not errored on or uploaded. `.git` and
-// `.poco` are this workspace's own local machinery (undo history, index/
+// `.jota` are this workspace's own local machinery (undo history, index/
 // backup cache), never vault content, so they're never synced either way —
 // syncing `.git` as plain files would risk corrupting a *different*
 // machine's independent local git repo on pull (PLAN.md).
@@ -231,7 +231,7 @@ interface FileBaseline {
 type SyncState = Record<string, FileBaseline>;
 
 function syncStateFilePath(workspacePath: string): string {
-  return path.join(workspacePath, '.poco', 'cache', 'webdav-sync-state.json');
+  return path.join(workspacePath, '.jota', 'cache', 'webdav-sync-state.json');
 }
 
 function loadSyncState(workspacePath: string): SyncState {
@@ -286,7 +286,7 @@ function classify(currentVal: number | string | undefined, baselineVal: number |
  * A path with no baseline present on both sides (`created`/`created`) is
  * genuinely ambiguous from metadata alone — and a real, common case, not an
  * edge case: it's exactly what happens right after a baseline reset (a
- * WebDAV URL change, `.poco/cache` deleted, a second machine connecting to
+ * WebDAV URL change, `.jota/cache` deleted, a second machine connecting to
  * an already-synced remote for the first time, ...) against a target that
  * already has the same content. Naively treating every such path as a
  * conflict — the original implementation's choice — turns a routine

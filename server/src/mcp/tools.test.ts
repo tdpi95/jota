@@ -20,14 +20,14 @@ import { registerTools } from './tools.js';
 // an agent-made change.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-mcp-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-mcp-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;
 }
 
 async function connectedClient(workspacePath: string): Promise<Client> {
-  const server = new McpServer({ name: 'poco-test', version: '0.0.0' });
+  const server = new McpServer({ name: 'jota-test', version: '0.0.0' });
   registerTools(server, workspacePath);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

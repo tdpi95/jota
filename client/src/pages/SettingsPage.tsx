@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../api/client';
 import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
-import { getPocoBridge, type ReminderSettings } from '../lib/pocoBridge';
+import { getJotaBridge, type ReminderSettings } from '../lib/jotaBridge';
 import { ACCENT_PALETTE_SWATCH, ACCENT_PALETTES, applyAccentPalette, applyTheme, THEMES, type AccentPalette, type ThemeMode } from '../lib/theme';
 import type { PullResult, WorkspaceSyncConfig } from '../types';
 
@@ -18,12 +18,12 @@ const DEFAULT_REMINDER: ReminderSettings = { enabled: true, time: '20:00' };
  * Workspace list/management, the active workspace's remote-sync panel, and
  * the desktop-only reminder-time/launch-at-login fields (PLAN.md `/settings`,
  * milestone 16). The last two only do anything inside the Electron shell —
- * `getPocoBridge()` is `null` on a plain browser page, in which case those
+ * `getJotaBridge()` is `null` on a plain browser page, in which case those
  * controls are hidden rather than shown non-functional.
  */
 export default function SettingsPage() {
   const queryClient = useQueryClient();
-  const bridge = getPocoBridge();
+  const bridge = getJotaBridge();
   const { t, i18n } = useTranslation();
 
   // --- Language (PLAN.md "Localization") ---
@@ -354,7 +354,7 @@ export default function SettingsPage() {
   // section is actually being looked at.
   const mcpInfoQuery = useQuery({ queryKey: ['system', 'mcp-info'], queryFn: api.getMcpInfo });
   const mcpCommand = mcpInfoQuery.data?.command ?? 'npx';
-  const mcpArgs = mcpInfoQuery.data?.args ?? ['tsx', '/path/to/poco/server/src/mcp/index.ts'];
+  const mcpArgs = mcpInfoQuery.data?.args ?? ['tsx', '/path/to/jota/server/src/mcp/index.ts'];
   const mcpWorkspacePath = active?.path ?? '/path/to/your/workspace';
   // Extra env the command itself needs to start reliably — only the
   // packaged-AppImage case has any (DISPLAY/DBUS_SESSION_BUS_ADDRESS,
@@ -363,12 +363,12 @@ export default function SettingsPage() {
   // segfaults without a real display/session-bus connection, and some MCP
   // hosts spawn child processes with a stripped env that drops both even on
   // a machine that has them). Deliberately does *not* default to including
-  // POCO_WORKSPACE (milestone 18 part 21): the MCP server itself already
-  // falls back to whichever workspace poco currently has open when it's
+  // JOTA_WORKSPACE (milestone 18 part 21): the MCP server itself already
+  // falls back to whichever workspace jota currently has open when it's
   // unset (server/src/mcp/index.ts's resolveWorkspacePath), so hardcoding
   // today's active path into the saved config would silently pin the agent
   // to it even after switching workspaces in the app later — the section
-  // below instead explains POCO_WORKSPACE as an opt-in for anyone who wants
+  // below instead explains JOTA_WORKSPACE as an opt-in for anyone who wants
   // an agent pinned to one workspace regardless of what's open.
   const mcpEnv = mcpInfoQuery.data?.env ?? {};
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
@@ -387,12 +387,12 @@ export default function SettingsPage() {
   }
 
   const claudeDesktopSnippet = JSON.stringify(
-    { mcpServers: { poco: { command: mcpCommand, args: mcpArgs, ...(hasMcpEnv ? { env: mcpEnv } : {}) } } },
+    { mcpServers: { jota: { command: mcpCommand, args: mcpArgs, ...(hasMcpEnv ? { env: mcpEnv } : {}) } } },
     null,
     2,
   );
   const codexSnippet = [
-    '[mcp_servers.poco]',
+    '[mcp_servers.jota]',
     `command = "${mcpCommand}"`,
     `args = [${mcpArgs.map((arg) => `"${arg}"`).join(', ')}]`,
     ...(hasMcpEnv
@@ -402,7 +402,7 @@ export default function SettingsPage() {
       : []),
   ].join('\n');
   const claudeCodeCommand = [
-    'claude mcp add poco',
+    'claude mcp add jota',
     ...Object.entries(mcpEnv).map(([key, value]) => `-e ${key}=${value}`),
     '--',
     mcpCommand,

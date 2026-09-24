@@ -1,14 +1,14 @@
-// Typed accessor for the `window.poco` bridge `electron/src/preload.ts`
+// Typed accessor for the `window.jota` bridge `electron/src/preload.ts`
 // exposes via `contextBridge` (PLAN.md "Desktop shell"). Duplicated by hand
 // rather than imported — `electron/` is a separate npm workspace/tsconfig
 // from `client/`, same reasoning as `client/src/types.ts` duplicating
 // server types.
 //
-// This bridge only exists inside the Electron shell; `window.poco` is
+// This bridge only exists inside the Electron shell; `window.jota` is
 // `undefined` when the client is opened as a plain page (e.g. hitting the
 // Vite dev server directly in a browser for a quick check) — every caller
-// must go through `getPocoBridge()` and handle `null` rather than assuming
-// `window.poco` is always there.
+// must go through `getJotaBridge()` and handle `null` rather than assuming
+// `window.jota` is always there.
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -16,7 +16,7 @@ export interface ReminderSettings {
   time: string | null;
 }
 
-export interface PocoBridge {
+export interface JotaBridge {
   pickFolder: () => Promise<string | null>;
   getLaunchAtLogin: () => Promise<boolean>;
   setLaunchAtLogin: (enabled: boolean) => Promise<void>;
@@ -44,12 +44,12 @@ export interface PocoBridge {
 
 declare global {
   interface Window {
-    poco?: PocoBridge;
+    jota?: JotaBridge;
   }
 }
 
 /** `null` outside the Electron shell (or if the preload script hasn't run
  * yet) — every caller must handle that case rather than assume it's there. */
-export function getPocoBridge(): PocoBridge | null {
-  return typeof window !== 'undefined' && window.poco ? window.poco : null;
+export function getJotaBridge(): JotaBridge | null {
+  return typeof window !== 'undefined' && window.jota ? window.jota : null;
 }

@@ -42,7 +42,7 @@ import {
   setThemePreference,
 } from './workspaces.js';
 
-// Every test gets its own scratch $HOME so ~/.poco/config.json never touches
+// Every test gets its own scratch $HOME so ~/.jota/config.json never touches
 // the real one, mirroring PLAN.md milestone 2's verify step: register two
 // scratch folders, switch between them, confirm isolation and that removing
 // a workspace never touches its folder.
@@ -51,8 +51,8 @@ function scratchDir(prefix: string): string {
 }
 
 test('add registers a workspace, scaffolds its dirs, and activates it', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
 
   const entry = addWorkspace({ path: vaultA, name: 'Vault A' }, homeDir);
 
@@ -61,17 +61,17 @@ test('add registers a workspace, scaffolds its dirs, and activates it', () => {
   assert.equal(getActiveWorkspace(homeDir)?.id, entry.id);
   assert.deepEqual(listWorkspaces(homeDir).map((w) => w.id), [entry.id]);
 
-  for (const dir of ['projects', 'journal', path.join('.poco', 'cache'), path.join('.poco', 'backups'), '.git']) {
+  for (const dir of ['projects', 'journal', path.join('.jota', 'cache'), path.join('.jota', 'backups'), '.git']) {
     assert.ok(fs.existsSync(path.join(vaultA, dir)), `expected ${dir} to be scaffolded`);
   }
   const gitignore = fs.readFileSync(path.join(vaultA, '.gitignore'), 'utf8');
-  assert.match(gitignore, /^\.poco\/$/m);
+  assert.match(gitignore, /^\.jota\/$/m);
 });
 
 test('switching between two workspaces keeps each scoped to its own folder', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
-  const vaultB = scratchDir('poco-vault-b-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
+  const vaultB = scratchDir('jota-vault-b-');
 
   const a = addWorkspace({ path: vaultA }, homeDir);
   const b = addWorkspace({ path: vaultB }, homeDir);
@@ -87,8 +87,8 @@ test('switching between two workspaces keeps each scoped to its own folder', () 
 });
 
 test('re-adding an already-registered path adopts it instead of duplicating', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
 
   const first = addWorkspace({ path: vaultA }, homeDir);
   const second = addWorkspace({ path: vaultA }, homeDir);
@@ -98,8 +98,8 @@ test('re-adding an already-registered path adopts it instead of duplicating', ()
 });
 
 test('removing a workspace un-registers it without touching its folder', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
 
   const entry = addWorkspace({ path: vaultA }, homeDir);
   fs.writeFileSync(path.join(vaultA, 'projects', 'keep-me.md'), '# still here\n', 'utf8');
@@ -110,16 +110,16 @@ test('removing a workspace un-registers it without touching its folder', () => {
   assert.ok(fs.existsSync(path.join(vaultA, 'projects', 'keep-me.md')), 'folder/content must survive removal');
 });
 
-test('opening a workspace whose .poco dir was deleted self-heals it', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+test('opening a workspace whose .jota dir was deleted self-heals it', () => {
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
 
   const entry = addWorkspace({ path: vaultA }, homeDir);
-  fs.rmSync(path.join(vaultA, '.poco'), { recursive: true, force: true });
-  assert.ok(!fs.existsSync(path.join(vaultA, '.poco')));
+  fs.rmSync(path.join(vaultA, '.jota'), { recursive: true, force: true });
+  assert.ok(!fs.existsSync(path.join(vaultA, '.jota')));
 
   openWorkspace(entry.id, homeDir);
-  assert.ok(fs.existsSync(path.join(vaultA, '.poco', 'cache')));
+  assert.ok(fs.existsSync(path.join(vaultA, '.jota', 'cache')));
 });
 
 const EXTERNAL_PROJECT_MD = `---
@@ -140,11 +140,11 @@ color: '#4f86f7'
 // running "whenever a workspace is opened, not just process boot".
 
 test('adding a brand-new workspace over an existing folder with content indexes it immediately, not just on the next write', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
   fs.mkdirSync(path.join(vaultA, 'projects'), { recursive: true });
   // Written directly to disk — never through any service write path, same
-  // as a folder of pre-existing notes someone points poco at, or a hand
+  // as a folder of pre-existing notes someone points jota at, or a hand
   // edit made before the workspace was ever registered.
   fs.writeFileSync(path.join(vaultA, 'projects', 'external.md'), EXTERNAL_PROJECT_MD, 'utf8');
 
@@ -154,9 +154,9 @@ test('adding a brand-new workspace over an existing folder with content indexes 
 });
 
 test('opening an already-registered workspace picks up a file dropped onto disk since it was last indexed', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
-  const vaultB = scratchDir('poco-vault-b-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
+  const vaultB = scratchDir('jota-vault-b-');
 
   const a = addWorkspace({ path: vaultA }, homeDir);
   addWorkspace({ path: vaultB }, homeDir); // switches active away from A
@@ -174,21 +174,21 @@ test('opening an already-registered workspace picks up a file dropped onto disk 
 });
 
 test('opening an unknown id throws a structured 404 error', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.throws(() => openWorkspace('does-not-exist', homeDir), /no workspace with id/);
 });
 
 test('a newly-added workspace defaults its reminder to 20:00 enabled', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
   addWorkspace({ path: vaultA }, homeDir);
 
   assert.deepEqual(getReminderSettings(homeDir), { enabled: true, time: '20:00' });
 });
 
 test('an entry written before the reminder field existed still defaults to 20:00, not disabled', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
   const entry = addWorkspace({ path: vaultA }, homeDir);
 
   // Simulate a pre-milestone-17 registry entry: strip the field entirely
@@ -203,8 +203,8 @@ test('an entry written before the reminder field existed still defaults to 20:00
 });
 
 test('setReminderSettings persists a custom time and disabling clears it to null, not just enabled:false', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
   addWorkspace({ path: vaultA }, homeDir);
 
   assert.deepEqual(setReminderSettings({ enabled: true, time: '07:30' }, homeDir), { enabled: true, time: '07:30' });
@@ -215,9 +215,9 @@ test('setReminderSettings persists a custom time and disabling clears it to null
 });
 
 test('markReminderFired records the given local date on the active workspace only', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vaultA = scratchDir('poco-vault-a-');
-  const vaultB = scratchDir('poco-vault-b-');
+  const homeDir = scratchDir('jota-home-');
+  const vaultA = scratchDir('jota-vault-a-');
+  const vaultB = scratchDir('jota-vault-b-');
   const a = addWorkspace({ path: vaultA }, homeDir);
   addWorkspace({ path: vaultB }, homeDir); // B is now active
 
@@ -229,7 +229,7 @@ test('markReminderFired records the given local date on the active workspace onl
 });
 
 test('launch-at-login preference is null until explicitly set, then persists the exact value', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getLaunchAtLoginPreference(homeDir), null);
 
   setLaunchAtLoginPreference(true, homeDir);
@@ -240,7 +240,7 @@ test('launch-at-login preference is null until explicitly set, then persists the
 });
 
 test('language preference defaults to en and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getLanguagePreference(homeDir), 'en');
 
   setLanguagePreference('vi', homeDir);
@@ -251,7 +251,7 @@ test('language preference defaults to en and persists an explicit choice', () =>
 });
 
 test('theme preference defaults to light and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getThemePreference(homeDir), 'light');
 
   setThemePreference('dark', homeDir);
@@ -262,7 +262,7 @@ test('theme preference defaults to light and persists an explicit choice', () =>
 });
 
 test('accent palette preference defaults to default and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getAccentPalettePreference(homeDir), 'default');
 
   for (const palette of ['green', 'blue', 'violet', 'default'] as const) {
@@ -272,7 +272,7 @@ test('accent palette preference defaults to default and persists an explicit cho
 });
 
 test('calendar mode preference defaults to due and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getCalendarModePreference(homeDir), 'due');
 
   setCalendarModePreference('journal', homeDir);
@@ -283,7 +283,7 @@ test('calendar mode preference defaults to due and persists an explicit choice',
 });
 
 test('calendar granularity preference defaults to month and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getCalendarGranularityPreference(homeDir), 'month');
 
   setCalendarGranularityPreference('year', homeDir);
@@ -294,7 +294,7 @@ test('calendar granularity preference defaults to month and persists an explicit
 });
 
 test('autosave interval preference defaults to 30 seconds and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getAutosaveIntervalPreference(homeDir), 30);
 
   setAutosaveIntervalPreference(60, homeDir);
@@ -305,7 +305,7 @@ test('autosave interval preference defaults to 30 seconds and persists an explic
 });
 
 test('dashboard pinned-open preference defaults to true and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getDashboardPinnedOpenPreference(homeDir), true);
 
   setDashboardPinnedOpenPreference(false, homeDir);
@@ -316,7 +316,7 @@ test('dashboard pinned-open preference defaults to true and persists an explicit
 });
 
 test('dashboard group-filter preference defaults to empty and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.deepEqual(getDashboardGroupFilterPreference(homeDir), []);
 
   setDashboardGroupFilterPreference(['Work', 'Personal'], homeDir);
@@ -327,7 +327,7 @@ test('dashboard group-filter preference defaults to empty and persists an explic
 });
 
 test('pinned-projects preference defaults to empty and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.deepEqual(getPinnedProjectsPreference(homeDir), []);
 
   setPinnedProjectsPreference(['website-redesign', 'mobile-app'], homeDir);
@@ -338,7 +338,7 @@ test('pinned-projects preference defaults to empty and persists an explicit choi
 });
 
 test('pinned-notes preference defaults to empty and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.deepEqual(getPinnedNotesPreference(homeDir), []);
 
   setPinnedNotesPreference(['reading-list', 'meeting-notes'], homeDir);
@@ -349,7 +349,7 @@ test('pinned-notes preference defaults to empty and persists an explicit choice'
 });
 
 test('note view mode preference defaults to edit and persists an explicit choice', () => {
-  const homeDir = scratchDir('poco-home-');
+  const homeDir = scratchDir('jota-home-');
   assert.equal(getNoteViewModePreference(homeDir), 'edit');
 
   setNoteViewModePreference('preview', homeDir);
@@ -360,8 +360,8 @@ test('note view mode preference defaults to edit and persists an explicit choice
 });
 
 test('clearSyncProvider resets an active provider back to none, regardless of which one it was', () => {
-  const homeDir = scratchDir('poco-home-');
-  const vault = scratchDir('poco-vault-');
+  const homeDir = scratchDir('jota-home-');
+  const vault = scratchDir('jota-vault-');
   const ws = addWorkspace({ path: vault }, homeDir);
 
   const registry = readRegistry(homeDir);

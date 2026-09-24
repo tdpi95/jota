@@ -118,12 +118,12 @@ function isSafePathSegment(segment: string): boolean {
  * Resolves a workspace-relative attachment path ("attachments/<folder>/
  * <file>", milestone 27's `AttachmentInfo.path`/`profileImage` shape) to the
  * real file on disk (via the embedded server's own `/api/workspaces/active`,
- * the same call `poco:get-reminder-settings` already makes to find the
+ * the same call `jota:get-reminder-settings` already makes to find the
  * active workspace) and hands it to `shell.openPath`, which launches the
  * OS's own default handler for that file type (an image viewer, a PDF
  * reader, ...) exactly like double-clicking it in Finder/Explorer/Nautilus
  * would — the same primitive `openWorkspaceFolder` already uses for a
- * folder. Shared by `poco:open-attachment` (the reliable path: the renderer
+ * folder. Shared by `jota:open-attachment` (the reliable path: the renderer
  * intercepts the click itself before the browser can decide what to do with
  * it) and `setWindowOpenHandler`'s fallback below (for whatever a plain
  * click-interception can't catch, e.g. a middle-click).
@@ -196,7 +196,7 @@ async function createWindow(port: number): Promise<void> {
   // link specifically (milestone 27) — the renderer's own click handler
   // (`AttachmentField`, `NoteBodyEditor`'s preview, `TaskRow`'s view modal;
   // `client/src/lib/attachments.ts`'s `openAttachmentIfPossible`) already
-  // intercepts a plain click and calls `poco:open-attachment` directly,
+  // intercepts a plain click and calls `jota:open-attachment` directly,
   // *before* Chromium ever decides what a `target="_blank"` request to that
   // URL should do. That distinction turned out to matter: for a file
   // Chromium can't render inline in a window it controls (a PDF, since this
@@ -245,7 +245,7 @@ function showMainWindow(): void {
  * "Settings" item and by the reminder notification's click handler
  * (PLAN.md: "clicking the notification shows/focuses the window and
  * navigates to /journal"). A full `loadURL` rather than an IPC
- * "navigate client-side" message: simpler, and `window.poco` has no
+ * "navigate client-side" message: simpler, and `window.jota` has no
  * navigation bridge in PLAN.md's own preload contract, so this reuses the
  * same URL-loading `createWindow` already does rather than inventing one. */
 function navigateMainWindow(path: string): void {
@@ -271,7 +271,7 @@ async function fetchLanguage(port: number): Promise<Lang> {
   }
 }
 
-// "poco --poco-mcp-server": an alternate entrypoint recognized on *this
+// "jota --jota-mcp-server": an alternate entrypoint recognized on *this
 // same binary*, checked before anything else in the file (even the
 // single-instance lock below — this is a wholly separate, short-lived
 // invocation, not a second GUI session, and must be free to run alongside
@@ -293,7 +293,7 @@ async function fetchLanguage(port: number): Promise<Lang> {
 // `resourcesPath` right now and hand off to the real MCP entrypoint. No
 // window, no tray, no reminder scheduler, no single-instance lock: this
 // exits as soon as the spawned MCP process does.
-const APPIMAGE_MCP_SERVER_FLAG = '--poco-mcp-server';
+const APPIMAGE_MCP_SERVER_FLAG = '--jota-mcp-server';
 
 if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
   const mcpEntry = path.join(process.resourcesPath, 'server', 'dist', 'mcp', 'index.js');
@@ -335,14 +335,14 @@ if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
       showMainWindow();
     });
 
-    ipcMain.handle('poco:pick-folder', async () => {
+    ipcMain.handle('jota:pick-folder', async () => {
       if (!mainWindow) return null;
       const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
       if (result.canceled || result.filePaths.length === 0) return null;
       return result.filePaths[0];
     });
 
-    ipcMain.handle('poco:open-workspace-folder', async (_event, folderPath: string) => {
+    ipcMain.handle('jota:open-workspace-folder', async (_event, folderPath: string) => {
       // shell.openPath resolves to '' on success, or a human-readable error
       // string (e.g. the path no longer exists) — never rejects, so translate
       // that into the plain boolean the bridge contract promises.
@@ -356,10 +356,10 @@ if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
     // link/image, rather than relying on the browser's own `target="_blank"`
     // navigate-or-download decision — see the long comment on
     // `setWindowOpenHandler` below for why that alone wasn't reliable.
-    ipcMain.handle('poco:open-attachment', async (_event, relPath: string) => openWorkspaceRelativeAttachment(relPath));
+    ipcMain.handle('jota:open-attachment', async (_event, relPath: string) => openWorkspaceRelativeAttachment(relPath));
 
-    ipcMain.handle('poco:get-launch-at-login', () => getLaunchAtLogin());
-    ipcMain.handle('poco:set-launch-at-login', async (_event, enabled: boolean) => {
+    ipcMain.handle('jota:get-launch-at-login', () => getLaunchAtLogin());
+    ipcMain.handle('jota:set-launch-at-login', async (_event, enabled: boolean) => {
       setLaunchAtLogin(enabled);
       // Best-effort: also record the user's explicit choice in the registry, so
       // a later app start knows this was already decided and doesn't re-apply
@@ -384,9 +384,9 @@ if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
     // desktopEntry.ts). can-create is a separate query from is-installed so
     // the renderer can hide the whole control on macOS/Windows/dev rather
     // than show a toggle that would just throw if used.
-    ipcMain.handle('poco:can-create-desktop-entry', () => canCreateDesktopEntry());
-    ipcMain.handle('poco:is-desktop-entry-installed', () => isDesktopEntryInstalled());
-    ipcMain.handle('poco:set-desktop-entry-installed', (_event, enabled: boolean) => {
+    ipcMain.handle('jota:can-create-desktop-entry', () => canCreateDesktopEntry());
+    ipcMain.handle('jota:is-desktop-entry-installed', () => isDesktopEntryInstalled());
+    ipcMain.handle('jota:set-desktop-entry-installed', (_event, enabled: boolean) => {
       if (enabled) {
         createDesktopEntry(appIconPath);
       } else {
@@ -394,14 +394,14 @@ if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
       }
     });
 
-    ipcMain.handle('poco:get-reminder-settings', async () => {
+    ipcMain.handle('jota:get-reminder-settings', async () => {
       if (serverPort === null) throw new Error('embedded server is not ready yet');
       const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active/reminder`);
       if (!res.ok) throw new Error(`failed to load reminder settings (${res.status})`);
       return res.json();
     });
 
-    ipcMain.handle('poco:set-reminder-settings', async (_event, settings: { enabled: boolean; time: string | null }) => {
+    ipcMain.handle('jota:set-reminder-settings', async (_event, settings: { enabled: boolean; time: string | null }) => {
       if (serverPort === null) throw new Error('embedded server is not ready yet');
       const res = await fetch(`http://127.0.0.1:${serverPort}/api/workspaces/active/reminder`, {
         method: 'PUT',

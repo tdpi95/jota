@@ -34,7 +34,7 @@ import { fileURLToPath } from 'node:url';
  * GUI app" — kept in sync by hand with that file's own copy of this exact
  * string (separate npm workspaces, no shared import between them, same as
  * every other main-process/preload constant in this codebase). */
-export const APPIMAGE_MCP_SERVER_FLAG = '--poco-mcp-server';
+export const APPIMAGE_MCP_SERVER_FLAG = '--jota-mcp-server';
 
 export interface McpLaunchInfo {
   /** The executable an MCP host should invoke. */
@@ -43,7 +43,7 @@ export interface McpLaunchInfo {
    * (or, for the AppImage case, just the relaunch flag) where relevant, so
    * callers never need to append anything else. */
   args: string[];
-  /** Extra env vars (beyond `POCO_WORKSPACE`, which callers already add
+  /** Extra env vars (beyond `JOTA_WORKSPACE`, which callers already add
    * themselves from the active workspace) the launched command actually
    * needs to start reliably. Only the AppImage case populates this today —
    * see below — every other shape is a plain Node process with nothing
@@ -71,7 +71,7 @@ export function getMcpLaunchInfo(callerModuleUrl: string, env: NodeJS.ProcessEnv
 }
 
 // The AppImage case (only) re-invokes this app's own Electron binary
-// (`--poco-mcp-server`, above) rather than a plain Node script — and
+// (`--jota-mcp-server`, above) rather than a plain Node script — and
 // launching Electron normally always boots its native Chromium layer
 // first, *before* main.ts's own JS even gets to check that flag, no matter
 // how short-lived or window-less that particular invocation turns out to

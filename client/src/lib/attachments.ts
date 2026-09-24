@@ -13,7 +13,7 @@
 
 import type { MouseEvent } from 'react';
 
-import { getPocoBridge } from './pocoBridge';
+import { getJotaBridge } from './jotaBridge';
 
 /** The three content types that embed attachments as markdown links inside
  * their own freeform body/description text. Project profile images use the
@@ -96,7 +96,7 @@ export function parseAttachmentRefs(body: string, folder: AttachmentBodyFolder):
 }
 
 /** Extracts "attachments/<folder>/<file>" (the workspace-relative form
- * `window.poco.openAttachment` expects) from an `/api/attachments/...` URL —
+ * `window.jota.openAttachment` expects) from an `/api/attachments/...` URL —
  * the shape every attachment `<a href>`/`<img src>` in this app resolves to,
  * whether from `AttachmentField`'s own chip list or a rendered markdown link/
  * image (`renderMarkdown.ts`). */
@@ -120,7 +120,7 @@ function workspaceRelativePath(url: string): string | null {
  * normal `target="_blank"` click proceeds exactly as before.
  */
 export function openAttachmentIfPossible(event: { preventDefault(): void }, url: string): void {
-  const bridge = getPocoBridge();
+  const bridge = getJotaBridge();
   if (!bridge) return;
   const relPath = workspaceRelativePath(url);
   if (!relPath) return;

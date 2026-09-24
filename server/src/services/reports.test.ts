@@ -11,7 +11,7 @@ import { getTimeSpentReport } from './reports.js';
 import { createTask, updateTask } from './tasks.js';
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-reports-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-reports-'));
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   return dir;

@@ -38,19 +38,19 @@ test('a .js caller URL (compiled, no $APPIMAGE — a plain prod run) resolves a 
 });
 
 test('$APPIMAGE set (packaged AppImage) ignores the ephemeral resourcesPath entirely and points at the stable AppImage file instead', () => {
-  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
-    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Jota1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Jota-1.0.0.AppImage',
   });
 
-  assert.equal(info.command, '/home/user/Applications/Poco-1.0.0.AppImage');
+  assert.equal(info.command, '/home/user/Applications/Jota-1.0.0.AppImage');
   assert.deepEqual(info.args, [APPIMAGE_MCP_SERVER_FLAG]);
   assert.equal(info.env, undefined);
 });
 
 test('$APPIMAGE takes priority even over a .ts caller URL — the AppImage case can never actually be dev, but the check is env-first regardless', () => {
-  const info = getMcpLaunchInfo('file:///repo/server/src/routes/system.ts', { APPIMAGE: '/opt/Poco.AppImage' });
+  const info = getMcpLaunchInfo('file:///repo/server/src/routes/system.ts', { APPIMAGE: '/opt/Jota.AppImage' });
 
-  assert.equal(info.command, '/opt/Poco.AppImage');
+  assert.equal(info.command, '/opt/Jota.AppImage');
   assert.deepEqual(info.args, [APPIMAGE_MCP_SERVER_FLAG]);
 });
 
@@ -64,8 +64,8 @@ test('$APPIMAGE takes priority even over a .ts caller URL — the AppImage case 
 // launched by the real, currently-running Electron app).
 
 test('$APPIMAGE with both $DISPLAY and $DBUS_SESSION_BUS_ADDRESS set carries both along in env', () => {
-  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
-    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Jota1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Jota-1.0.0.AppImage',
     DISPLAY: ':0',
     DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
   });
@@ -74,8 +74,8 @@ test('$APPIMAGE with both $DISPLAY and $DBUS_SESSION_BUS_ADDRESS set carries bot
 });
 
 test('$APPIMAGE with only $DISPLAY set (no dbus session) carries just that one along, not a literal "undefined"', () => {
-  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
-    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Jota1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Jota-1.0.0.AppImage',
     DISPLAY: ':1',
   });
 
@@ -83,8 +83,8 @@ test('$APPIMAGE with only $DISPLAY set (no dbus session) carries just that one a
 });
 
 test('$APPIMAGE with neither set (e.g. an all-Wayland session with no X display env) omits env entirely', () => {
-  const info = getMcpLaunchInfo('file:///tmp/.mount_Poco1a2b3c/resources/server/dist/routes/system.js', {
-    APPIMAGE: '/home/user/Applications/Poco-1.0.0.AppImage',
+  const info = getMcpLaunchInfo('file:///tmp/.mount_Jota1a2b3c/resources/server/dist/routes/system.js', {
+    APPIMAGE: '/home/user/Applications/Jota-1.0.0.AppImage',
   });
 
   assert.equal(info.env, undefined);

@@ -19,13 +19,13 @@ function scratchDir(prefix: string): string {
 }
 
 function bareRemote(): string {
-  const dir = scratchDir('poco-bare-');
+  const dir = scratchDir('jota-bare-');
   execFileSync('git', ['init', '--bare'], { cwd: dir, stdio: 'ignore' });
   return dir;
 }
 
 function seededWorkspace(): string {
-  const dir = scratchDir('poco-sync-');
+  const dir = scratchDir('jota-sync-');
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   ensureGitRepo(dir);
   fs.writeFileSync(path.join(dir, 'projects', 'a.md'), 'line one\n', 'utf8');
@@ -34,7 +34,7 @@ function seededWorkspace(): string {
 }
 
 function cloneWorkspace(remote: string): string {
-  const dir = scratchDir('poco-sync-clone-');
+  const dir = scratchDir('jota-sync-clone-');
   // -c core.autocrlf=false applies before clone's own initial checkout —
   // ensureGitRepo's identical override below only takes effect on repo
   // config from here on, too late to undo a CRLF conversion the clone's

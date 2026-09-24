@@ -1,15 +1,17 @@
-# Poco
+# Jota
 
-A local-first task manager, note-taking, and daily journal app for personal
-knowledge management (PKM) — backed entirely by plain markdown files, with
-tasks grouped by project and journal/daily notes bucketed by year. No hosted
-backend, no accounts, no lock-in: your vault is just a folder of `.md` files
-you can read, edit, `grep`, sync, or back up with any tool you already use.
+**Journal + Tasks, in plain markdown**
 
-Ships as an **Electron desktop app**, with AI-agent access (Claude Code,
-Claude Desktop, or any other MCP client) via a built-in **MCP server**,
-git-backed versioning as an undo mechanism for any edit — human or agent —
-and optional sync to a git remote or a WebDAV server (e.g. Nextcloud).
+A local-first desktop app for your daily tasks, journal, and notes.
+Everything is saved as plain `.md` files in a folder you choose. There's no
+account, no cloud backend, and no lock-in: you can read, edit, `grep`,
+sync, or back up your vault with tools you already use.
+
+Built in: kanban with automatic time tracking, a daily journaling reminder,
+git-backed undo for every edit, optional git or WebDAV sync, and an MCP
+server so AI agents like Claude can work with your tasks too.
+
+**[⬇ Download the latest release](https://github.com/tdpi95/jota/releases/latest)**
 
 ## Screenshots
 
@@ -25,17 +27,54 @@ and optional sync to a git remote or a WebDAV server (e.g. Nextcloud).
 | -------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | ![Journal entry with linked tasks and git history](docs/screenshots/journal.png) | ![Full-page calendar](docs/screenshots/calendar.png) |
 
-## Name
+## Download
 
-**Poco** — "a little," in Spanish/Italian/Portuguese — is what this app actually is under the hood: a lot of small, self-contained pieces rather than one big system. A task is one line in a plain file. A day is one small journal entry. A project is just another file, not a row locked inside a database. There's no server to run, no account to create, no monolith to back up — just small, modular, markdown micro-entries, added a little at a time.
+Grab the installer for your OS from the
+[latest release](https://github.com/tdpi95/jota/releases/latest). No
+Node.js or build step needed. On first launch, pick any folder to use as
+your workspace (an empty one is fine).
 
-## Poco vs Obsidian, Logseq, and other markdown PKM tools
+Optional: install [git](https://git-scm.com/) to get per-edit undo history
+and git-remote sync. Everything else, including WebDAV sync, works without
+it.
 
-Existing markdown-based tools (Obsidian, Logseq, Dendron, org-mode/org-journal,
-Foam, SilverBullet) all get close, but none match "one task file per project,
-one journal file per day, grouped by year" without heavy plugin configuration
-or accepting a different file-per-unit convention. Poco is built around
-that exact layout from the ground up.
+## Why Jota
+
+**One place for your day.** Open it, add a task or a line to today's
+journal, close it — every day, for years. If today's entry is still blank,
+a quiet reminder nudges you.
+
+**Tasks without the ceremony.** No epics, no story points, no workflow to
+configure: a checkbox, a due date, tags if you want them, and a "Doing"
+column whose timer starts itself. Add it, work it, check it off.
+
+**Files that outlive the app.** Everything is plain `.md` — `grep` it, edit
+it in vim, sync it however you like, read it in ten years on software that
+doesn't exist yet. The app is just a window onto a folder you own.
+
+**Let an AI help, safely.** A built-in MCP server lets Claude Code, Claude
+Desktop, or any MCP client add tasks, log entries, or summarize your week.
+Every write is a git commit tagged with who made it, so an agent edit you
+don't like is one click to undo.
+
+## Jota vs Obsidian, Logseq, and friends
+
+Obsidian, Logseq, Foam, SilverBullet, and org-mode are great general-purpose
+knowledge tools — backlinks, graphs, outliners, plugin ecosystems. You *can*
+turn one into a task tracker and daily journal, but you'll be choosing
+plugins and templates before you've written anything down.
+
+Jota goes the other way: tasks, a daily journal, and lightweight notes work
+the moment you open it, with nothing to configure. Kanban, automatic time
+tracking, an MCP server for AI agents, per-edit undo, and git or WebDAV sync
+are built in, not assembled from plugins.
+
+**Pick Jota if** you want a zero-setup daily driver for tasks and
+journaling that an AI agent can safely read and write.
+
+**Stick with Obsidian or Logseq if** you want a linked knowledge graph or a
+deep plugin ecosystem. Your Jota workspace is still just markdown, so
+nothing stops you from opening it in other tools too.
 
 ## Features
 
@@ -89,14 +128,14 @@ that exact layout from the ground up.
   links, notes, and a cross-type `search_everything`), so any MCP-capable
   agent (Claude Code, Claude Desktop, etc.) can manage and summarize your
   tasks, journal, and notes directly. Targets an explicit workspace via
-  `POCO_WORKSPACE`, independent of whatever workspace the app itself has
+  `JOTA_WORKSPACE`, independent of whatever workspace the app itself has
   open.
 - **Daily reminder**: a native OS notification if you haven't journaled yet
   today, from a tray-resident background app (the app stays running in the
   tray after the window closes; only "Quit" actually quits). Launch-at-login
   and reminder time are configurable in Settings.
 
-## Requirements
+## Development requirements
 
 - [Node.js](https://nodejs.org/) **≥ 22.5** (for the built-in `node:sqlite`
   module — no native module to compile)
@@ -115,7 +154,7 @@ node --version
 
 ```bash
 git clone <this-repo-url>
-cd poco
+cd jota
 npm install
 ```
 
@@ -171,7 +210,7 @@ npx tsc --noEmit -w electron
 ```bash
 npm run mcp -w server
 # or, targeting a specific workspace explicitly:
-POCO_WORKSPACE=/path/to/workspace npx tsx server/src/mcp/index.ts
+JOTA_WORKSPACE=/path/to/workspace npx tsx server/src/mcp/index.ts
 ```
 
 Exposes 20 tools (`create_project`, `create_task`, `update_task`,
@@ -188,22 +227,24 @@ npm run package
 
 Builds the server, the client, and the Electron shell, then runs
 `electron-builder` to produce a standalone Linux `AppImage` in `release/`
-(`release/Poco-<version>.AppImage`) — a single executable file, no install
+(`release/Jota-<version>.AppImage`) — a single executable file, no install
 step, no Node/npm required on the machine running it. Double-click it (or
 `chmod +x` and run it from a terminal) like any other desktop app; it still
 prompts for a workspace folder on first run, same as `npm run dev`.
 
-Only a Linux target is configured today (`electron/electron-builder.yml`) —
-Windows/macOS installers (platform-native icons, code signing) are tracked
-as still outstanding under milestone 18 in [PROGRESS.md](PROGRESS.md). If
-you need an unpacked build to poke at (no `.AppImage` bundling step), run
+On Windows, `npm run package:win` produces an NSIS installer
+(`release/*.exe`) instead. CI ([.github/workflows/build.yml](.github/workflows/build.yml))
+builds both natively on their own runners and attaches them to a GitHub
+Release on every `v*` tag. Targets are configured in
+[electron/electron-builder.yml](electron/electron-builder.yml). If you need
+an unpacked build to poke at (no bundling step), run
 `npm run build -w electron && npx electron-builder --dir` from
 [electron/](electron/) instead.
 
 ## Project structure
 
 ```
-poco/
+jota/
   server/     # Express + TypeScript backend, markdown core, SQLite index, MCP server
   client/     # Vite + React + TypeScript frontend (i18n: en/vi)
   electron/   # Electron desktop shell — main process, tray, daily reminder

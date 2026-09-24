@@ -3,7 +3,7 @@
 [← back to PROGRESS.md](../../PROGRESS.md)
 
 - New feature requested directly by the user: "replace recent projects section in dashboard by pinned projects and notes." Not previously in PLAN.md, so per CLAUDE.md's working conventions, read PLAN.md/PROGRESS.md first, then used `AskUserQuestion` to settle three design forks before writing any code:
-  1. **Where pin state lives** — a frontmatter field on the project/note file (`pinned: true`, same convention as a project's `archived`) vs. an app-wide preference list in `~/.poco/config.json` (same storage the Dashboard's group filter already uses). The user chose the preference list.
+  1. **Where pin state lives** — a frontmatter field on the project/note file (`pinned: true`, same convention as a project's `archived`) vs. an app-wide preference list in `~/.jota/config.json` (same storage the Dashboard's group filter already uses). The user chose the preference list.
   2. **How pinning is toggled** — a small pin icon directly on `ProjectCard`/`NoteRow` vs. a checkbox in the existing edit forms. The user chose the icon.
   3. **Section behavior** — keep the same collapsible disclosure + persisted open/closed state, and whether to keep the old top-3 cap or show every pinned item uncapped. The user chose: keep the collapsible, no cap.
 

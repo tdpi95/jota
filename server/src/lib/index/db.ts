@@ -1,5 +1,5 @@
 // SQLite index schema + connection (PLAN.md "SQLite index layer"). One index
-// per workspace at `<workspace>/.poco/cache/index.sqlite3`, WAL mode so the
+// per workspace at `<workspace>/.jota/cache/index.sqlite3`, WAL mode so the
 // Express server and a concurrently-running MCP server process can both
 // read/write it without lock contention (see milestone 10).
 //
@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export function getIndexDbPath(workspacePath: string): string {
-  return path.join(workspacePath, '.poco', 'cache', 'index.sqlite3');
+  return path.join(workspacePath, '.jota', 'cache', 'index.sqlite3');
 }
 
 // Each file-backed table carries `source_mtime`/`source_hash` for staleness

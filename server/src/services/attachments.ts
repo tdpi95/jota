@@ -1,6 +1,6 @@
 // File attachment storage (milestone 27, PLAN.md "File attachments"). Plain
 // binary files living under `<workspace>/attachments/<folder>/`, one
-// subfolder per content type — real content (not `.poco/`), so it's
+// subfolder per content type — real content (not `.jota/`), so it's
 // committed to git and travels with the workspace like everything else.
 //
 // Deliberately no SQLite index table: attachments carry no queryable

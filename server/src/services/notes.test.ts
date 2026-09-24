@@ -13,7 +13,7 @@ import { createNote, deleteNote, getNote, listNotes, NoteServiceError, searchNot
 // title does.
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-notes-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-notes-'));
   fs.mkdirSync(path.join(dir, 'notes'), { recursive: true });
   ensureGitRepo(dir);
   return dir;

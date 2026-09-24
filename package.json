@@ -1,5 +1,5 @@
 {
-  "name": "poco",
+  "name": "jota",
   "private": true,
   "version": "0.1.1",
   "workspaces": [
@@ -12,6 +12,7 @@
     "test": "npm run test -w server",
     "package": "npm run package:linux",
     "package:linux": "npm run build -w server && npm run build -w client && npm run package:linux -w electron",
+    "package:linux:latest": "npm run package:linux && node scripts/link-latest-appimage.mjs",
     "package:win": "npm run build -w server && npm run build -w client && npm run package:win -w electron"
   },
   "devDependencies": {

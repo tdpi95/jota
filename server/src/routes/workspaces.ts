@@ -16,10 +16,10 @@ router.get('/active', (_req, res) => {
 });
 
 // Daily reminder (PLAN.md milestone 17), scoped to the active workspace —
-// `electron/src/main.ts`'s `window.poco.getReminderSettings`/
+// `electron/src/main.ts`'s `window.jota.getReminderSettings`/
 // `setReminderSettings` IPC handlers proxy to these over HTTP rather than
 // touching the registry file directly, keeping this the one process that
-// ever writes `~/.poco/config.json` (same reasoning as every other
+// ever writes `~/.jota/config.json` (same reasoning as every other
 // registry mutation going through this service).
 router.get('/active/reminder', (_req, res, next) => {
   try {

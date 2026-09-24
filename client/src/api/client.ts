@@ -66,7 +66,7 @@ export function listWorkspaces(): Promise<{ workspaces: Workspace[] }> {
 }
 
 /** Registers (or, if already registered, just re-activates) a folder as a
- * workspace — `path` comes from `window.poco.pickFolder()` in the Electron
+ * workspace — `path` comes from `window.jota.pickFolder()` in the Electron
  * shell. */
 export function addWorkspace(input: { path: string; name?: string }): Promise<{ workspace: Workspace }> {
   return request('/workspaces', { method: 'POST', body: JSON.stringify(input) });
@@ -478,7 +478,7 @@ export function checkGitAvailable(): Promise<{ available: boolean }> {
  * AppImage, where that path isn't stable across restarts — just a
  * relaunch flag) — the full invocation is exactly `command` then `args`,
  * nothing else to append. `env`, when present, holds extra vars (beyond
- * `POCO_WORKSPACE`, which callers already add themselves) the command
+ * `JOTA_WORKSPACE`, which callers already add themselves) the command
  * actually needs to start reliably — only the AppImage case populates
  * this (`DISPLAY`/`DBUS_SESSION_BUS_ADDRESS`, milestone 18 part 20). See
  * server/src/lib/mcpInfo.ts. */

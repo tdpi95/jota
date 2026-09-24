@@ -13,7 +13,7 @@ import { isAttachmentFolder, saveAttachment } from './attachments.js';
 // write, with no SQLite index row (attachments carry no queryable metadata).
 
 function scratchWorkspace(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'poco-attachments-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jota-attachments-'));
   ensureGitRepo(dir);
   return dir;
 }

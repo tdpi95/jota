@@ -5,7 +5,7 @@ import * as api from '../api/client';
 /**
  * Pinned-projects/pinned-notes selections (Dashboard's "Pinned" section,
  * replacing the old "Recent projects" section) — an app-wide preference
- * (`~/.poco/config.json`, PLAN.md's Dashboard route bullet), not vault
+ * (`~/.jota/config.json`, PLAN.md's Dashboard route bullet), not vault
  * content, same storage choice as the dashboard group filter. Shared
  * between every page that renders a `ProjectCard`/`NoteRow` with a pin
  * toggle (`ProjectsListPage`, `NotesListPage`, `DashboardPage`) so toggling

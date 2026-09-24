@@ -23,14 +23,14 @@ let remoteRoot: string;
 let config: WebDavConfig;
 
 before(async () => {
-  remoteRoot = scratchDir('poco-webdav-remote-');
+  remoteRoot = scratchDir('jota-webdav-remote-');
   const userManager = new webdavServer.SimpleUserManager();
   const user = userManager.addUser('alice', 'secret', false);
   const privilegeManager = new webdavServer.SimplePathPrivilegeManager();
   privilegeManager.setRights(user, '/', ['all']);
 
   davServer = new webdavServer.WebDAVServer({
-    httpAuthentication: new webdavServer.HTTPBasicAuthentication(userManager, 'poco-test'),
+    httpAuthentication: new webdavServer.HTTPBasicAuthentication(userManager, 'jota-test'),
     privilegeManager,
     rootFileSystem: new webdavServer.PhysicalFileSystem(remoteRoot),
   });
@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 function seededWorkspace(): string {
-  const dir = scratchDir('poco-webdav-local-');
+  const dir = scratchDir('jota-webdav-local-');
   fs.mkdirSync(path.join(dir, 'projects'), { recursive: true });
   return dir;
 }
@@ -148,14 +148,14 @@ test('.git and dotfiles are never synced', async () => {
   const a = seededWorkspace();
   fs.mkdirSync(path.join(a, '.git', 'objects'), { recursive: true });
   fs.writeFileSync(path.join(a, '.git', 'objects', 'deadbeef'), 'not vault content', 'utf8');
-  fs.mkdirSync(path.join(a, '.poco', 'cache'), { recursive: true });
-  fs.writeFileSync(path.join(a, '.poco', 'cache', 'index.sqlite3'), 'derived cache', 'utf8');
+  fs.mkdirSync(path.join(a, '.jota', 'cache'), { recursive: true });
+  fs.writeFileSync(path.join(a, '.jota', 'cache', 'index.sqlite3'), 'derived cache', 'utf8');
   fs.writeFileSync(path.join(a, 'projects', 'real.md'), 'real content\n', 'utf8');
 
   const result = await push(a, config);
   assert.deepEqual(result, { synced: ['projects/real.md'], conflicts: [] });
   assert.equal(fs.existsSync(path.join(remoteRoot, '.git')), false);
-  assert.equal(fs.existsSync(path.join(remoteRoot, '.poco')), false);
+  assert.equal(fs.existsSync(path.join(remoteRoot, '.jota')), false);
 });
 
 test('status reports counts without transferring anything', async () => {

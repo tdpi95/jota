@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const APP_ID = 'poco';
+const APP_ID = 'jota';
 
 function applicationsDir(): string {
   return path.join(os.homedir(), '.local', 'share', 'applications');
@@ -75,7 +75,7 @@ function quoteExecArg(value: string): string {
 }
 
 /**
- * Writes `~/.local/share/applications/poco.desktop` (pointing `Exec=` at
+ * Writes `~/.local/share/applications/jota.desktop` (pointing `Exec=` at
  * this *running* AppImage's own path) and copies `iconSourcePath` into the
  * standard hicolor icon theme location, so both show up correctly in an
  * application menu. `iconSourcePath` is passed in rather than located here
@@ -98,7 +98,7 @@ export function createDesktopEntry(iconSourcePath: string): void {
   // whether it needs that flag and adds it itself when it does.
   const contents = [
     '[Desktop Entry]',
-    'Name=Poco',
+    'Name=Jota',
     `Exec=${quoteExecArg(appImagePath)} %U`,
     `Icon=${APP_ID}`,
     'Terminal=false',
