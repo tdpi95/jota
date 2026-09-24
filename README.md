@@ -60,7 +60,7 @@ don't like is one click to undo.
 ## Jota vs Obsidian, Logseq, and friends
 
 Obsidian, Logseq, Foam, SilverBullet, and org-mode are great general-purpose
-knowledge tools — backlinks, graphs, outliners, plugin ecosystems. You *can*
+knowledge tools — backlinks, graphs, outliners, plugin ecosystems. You _can_
 turn one into a task tracker and daily journal, but you'll be choosing
 plugins and templates before you've written anything down.
 
@@ -248,8 +248,6 @@ jota/
   server/     # Express + TypeScript backend, markdown core, SQLite index, MCP server
   client/     # Vite + React + TypeScript frontend (i18n: en/vi)
   electron/   # Electron desktop shell — main process, tray, daily reminder
-  design/     # UI prototype (Claude Design canvas source)
-  vault/      # a convenience default/dev workspace — not a hardcoded runtime path
 ```
 
 ## License
