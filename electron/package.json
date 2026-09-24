@@ -1,7 +1,7 @@
 {
   "name": "jota-electron",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Jota — Journal + Tasks, in plain markdown",
   "author": "jota",
   "main": "dist/main.js",
