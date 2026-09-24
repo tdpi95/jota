@@ -2934,6 +2934,285 @@ textarea {
   color: var(--danger);
 }
 
+/* Settings' WebDAV "N to push" / "N to pull" counts are toggles that list
+   exactly those files underneath (disabled at 0). */
+.sync-count-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.sync-count-btn:hover:not(:disabled),
+.sync-count-btn.is-open {
+  color: var(--accent);
+}
+.sync-count-btn:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+.sync-pending-list {
+  margin: -6px 0 14px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.sync-pending-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+}
+.sync-pending-row + .sync-pending-row {
+  border-top: 1px solid var(--hairline);
+}
+.sync-pending-change {
+  flex-shrink: 0;
+  min-width: 64px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sync-pending-change.is-added {
+  color: var(--good);
+}
+.sync-pending-change.is-modified {
+  color: var(--accent);
+}
+.sync-pending-change.is-deleted {
+  color: var(--danger);
+}
+/* WebDAV conflict list (Settings' Sync panel) + resolver modal
+   (WebdavConflictModal). Diff/merge colors reuse the existing good/danger
+   soft tokens — add/remove only, no new theme tokens. */
+.sync-conflicts {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--danger-soft);
+}
+.sync-conflicts-notice {
+  font-size: 12px;
+  color: var(--danger);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.sync-conflict-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--hairline);
+}
+.sync-conflict-path {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.sync-conflict-row .ws-row-btn {
+  background: var(--paper-card);
+}
+.modal.modal--wide {
+  max-width: 880px;
+}
+.conflict-path {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: -6px 0 10px;
+  overflow-wrap: anywhere;
+}
+.conflict-summary {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.conflict-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.conflict-tabs .ws-row-btn {
+  margin-left: 0;
+}
+.conflict-section {
+  margin-bottom: 16px;
+}
+.conflict-hint {
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.conflict-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 10px;
+}
+.conflict-legend {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 4px;
+}
+.conflict-legend.is-add,
+.conflict-diff-line.is-add {
+  background: var(--good-soft);
+}
+.conflict-legend.is-del,
+.conflict-diff-line.is-del {
+  background: var(--danger-soft);
+}
+.conflict-diff {
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  max-height: 320px;
+  overflow: auto;
+}
+.conflict-diff-hunk {
+  padding: 3px 10px;
+  color: var(--ink-muted);
+  background: var(--surface-muted);
+  font-size: 10.5px;
+}
+.conflict-diff-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0 10px 0 0;
+}
+.conflict-diff-sign {
+  display: inline-block;
+  width: 22px;
+  text-align: center;
+  color: var(--ink-muted);
+  user-select: none;
+}
+.conflict-merge {
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  padding: 8px;
+  max-height: 460px;
+  overflow: auto;
+}
+.conflict-lines {
+  margin: 0;
+  padding: 2px 6px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.conflict-lines.is-unchanged {
+  color: var(--ink-muted);
+}
+.list-toggle-btn.conflict-link {
+  width: auto;
+  padding: 4px 2px;
+}
+.conflict-expand {
+  margin: 2px 4px;
+}
+.conflict-block {
+  margin: 6px 0;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--danger);
+  background: var(--paper-card);
+}
+.conflict-block.is-picked {
+  border-color: var(--good);
+}
+.conflict-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+.conflict-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+@media (max-width: 640px) {
+  .conflict-sides {
+    grid-template-columns: 1fr;
+  }
+}
+.conflict-side {
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  min-width: 0;
+}
+.conflict-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 6px 5px 8px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.conflict-side-head .ws-row-btn {
+  padding: 4px 9px;
+  font-size: 11px;
+}
+.conflict-side .conflict-lines {
+  padding: 6px 8px;
+}
+.conflict-base {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+.conflict-base summary {
+  cursor: pointer;
+}
+.conflict-manual {
+  width: 100%;
+  min-height: 320px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.conflict-keep {
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+.conflict-keep .conflict-hint {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
 /* Notice banner (e.g. Settings' "git not found") */
 .notice-banner {
   display: flex;

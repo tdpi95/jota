@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
  * shifts the page layout"). Closes on Escape, backdrop click, or the ×
  * button; a click inside the card itself does not bubble to the backdrop.
  */
-export default function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+export default function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const { t } = useTranslation();
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -20,7 +20,7 @@ export default function Modal({ title, onClose, children }: { title: string; onC
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal ${wide ? 'modal--wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
           <button type="button" className="modal-close" aria-label={t('modal.close')} onClick={onClose}>

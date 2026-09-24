@@ -142,9 +142,16 @@ export type PullResult = { conflict: false } | { conflict: true; files: string[]
 
 /** `lib/sync/webdav.ts`'s `WebDavStatus`/`WebDavSyncResult` — back the
  * Settings page's Sync panel when the WebDAV provider is active (milestone 29). */
+export interface WebDavPendingChange {
+  path: string;
+  change: 'added' | 'modified' | 'deleted';
+}
+
 export interface WebDavStatus {
   toPush: number;
   toPull: number;
+  pushFiles: WebDavPendingChange[];
+  pullFiles: WebDavPendingChange[];
   conflicts: string[];
   lastSyncedAt: string | null;
 }
@@ -153,6 +160,40 @@ export interface WebDavSyncResult {
   synced: string[];
   conflicts: string[];
 }
+
+/** `lib/sync/webdav.ts`'s conflict-detail shapes — back the WebDAV conflict
+ * resolver (`WebdavConflictModal`). */
+export type WebDavFileState = 'created' | 'modified' | 'deleted' | 'same';
+
+export interface DiffHunk {
+  oldStart: number;
+  newStart: number;
+  lines: { type: ' ' | '+' | '-'; text: string }[];
+}
+
+export type MergeChunk = { kind: 'ok'; lines: string[] } | { kind: 'conflict'; local: string[]; remote: string[]; base: string[] | null };
+
+export interface WebDavFileVersion {
+  localMtimeMs: number | null;
+  remoteEtag: string | null;
+}
+
+export interface WebDavConflictDetail {
+  path: string;
+  local: WebDavFileState;
+  remote: WebDavFileState;
+  isText: boolean;
+  hasBase: boolean;
+  localSize: number | null;
+  remoteSize: number | null;
+  localChanges: DiffHunk[] | null;
+  remoteChanges: DiffHunk[] | null;
+  differences: DiffHunk[] | null;
+  merge: MergeChunk[] | null;
+  version: WebDavFileVersion;
+}
+
+export type WebDavResolution = { choice: 'local' } | { choice: 'remote' } | { choice: 'merged'; content: string };
 
 /** `lib/sync/webdav.ts`'s `WebDavTestResult` — backs the Settings page's
  * "Test connection" button. */

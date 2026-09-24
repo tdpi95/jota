@@ -69,4 +69,28 @@ router.get('/status', async (_req, res, next) => {
   }
 });
 
+router.get('/conflict', async (req, res, next) => {
+  try {
+    res.json(await webdavSyncService.getConflict(req.query.path));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/conflict/resolve', async (req, res, next) => {
+  try {
+    const { path, choice, content, expected } = req.body ?? {};
+    const validChoice = choice === 'local' || choice === 'remote' || (choice === 'merged' && typeof content === 'string');
+    const isVersion = (v: unknown) => v === null || typeof v === 'number' || typeof v === 'string';
+    if (!validChoice || typeof expected !== 'object' || expected === null || !isVersion(expected.localMtimeMs) || !isVersion(expected.remoteEtag)) {
+      res.status(400).json({ error: "choice ('local' | 'remote' | 'merged' with content) and expected {localMtimeMs, remoteEtag} are required" });
+      return;
+    }
+    const resolution = choice === 'merged' ? { choice, content: content as string } : { choice: choice as 'local' | 'remote' };
+    res.json(await webdavSyncService.resolveConflict({ path, resolution, expected: { localMtimeMs: expected.localMtimeMs, remoteEtag: expected.remoteEtag } }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

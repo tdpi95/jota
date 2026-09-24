@@ -20,6 +20,9 @@ import path from 'node:path';
 
 import { createClient, type FileStat, type WebDAVClient } from 'webdav';
 
+import { diffHunks, merge2, merge3, type DiffHunk, type MergeChunk } from '../textMerge.js';
+import { isInFileHistory } from '../vaultGit.js';
+
 export interface WebDavConfig {
   url: string;
   username: string;
@@ -35,9 +38,19 @@ export interface WebDavSyncResult {
   conflicts: string[];
 }
 
+/** One file a push/pull would act on, and what it would do to it. */
+export interface WebDavPendingChange {
+  path: string;
+  change: 'added' | 'modified' | 'deleted';
+}
+
 export interface WebDavStatus {
   toPush: number;
   toPull: number;
+  /** Exactly what `push`/`pull` would transfer right now (same length as
+   * `toPush`/`toPull`), sorted by path — backs Settings' clickable counts. */
+  pushFiles: WebDavPendingChange[];
+  pullFiles: WebDavPendingChange[];
   conflicts: string[];
   lastSyncedAt: string | null;
 }
@@ -258,11 +271,67 @@ function saveSyncState(workspacePath: string, state: SyncState): void {
  * resetting the baseline on every URL change. */
 export function resetSyncState(workspacePath: string): void {
   fs.rmSync(syncStateFilePath(workspacePath), { force: true });
+  fs.rmSync(baseSnapshotDir(workspacePath), { recursive: true, force: true });
+}
+
+// --- base snapshots (last-synced content, for the conflict view) ---------
+// The mtime/etag baseline above says *whether* a file changed since the last
+// sync, but not *what* — so for text files the last-synced bytes themselves
+// are kept too, under `.jota/cache/webdav-base/<same relative path>`. That
+// copy is what lets a conflict be shown as "changed on this device" vs.
+// "changed on the server" and lets non-overlapping edits from both sides be
+// pre-merged for the user (lib/textMerge.ts's `merge3`). Same cache
+// contract as the state file: gitignored, derived, safe to delete — a
+// missing snapshot just degrades that one file's conflict view to a
+// two-way diff. Binary files (attachments) and anything over
+// `MAX_BASE_SNAPSHOT_BYTES` are never snapshotted: there's no useful line
+// diff to show for them, only "keep this side or that side".
+
+const TEXT_FILE_RE = /\.(md|markdown|txt)$/i;
+const MAX_BASE_SNAPSHOT_BYTES = 1024 * 1024;
+
+function isTextPath(relPath: string): boolean {
+  return TEXT_FILE_RE.test(relPath);
+}
+
+function baseSnapshotDir(workspacePath: string): string {
+  return path.join(workspacePath, '.jota', 'cache', 'webdav-base');
+}
+
+function baseSnapshotPath(workspacePath: string, relPath: string): string {
+  return path.join(baseSnapshotDir(workspacePath), ...relPath.split('/'));
+}
+
+function writeBaseSnapshot(workspacePath: string, relPath: string, data: Buffer): void {
+  if (!isTextPath(relPath) || data.length > MAX_BASE_SNAPSHOT_BYTES) return;
+  const file = baseSnapshotPath(workspacePath, relPath);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, data);
+}
+
+function readBaseSnapshot(workspacePath: string, relPath: string): string | null {
+  try {
+    return fs.readFileSync(baseSnapshotPath(workspacePath, relPath), 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+function readBaseSnapshotBytes(workspacePath: string, relPath: string): Buffer | null {
+  try {
+    return fs.readFileSync(baseSnapshotPath(workspacePath, relPath));
+  } catch {
+    return null;
+  }
+}
+
+function removeBaseSnapshot(workspacePath: string, relPath: string): void {
+  fs.rmSync(baseSnapshotPath(workspacePath, relPath), { force: true });
 }
 
 // --- three-way diff -------------------------------------------------------
 
-type FileState = 'created' | 'modified' | 'deleted' | 'same';
+export type FileState = 'created' | 'modified' | 'deleted' | 'same';
 
 interface DiffEntry {
   path: string;
@@ -316,7 +385,15 @@ async function computeDiff(
       ambiguous.push(p);
       continue;
     }
-    if (localState === 'same' && remoteState === 'same') continue;
+    if (localState === 'same' && remoteState === 'same') {
+      // Unchanged on both sides since the last sync, so the local file *is*
+      // the last-synced content — backfills a snapshot for a file synced
+      // before snapshots existed, so its next conflict gets a three-way view.
+      if (b && isTextPath(p) && !fs.existsSync(baseSnapshotPath(workspacePath, p))) {
+        writeBaseSnapshot(workspacePath, p, fs.readFileSync(path.join(workspacePath, ...p.split('/'))));
+      }
+      continue;
+    }
     entries.push({ path: p, local: localState, remote: remoteState });
   }
 
@@ -324,19 +401,90 @@ async function computeDiff(
     const abs = path.join(workspacePath, ...p.split('/'));
     const [localData, remoteData] = await Promise.all([fs.promises.readFile(abs), client.getFileContents(toRemotePath(p)) as Promise<Buffer>]);
     const identical = Buffer.isBuffer(localData) && Buffer.isBuffer(remoteData) && localData.equals(remoteData);
-    return { path: p, identical };
+    return { path: p, identical, localData, remoteData };
   });
 
-  for (const { path: p, identical } of resolutions) {
+  for (const { path: p, identical, localData, remoteData } of resolutions) {
     if (identical) {
       baseline[p] = { localMtimeMs: local.get(p)!, remoteEtag: remote.get(p)! };
+      writeBaseSnapshot(workspacePath, p, localData);
+    } else if (isInFileHistory(workspacePath, p, remoteData)) {
+      // See `refineBothChanged` below: the server's copy is an older version
+      // of ours, so it's the common base and only the local side moved on.
+      // `localMtimeMs: 0` never matches a real mtime, so the local side
+      // keeps reading as `modified` until it's pushed.
+      baseline[p] = { localMtimeMs: 0, remoteEtag: remote.get(p)! };
+      writeBaseSnapshot(workspacePath, p, remoteData);
+      entries.push({ path: p, local: 'modified', remote: 'same' });
     } else {
       entries.push({ path: p, local: 'created', remote: 'created' });
     }
   }
 
-  return entries;
+  await refineBothChanged(workspacePath, client, local, remote, baseline, entries);
+  return entries.filter((e) => e.local !== 'same' || e.remote !== 'same');
 }
+
+/**
+ * Metadata (mtime/etag) says *that* a side changed, not that its content
+ * did — so before a `modified`/`modified` file is reported as a conflict,
+ * the actual bytes get two cheaper-than-a-human checks, each of which can
+ * only ever downgrade a side to `same` (never invent a change):
+ *
+ * 1. Against the base snapshot: a side whose content still equals the
+ *    last-synced copy didn't really change (a touched file, a server that
+ *    re-issued an etag after a rescan, ...).
+ * 2. Against local git history: a server copy that's byte-for-byte some
+ *    version this workspace already committed is just an older copy of
+ *    ours, so the server has nothing new and only the local side moved on.
+ *    Overwriting it on push can't lose anything, because that exact content
+ *    is by definition still recoverable from this workspace's History. This
+ *    is what keeps a lost/reset baseline (a deleted `.jota/cache`, or the
+ *    Poco→Jota rename moving `.poco/` to `.jota/`) from turning every locally
+ *    edited file into a false conflict (see also `computeDiff`'s no-baseline
+ *    branch, which applies the same check).
+ *
+ * Mutates `entries` and `baseline` in place; the caller drops entries that
+ * end up `same`/`same`.
+ */
+async function refineBothChanged(
+  workspacePath: string,
+  client: WebDAVClient,
+  local: Map<string, number>,
+  remote: Map<string, string>,
+  baseline: SyncState,
+  entries: DiffEntry[]
+): Promise<void> {
+  const candidates = entries.filter((e) => e.local === 'modified' && e.remote === 'modified');
+  await mapWithConcurrency(candidates, WEBDAV_CONCURRENCY, async (entry) => {
+    const p = entry.path;
+    const abs = path.join(workspacePath, ...p.split('/'));
+    const [localData, remoteData] = await Promise.all([fs.promises.readFile(abs), client.getFileContents(toRemotePath(p)) as Promise<Buffer>]);
+    const b = baseline[p];
+
+    if (localData.equals(remoteData)) {
+      baseline[p] = { localMtimeMs: local.get(p)!, remoteEtag: remote.get(p)! };
+      writeBaseSnapshot(workspacePath, p, localData);
+      entry.local = 'same';
+      entry.remote = 'same';
+      return;
+    }
+
+    const base = isTextPath(p) ? readBaseSnapshotBytes(workspacePath, p) : null;
+    if (base && remoteData.equals(base)) {
+      b.remoteEtag = remote.get(p)!;
+      entry.remote = 'same';
+    } else if (base && localData.equals(base)) {
+      b.localMtimeMs = local.get(p)!;
+      entry.local = 'same';
+    } else if (isInFileHistory(workspacePath, p, remoteData)) {
+      b.remoteEtag = remote.get(p)!;
+      writeBaseSnapshot(workspacePath, p, remoteData);
+      entry.remote = 'same';
+    }
+  });
+}
+
 
 function etagOf(stat: FileStat): string {
   return stat.etag ?? stat.lastmod;
@@ -363,6 +511,7 @@ export async function push(workspacePath: string, config: WebDavConfig): Promise
     if (entry.local === 'same') continue;
     if (entry.local === 'deleted' && entry.remote === 'deleted') {
       delete baseline[entry.path];
+      removeBaseSnapshot(workspacePath, entry.path);
       continue;
     }
     if (entry.remote !== 'same') {
@@ -372,6 +521,7 @@ export async function push(workspacePath: string, config: WebDavConfig): Promise
     if (entry.local === 'deleted') {
       await client.deleteFile(toRemotePath(entry.path));
       delete baseline[entry.path];
+      removeBaseSnapshot(workspacePath, entry.path);
     } else {
       const abs = path.join(workspacePath, ...entry.path.split('/'));
       const data = fs.readFileSync(abs);
@@ -379,6 +529,7 @@ export async function push(workspacePath: string, config: WebDavConfig): Promise
       await client.putFileContents(toRemotePath(entry.path), data, { overwrite: true });
       const stat = await client.stat(toRemotePath(entry.path));
       baseline[entry.path] = { localMtimeMs: local.get(entry.path)!, remoteEtag: etagOf(stat as FileStat) };
+      writeBaseSnapshot(workspacePath, entry.path, data);
     }
     synced.push(entry.path);
   }
@@ -401,6 +552,7 @@ export async function pull(workspacePath: string, config: WebDavConfig): Promise
     if (entry.remote === 'same') continue;
     if (entry.local === 'deleted' && entry.remote === 'deleted') {
       delete baseline[entry.path];
+      removeBaseSnapshot(workspacePath, entry.path);
       continue;
     }
     if (entry.local !== 'same') {
@@ -411,12 +563,14 @@ export async function pull(workspacePath: string, config: WebDavConfig): Promise
     if (entry.remote === 'deleted') {
       fs.rmSync(abs, { force: true });
       delete baseline[entry.path];
+      removeBaseSnapshot(workspacePath, entry.path);
     } else {
       fs.mkdirSync(path.dirname(abs), { recursive: true });
       const data = (await client.getFileContents(toRemotePath(entry.path))) as Buffer;
       fs.writeFileSync(abs, data);
       const mtimeMs = fs.statSync(abs).mtimeMs;
       baseline[entry.path] = { localMtimeMs: mtimeMs, remoteEtag: remote.get(entry.path)! };
+      writeBaseSnapshot(workspacePath, entry.path, data);
     }
     synced.push(entry.path);
   }
@@ -437,20 +591,253 @@ export async function status(workspacePath: string, config: WebDavConfig, lastSy
   const baseline = loadSyncState(workspacePath);
   const diff = await computeDiff(workspacePath, client, local, remote, baseline);
 
-  let toPush = 0;
-  let toPull = 0;
+  const pushFiles: WebDavPendingChange[] = [];
+  const pullFiles: WebDavPendingChange[] = [];
   const conflicts: string[] = [];
+  const change = (state: FileState): WebDavPendingChange['change'] => (state === 'created' ? 'added' : state === 'deleted' ? 'deleted' : 'modified');
   for (const entry of diff) {
     if (entry.local === 'deleted' && entry.remote === 'deleted') continue;
     if (entry.local !== 'same' && entry.remote !== 'same') {
       conflicts.push(entry.path);
     } else if (entry.local !== 'same') {
-      toPush++;
+      pushFiles.push({ path: entry.path, change: change(entry.local) });
     } else if (entry.remote !== 'same') {
-      toPull++;
+      pullFiles.push({ path: entry.path, change: change(entry.remote) });
     }
+  }
+  const byPath = (a: WebDavPendingChange, b: WebDavPendingChange) => a.path.localeCompare(b.path);
+  pushFiles.sort(byPath);
+  pullFiles.sort(byPath);
+  conflicts.sort();
+
+  saveSyncState(workspacePath, baseline);
+  return { toPush: pushFiles.length, toPull: pullFiles.length, pushFiles, pullFiles, conflicts, lastSyncedAt };
+}
+
+// --- resolving a single conflict -------------------------------------------
+// Push/pull never touch a conflicted file (above). Resolving one is its own
+// explicit, per-file step: `getConflict` fetches both sides (plus the base
+// snapshot, when there is one) and returns what changed on each side and a
+// pre-merged draft; `resolveConflict` then applies the user's choice — keep
+// this device's version, keep the server's, or a merged text they edited —
+// to *both* sides and records a fresh baseline, so the file drops out of the
+// conflict list. Both operate on just the one path (a local stat + a remote
+// PROPFIND on that file), not a full-tree listing.
+
+export interface WebDavFileVersion {
+  /** Local mtime / remote etag as they were when the conflict was read —
+   * `null` for a side where the file doesn't exist. `resolveConflict`
+   * refuses to act if either has moved on since, so a resolution can never
+   * overwrite an edit the user hasn't seen. */
+  localMtimeMs: number | null;
+  remoteEtag: string | null;
+}
+
+export interface WebDavConflictDetail {
+  path: string;
+  /** What happened on each side since the last sync. `created` on both
+   * means the file had never been synced and exists on both sides with
+   * different content. */
+  local: FileState;
+  remote: FileState;
+  /** A text file (markdown) gets diffs + a merge draft; anything else
+   * (attachments) only gets sizes and keep-one-side. */
+  isText: boolean;
+  /** Whether a last-synced copy was available: with one, `localChanges`/
+   * `remoteChanges` show each side's own edits and `merge` has every
+   * non-overlapping edit already combined; without, only a direct
+   * this-device-vs-server comparison (`differences`) is possible. */
+  hasBase: boolean;
+  localSize: number | null;
+  remoteSize: number | null;
+  /** base → this device's version (three-way, the local file exists). */
+  localChanges: DiffHunk[] | null;
+  /** base → server's version (three-way, the remote file exists). */
+  remoteChanges: DiffHunk[] | null;
+  /** server's version → this device's version (two-way fallback, both exist). */
+  differences: DiffHunk[] | null;
+  /** Merge draft: both sides exist and it's text. `conflict` chunks are
+   * exactly the regions the user has to choose between. */
+  merge: MergeChunk[] | null;
+  version: WebDavFileVersion;
+}
+
+export type WebDavResolution = { choice: 'local' } | { choice: 'remote' } | { choice: 'merged'; content: string };
+
+export type WebDavResolveResult =
+  | { ok: true; /** Whether the local file was written or deleted. */ localChanged: boolean }
+  | { ok: false; reason: 'changed' | 'invalid'; message: string };
+
+/** A workspace-relative path a caller may ask about: forward-slashed, no
+ * `..`/absolute escapes, and one sync would actually act on (so never
+ * anything under `.git`/`.jota`). */
+export function isValidSyncPath(relPath: string): boolean {
+  if (!relPath || relPath.startsWith('/') || relPath.includes('\\')) return false;
+  const segments = relPath.split('/');
+  if (segments.some((s) => s === '' || s === '.' || s === '..')) return false;
+  return shouldSyncPath(relPath);
+}
+
+interface PathSnapshot {
+  local: FileState;
+  remote: FileState;
+  version: WebDavFileVersion;
+  remoteSize: number | null;
+}
+
+async function snapshotPath(workspacePath: string, client: WebDAVClient, relPath: string, baseline: SyncState): Promise<PathSnapshot> {
+  let localMtimeMs: number | null = null;
+  try {
+    const st = fs.statSync(path.join(workspacePath, ...relPath.split('/')));
+    if (st.isFile()) localMtimeMs = st.mtimeMs;
+  } catch {
+    // missing locally
+  }
+  let remoteEtag: string | null = null;
+  let remoteSize: number | null = null;
+  try {
+    const st = (await client.stat(toRemotePath(relPath))) as FileStat;
+    if (st.type === 'file') {
+      remoteEtag = etagOf(st);
+      remoteSize = st.size;
+    }
+  } catch (err) {
+    if (!isNotFound(err)) throw err;
+  }
+  const b = baseline[relPath];
+  return {
+    local: classify(localMtimeMs ?? undefined, b?.localMtimeMs),
+    remote: classify(remoteEtag ?? undefined, b?.remoteEtag),
+    version: { localMtimeMs, remoteEtag },
+    remoteSize,
+  };
+}
+
+/** The conflict detail for one file, or `null` if it isn't (or is no
+ * longer) in conflict — e.g. it was resolved from another device, or it had
+ * no baseline and turned out to have identical content on both sides (in
+ * which case the baseline is recorded, same as `computeDiff` does). */
+export async function getConflict(workspacePath: string, config: WebDavConfig, relPath: string): Promise<WebDavConflictDetail | null> {
+  const client = createWebDavClient(config);
+  const baseline = loadSyncState(workspacePath);
+  const snap = await snapshotPath(workspacePath, client, relPath, baseline);
+  const { local, remote, version } = snap;
+  if (local === 'same' || remote === 'same' || (local === 'deleted' && remote === 'deleted')) return null;
+
+  const abs = path.join(workspacePath, ...relPath.split('/'));
+  const [localData, remoteData] = await Promise.all([
+    version.localMtimeMs !== null ? fs.promises.readFile(abs) : Promise.resolve(null),
+    version.remoteEtag !== null ? (client.getFileContents(toRemotePath(relPath)) as Promise<Buffer>) : Promise.resolve(null),
+  ]);
+
+  if (local === 'created' && remote === 'created' && localData && remoteData && localData.equals(remoteData)) {
+    baseline[relPath] = { localMtimeMs: version.localMtimeMs!, remoteEtag: version.remoteEtag! };
+    writeBaseSnapshot(workspacePath, relPath, localData);
+    saveSyncState(workspacePath, baseline);
+    return null;
+  }
+
+  const isText = isTextPath(relPath);
+  // A snapshot only counts if the baseline still exists alongside it — a
+  // `created`/`created` file has no baseline, so any stray snapshot for it
+  // is from some earlier, unrelated sync of that path.
+  const base = isText && baseline[relPath] ? readBaseSnapshot(workspacePath, relPath) : null;
+  const localText = isText && localData ? localData.toString('utf8') : null;
+  const remoteText = isText && remoteData ? remoteData.toString('utf8') : null;
+
+  const detail: WebDavConflictDetail = {
+    path: relPath,
+    local,
+    remote,
+    isText,
+    hasBase: base !== null,
+    localSize: localData?.length ?? null,
+    remoteSize: remoteData?.length ?? snap.remoteSize,
+    localChanges: null,
+    remoteChanges: null,
+    differences: null,
+    merge: null,
+    version,
+  };
+  if (!isText) return detail;
+
+  if (base !== null) {
+    if (localText !== null) detail.localChanges = diffHunks(base, localText);
+    if (remoteText !== null) detail.remoteChanges = diffHunks(base, remoteText);
+  } else if (localText !== null && remoteText !== null) {
+    detail.differences = diffHunks(remoteText, localText);
+  }
+  if (localText !== null && remoteText !== null) {
+    detail.merge = base !== null ? merge3(base, localText, remoteText) : merge2(localText, remoteText);
+  }
+  return detail;
+}
+
+/** Applies one resolution to both sides and records a fresh baseline (and
+ * base snapshot) for the file. `expected` is the `version` from the
+ * `getConflict` the user was looking at — if either side changed since,
+ * nothing is touched and `{ok: false, reason: 'changed'}` comes back, so
+ * the caller can re-read and show the newer content instead. */
+export async function resolveConflict(
+  workspacePath: string,
+  config: WebDavConfig,
+  relPath: string,
+  resolution: WebDavResolution,
+  expected: WebDavFileVersion
+): Promise<WebDavResolveResult> {
+  const client = createWebDavClient(config);
+  const baseline = loadSyncState(workspacePath);
+  const { version } = await snapshotPath(workspacePath, client, relPath, baseline);
+  if (version.localMtimeMs !== expected.localMtimeMs || version.remoteEtag !== expected.remoteEtag) {
+    return { ok: false, reason: 'changed', message: 'This file changed again since the conflict was opened — reopen it to see the latest versions.' };
+  }
+
+  const abs = path.join(workspacePath, ...relPath.split('/'));
+  const remotePath = toRemotePath(relPath);
+
+  async function upload(data: Buffer, localMtimeMs: number): Promise<void> {
+    await ensureRemoteDir(client, path.posix.dirname(relPath));
+    await client.putFileContents(remotePath, data, { overwrite: true });
+    const stat = (await client.stat(remotePath)) as FileStat;
+    baseline[relPath] = { localMtimeMs, remoteEtag: etagOf(stat) };
+    writeBaseSnapshot(workspacePath, relPath, data);
+  }
+
+  function forget(): void {
+    delete baseline[relPath];
+    removeBaseSnapshot(workspacePath, relPath);
+  }
+
+  let localChanged = false;
+  if (resolution.choice === 'local') {
+    if (version.localMtimeMs !== null) {
+      await upload(fs.readFileSync(abs), version.localMtimeMs);
+    } else {
+      if (version.remoteEtag !== null) await client.deleteFile(remotePath);
+      forget();
+    }
+  } else if (resolution.choice === 'remote') {
+    localChanged = true;
+    if (version.remoteEtag !== null) {
+      const data = (await client.getFileContents(remotePath)) as Buffer;
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, data);
+      baseline[relPath] = { localMtimeMs: fs.statSync(abs).mtimeMs, remoteEtag: version.remoteEtag };
+      writeBaseSnapshot(workspacePath, relPath, data);
+    } else {
+      fs.rmSync(abs, { force: true });
+      forget();
+    }
+  } else {
+    if (!isTextPath(relPath) || version.localMtimeMs === null || version.remoteEtag === null) {
+      return { ok: false, reason: 'invalid', message: 'A merged version can only be saved for a text file that exists on both sides.' };
+    }
+    localChanged = true;
+    const data = Buffer.from(resolution.content, 'utf8');
+    fs.writeFileSync(abs, data);
+    await upload(data, fs.statSync(abs).mtimeMs);
   }
 
   saveSyncState(workspacePath, baseline);
-  return { toPush, toPull, conflicts, lastSyncedAt };
+  return { ok: true, localChanged };
 }

@@ -9,7 +9,15 @@ import os from 'node:os';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import * as webdav from '../lib/sync/webdav.js';
-import type { WebDavStatus, WebDavSyncResult, WebDavTestResult } from '../lib/sync/webdav.js';
+import type {
+  WebDavConflictDetail,
+  WebDavFileVersion,
+  WebDavResolution,
+  WebDavStatus,
+  WebDavSyncResult,
+  WebDavTestResult,
+} from '../lib/sync/webdav.js';
+import { commitChange } from '../lib/vaultGit.js';
 import { readRegistry, writeRegistry, type WorkspaceSyncConfig } from '../lib/workspaces.js';
 import { getActiveWorkspaceOrThrow } from './workspaces.js';
 
@@ -144,4 +152,57 @@ export async function getStatus(homeDir: string = os.homedir()): Promise<WebDavS
   } catch (err) {
     throw new WebdavSyncServiceError(`status failed: ${(err as Error).message}`, 502);
   }
+}
+
+function requireSyncPath(relPath: unknown): string {
+  if (typeof relPath !== 'string' || !webdav.isValidSyncPath(relPath)) {
+    throw new WebdavSyncServiceError('path must be a workspace-relative file path that WebDAV sync manages', 400);
+  }
+  return relPath;
+}
+
+/** `GET /api/vault/webdav/conflict?path=...` — what changed on each side of
+ * one conflicted file, plus a merge draft (lib/sync/webdav.ts's
+ * `getConflict`). 404s if the file isn't in conflict (any more). */
+export async function getConflict(relPath: unknown, homeDir: string = os.homedir()): Promise<WebDavConflictDetail> {
+  const filePath = requireSyncPath(relPath);
+  const workspace = requireWebdavConfig(homeDir);
+  let detail: WebDavConflictDetail | null;
+  try {
+    detail = await webdav.getConflict(workspace.path, workspace.config, filePath);
+  } catch (err) {
+    throw new WebdavSyncServiceError(`reading conflict failed: ${(err as Error).message}`, 502);
+  }
+  if (!detail) throw new WebdavSyncServiceError(`${filePath} is not in conflict any more`, 404);
+  return detail;
+}
+
+const CHOICE_LABELS: Record<WebDavResolution['choice'], string> = {
+  local: "kept this device's version",
+  remote: "kept the server's version",
+  merged: 'saved a merged version',
+};
+
+/** `POST /api/vault/webdav/conflict/resolve`. When the resolution rewrites
+ * (or deletes) the local file, that write is committed to the workspace's
+ * git history like any other app write — so "keep the server's version"
+ * stays undoable from the History panel — and the index is reconciled. */
+export async function resolveConflict(
+  input: { path: unknown; resolution: WebDavResolution; expected: WebDavFileVersion },
+  homeDir: string = os.homedir()
+): Promise<{ localChanged: boolean }> {
+  const filePath = requireSyncPath(input.path);
+  const workspace = requireWebdavConfig(homeDir);
+  let result: Awaited<ReturnType<typeof webdav.resolveConflict>>;
+  try {
+    result = await webdav.resolveConflict(workspace.path, workspace.config, filePath, input.resolution, input.expected);
+  } catch (err) {
+    throw new WebdavSyncServiceError(`resolving conflict failed: ${(err as Error).message}`, 502);
+  }
+  if (!result.ok) throw new WebdavSyncServiceError(result.message, result.reason === 'changed' ? 409 : 400);
+  if (result.localChanged) {
+    commitChange(workspace.path, { origin: 'api', message: `webdav resolve ${filePath}: ${CHOICE_LABELS[input.resolution.choice]}`, paths: [filePath] });
+    reconcileWorkspace(workspace.path);
+  }
+  return { localChanged: result.localChanged };
 }

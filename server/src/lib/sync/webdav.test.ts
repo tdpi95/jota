@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import type { Server } from 'node:http';
 import os from 'node:os';
@@ -7,7 +8,17 @@ import { after, before, beforeEach, test } from 'node:test';
 
 import { v2 as webdavServer } from 'webdav-server';
 
-import { pull, push, resetSyncState, status, testConnection, type WebDavConfig } from './webdav.js';
+import {
+  getConflict,
+  isValidSyncPath,
+  pull,
+  push,
+  resetSyncState,
+  resolveConflict,
+  status,
+  testConnection,
+  type WebDavConfig,
+} from './webdav.js';
 
 // Mirrors gitRemote.test.ts's convention: a real server, not a mock — here a
 // real in-process WebDAV server (webdav-server) rather than a real bare git
@@ -52,6 +63,12 @@ beforeEach(() => {
   fs.rmSync(remoteRoot, { recursive: true, force: true });
   fs.mkdirSync(remoteRoot, { recursive: true });
 });
+
+/** Just the count/conflict fields of a status — for tests about *whether*
+ * something needs syncing, not which files (the file-list test covers that). */
+function counts(s: { toPush: number; toPull: number; conflicts: string[] }) {
+  return { toPush: s.toPush, toPull: s.toPull, conflicts: s.conflicts };
+}
 
 function seededWorkspace(): string {
   const dir = scratchDir('jota-webdav-local-');
@@ -346,4 +363,262 @@ test('remote file listing correctly walks many sibling directories, more than WE
   for (let i = 0; i < dirCount; i++) {
     assert.equal(fs.readFileSync(path.join(b, `dir${i}`, 'f.md'), 'utf8'), `content ${i}\n`);
   }
+});
+
+// --- conflict detail + resolution ---------------------------------------
+
+/** A pushes `base`, B pulls it, then A edits (and pushes) `remoteEdit`
+ * while B edits `localEdit` locally — leaving B with one real conflict. */
+async function divergedPair(base: string, remoteEdit: string | null, localEdit: string | null): Promise<{ a: string; b: string }> {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'shared.md'), base, 'utf8');
+  await push(a, config);
+  const b = seededWorkspace();
+  await pull(b, config);
+
+  if (remoteEdit === null) fs.rmSync(path.join(a, 'projects', 'shared.md'));
+  else fs.writeFileSync(path.join(a, 'projects', 'shared.md'), remoteEdit, 'utf8');
+  await push(a, config);
+
+  if (localEdit === null) fs.rmSync(path.join(b, 'projects', 'shared.md'));
+  else fs.writeFileSync(path.join(b, 'projects', 'shared.md'), localEdit, 'utf8');
+  assert.deepEqual((await status(b, config, null)).conflicts, ['projects/shared.md']);
+  return { a, b };
+}
+
+const readLocal = (ws: string) => fs.readFileSync(path.join(ws, 'projects', 'shared.md'), 'utf8');
+const readRemote = () => fs.readFileSync(path.join(remoteRoot, 'projects', 'shared.md'), 'utf8');
+
+test('getConflict shows each side\'s own changes against the last-synced copy, pre-merging non-overlapping edits', async () => {
+  const { b } = await divergedPair('a\nb\nc\nd\n', 'A\nb\nc\nd\n', 'a\nb\nc\nD\n');
+  const detail = await getConflict(b, config, 'projects/shared.md');
+  assert.ok(detail);
+  assert.equal(detail.local, 'modified');
+  assert.equal(detail.remote, 'modified');
+  assert.equal(detail.hasBase, true);
+  assert.deepEqual(
+    detail.localChanges!.flatMap((h) => h.lines.filter((l) => l.type !== ' ')),
+    [{ type: '-', text: 'd' }, { type: '+', text: 'D' }]
+  );
+  assert.deepEqual(
+    detail.remoteChanges!.flatMap((h) => h.lines.filter((l) => l.type !== ' ')),
+    [{ type: '-', text: 'a' }, { type: '+', text: 'A' }]
+  );
+  assert.deepEqual(detail.merge, [{ kind: 'ok', lines: ['A', 'b', 'c', 'D', ''] }]);
+  assert.equal(detail.differences, null);
+});
+
+test('overlapping edits come back as a conflict chunk carrying base, local, and remote', async () => {
+  const { b } = await divergedPair('a\nb\nc\n', 'a\nfrom A\nc\n', 'a\nfrom B\nc\n');
+  const detail = await getConflict(b, config, 'projects/shared.md');
+  assert.deepEqual(detail!.merge, [
+    { kind: 'ok', lines: ['a'] },
+    { kind: 'conflict', local: ['from B'], remote: ['from A'], base: ['b'] },
+    { kind: 'ok', lines: ['c', ''] },
+  ]);
+});
+
+test('resolving with a merged version writes it to both sides and clears the conflict', async () => {
+  const { a, b } = await divergedPair('a\nb\n', 'A\nb\n', 'a\nB\n');
+  const detail = (await getConflict(b, config, 'projects/shared.md'))!;
+  const result = await resolveConflict(b, config, 'projects/shared.md', { choice: 'merged', content: 'A\nB\n' }, detail.version);
+  assert.deepEqual(result, { ok: true, localChanged: true });
+  assert.equal(readLocal(b), 'A\nB\n');
+  assert.equal(readRemote(), 'A\nB\n');
+
+  const after = await status(b, config, null);
+  assert.deepEqual(counts(after), { toPush: 0, toPull: 0, conflicts: [] });
+  assert.equal(await getConflict(b, config, 'projects/shared.md'), null);
+  // The other device just sees an ordinary remote change to pull.
+  assert.deepEqual(await pull(a, config), { synced: ['projects/shared.md'], conflicts: [] });
+  assert.equal(readLocal(a), 'A\nB\n');
+});
+
+test("keeping this device's version uploads it; keeping the server's downloads it", async () => {
+  {
+    const { b } = await divergedPair('v1\n', 'from A\n', 'from B\n');
+    const detail = (await getConflict(b, config, 'projects/shared.md'))!;
+    assert.deepEqual(await resolveConflict(b, config, 'projects/shared.md', { choice: 'local' }, detail.version), { ok: true, localChanged: false });
+    assert.equal(readRemote(), 'from B\n');
+    assert.deepEqual((await status(b, config, null)).conflicts, []);
+  }
+  fs.rmSync(remoteRoot, { recursive: true, force: true });
+  fs.mkdirSync(remoteRoot, { recursive: true });
+  {
+    const { b } = await divergedPair('v1\n', 'from A\n', 'from B\n');
+    const detail = (await getConflict(b, config, 'projects/shared.md'))!;
+    assert.deepEqual(await resolveConflict(b, config, 'projects/shared.md', { choice: 'remote' }, detail.version), { ok: true, localChanged: true });
+    assert.equal(readLocal(b), 'from A\n');
+    assert.deepEqual(counts(await status(b, config, null)), { toPush: 0, toPull: 0, conflicts: [] });
+  }
+});
+
+test('a resolution is refused, touching nothing, if either side changed since the conflict was read', async () => {
+  const { b } = await divergedPair('v1\n', 'from A\n', 'from B\n');
+  const detail = (await getConflict(b, config, 'projects/shared.md'))!;
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'shared.md'), 'from A, again\n', 'utf8');
+
+  const result = await resolveConflict(b, config, 'projects/shared.md', { choice: 'local' }, detail.version);
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.reason, 'changed');
+  assert.equal(readRemote(), 'from A, again\n');
+  assert.equal(readLocal(b), 'from B\n');
+});
+
+test('a delete-vs-edit conflict can be resolved either way', async () => {
+  const { b } = await divergedPair('v1\n', null, 'edited\n');
+  const detail = (await getConflict(b, config, 'projects/shared.md'))!;
+  assert.equal(detail.local, 'modified');
+  assert.equal(detail.remote, 'deleted');
+  assert.equal(detail.merge, null);
+  assert.ok(detail.localChanges);
+  assert.equal(detail.remoteChanges, null);
+
+  // Keeping the server's side here means accepting the deletion.
+  assert.deepEqual(await resolveConflict(b, config, 'projects/shared.md', { choice: 'remote' }, detail.version), { ok: true, localChanged: true });
+  assert.equal(fs.existsSync(path.join(b, 'projects', 'shared.md')), false);
+  assert.deepEqual((await status(b, config, null)).conflicts, []);
+});
+
+test('a never-synced file with different content on both sides gets a two-way diff', async () => {
+  const b = seededWorkspace();
+  fs.mkdirSync(path.join(remoteRoot, 'projects'), { recursive: true });
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'shared.md'), 'same\nremote line\n', 'utf8');
+  fs.writeFileSync(path.join(b, 'projects', 'shared.md'), 'same\nlocal line\n', 'utf8');
+
+  const detail = (await getConflict(b, config, 'projects/shared.md'))!;
+  assert.equal(detail.local, 'created');
+  assert.equal(detail.remote, 'created');
+  assert.equal(detail.hasBase, false);
+  assert.equal(detail.localChanges, null);
+  assert.ok(detail.differences && detail.differences.length === 1);
+  assert.deepEqual(detail.merge, [
+    { kind: 'ok', lines: ['same'] },
+    { kind: 'conflict', local: ['local line'], remote: ['remote line'], base: null },
+    { kind: 'ok', lines: [''] },
+  ]);
+});
+
+test('files synced before base snapshots existed get one backfilled while unchanged', async () => {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'shared.md'), 'v1\n', 'utf8');
+  await push(a, config);
+  const snapshot = path.join(a, '.jota', 'cache', 'webdav-base', 'projects', 'shared.md');
+  assert.equal(fs.readFileSync(snapshot, 'utf8'), 'v1\n');
+
+  fs.rmSync(path.join(a, '.jota', 'cache', 'webdav-base'), { recursive: true });
+  await status(a, config, null);
+  assert.equal(fs.readFileSync(snapshot, 'utf8'), 'v1\n');
+});
+
+test('getConflict returns null for a file that is not in conflict, and only valid sync paths are accepted', async () => {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'hi\n', 'utf8');
+  await push(a, config);
+  assert.equal(await getConflict(a, config, 'projects/x.md'), null);
+
+  assert.equal(isValidSyncPath('projects/x.md'), true);
+  for (const bad of ['', '/projects/x.md', '../x.md', 'projects/../../x.md', '.git/config', '.jota/cache/index.sqlite3', 'projects\\x.md']) {
+    assert.equal(isValidSyncPath(bad), false, bad);
+  }
+});
+
+// --- false conflicts: "the server only has an older copy of ours" -----------
+
+function gitCommitAll(ws: string, message: string): void {
+  const git = (...args: string[]) => execFileSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.com', ...args], { cwd: ws, stdio: 'ignore' });
+  if (!fs.existsSync(path.join(ws, '.git'))) git('init', '-q');
+  fs.writeFileSync(path.join(ws, '.gitignore'), '.jota/\n', 'utf8');
+  git('add', '-A');
+  git('commit', '-q', '-m', message);
+}
+
+test('with the baseline lost, a server copy that is an older committed version of ours is a plain push, not a conflict', async () => {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\n', 'utf8');
+  gitCommitAll(a, 'v1');
+  await push(a, config);
+
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\nv2 local edit\n', 'utf8');
+  gitCommitAll(a, 'v2');
+  resetSyncState(a); // what the Poco→Jota cache-folder rename effectively did
+
+  assert.deepEqual(counts(await status(a, config, null)), { toPush: 1, toPull: 0, conflicts: [] });
+  assert.deepEqual(await push(a, config), { synced: ['projects/x.md'], conflicts: [] });
+  assert.equal(fs.readFileSync(path.join(remoteRoot, 'projects', 'x.md'), 'utf8'), 'v1\nv2 local edit\n');
+});
+
+test('with the baseline lost, a server copy this device never had is still a conflict', async () => {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\n', 'utf8');
+  gitCommitAll(a, 'v1');
+  await push(a, config);
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'x.md'), 'edited on another device\n', 'utf8');
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'edited here\n', 'utf8');
+  gitCommitAll(a, 'local edit');
+  resetSyncState(a);
+
+  assert.deepEqual((await status(a, config, null)).conflicts, ['projects/x.md']);
+  assert.deepEqual(await push(a, config), { synced: [], conflicts: ['projects/x.md'] });
+  assert.equal(fs.readFileSync(path.join(remoteRoot, 'projects', 'x.md'), 'utf8'), 'edited on another device\n');
+});
+
+test('a server etag change with unchanged content does not make a local edit a conflict', async () => {
+  const a = seededWorkspace(); // no git repo: this relies on the base snapshot alone
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\n', 'utf8');
+  await push(a, config);
+
+  // Same bytes rewritten on the server (a rescan/touch) — new etag, no new content.
+  await new Promise((r) => setTimeout(r, 1100));
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'x.md'), 'v1\n', 'utf8');
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\nlocal\n', 'utf8');
+
+  assert.deepEqual(counts(await status(a, config, null)), { toPush: 1, toPull: 0, conflicts: [] });
+  assert.deepEqual(await push(a, config), { synced: ['projects/x.md'], conflicts: [] });
+});
+
+test('a local mtime change with unchanged content lets a real server edit pull cleanly', async () => {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\n', 'utf8');
+  await push(a, config);
+
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'x.md'), 'v2 from elsewhere\n', 'utf8');
+  await new Promise((r) => setTimeout(r, 20));
+  fs.writeFileSync(path.join(a, 'projects', 'x.md'), 'v1\n', 'utf8'); // rewritten, identical
+
+  assert.deepEqual(counts(await status(a, config, null)), { toPush: 0, toPull: 1, conflicts: [] });
+  assert.deepEqual(await pull(a, config), { synced: ['projects/x.md'], conflicts: [] });
+  assert.equal(fs.readFileSync(path.join(a, 'projects', 'x.md'), 'utf8'), 'v2 from elsewhere\n');
+});
+
+test('status lists exactly which files a push and a pull would act on, and how', async () => {
+  const a = seededWorkspace();
+  fs.writeFileSync(path.join(a, 'projects', 'kept.md'), 'v1\n', 'utf8');
+  fs.writeFileSync(path.join(a, 'projects', 'edited.md'), 'v1\n', 'utf8');
+  fs.writeFileSync(path.join(a, 'projects', 'removed.md'), 'v1\n', 'utf8');
+  fs.writeFileSync(path.join(a, 'projects', 'remote-edit.md'), 'v1\n', 'utf8');
+  await push(a, config);
+
+  fs.writeFileSync(path.join(a, 'projects', 'edited.md'), 'v2\n', 'utf8');
+  fs.writeFileSync(path.join(a, 'projects', 'new.md'), 'new\n', 'utf8');
+  fs.rmSync(path.join(a, 'projects', 'removed.md'));
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'remote-edit.md'), 'v2 elsewhere\n', 'utf8');
+  fs.writeFileSync(path.join(remoteRoot, 'projects', 'remote-new.md'), 'hi\n', 'utf8');
+
+  const s = await status(a, config, null);
+  assert.deepEqual(s.pushFiles, [
+    { path: 'projects/edited.md', change: 'modified' },
+    { path: 'projects/new.md', change: 'added' },
+    { path: 'projects/removed.md', change: 'deleted' },
+  ]);
+  assert.deepEqual(s.pullFiles, [
+    { path: 'projects/remote-edit.md', change: 'modified' },
+    { path: 'projects/remote-new.md', change: 'added' },
+  ]);
+  assert.equal(s.toPush, 3);
+  assert.equal(s.toPull, 2);
+
+  // The lists are what the operations actually do.
+  assert.deepEqual((await push(a, config)).synced.sort(), s.pushFiles.map((f) => f.path));
+  assert.deepEqual((await pull(a, config)).synced.sort(), s.pullFiles.map((f) => f.path));
 });

@@ -7,6 +7,7 @@ import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
 import { getJotaBridge, type ReminderSettings } from '../lib/jotaBridge';
 import { ACCENT_PALETTE_SWATCH, ACCENT_PALETTES, applyAccentPalette, applyTheme, THEMES, type AccentPalette, type ThemeMode } from '../lib/theme';
+import WebdavConflictModal from '../components/WebdavConflictModal';
 import type { PullResult, WorkspaceSyncConfig } from '../types';
 
 const SYNC_PROVIDERS = ['none', 'git-remote', 'webdav'] as const;
@@ -259,6 +260,22 @@ export default function SettingsPage() {
       if (result.conflicts.length === 0) queryClient.invalidateQueries();
     },
   });
+  // The conflict list comes from the status query alone — it's re-fetched
+  // after every push/pull/resolve, so it never shows a file that was just
+  // resolved the way a push/pull result captured earlier would.
+  const webdavConflicts = webdavStatusQuery.data?.conflicts ?? [];
+  const [openConflict, setOpenConflict] = useState<string | null>(null);
+  // Clicking "N to push" / "N to pull" lists exactly those files. Read from
+  // the live status each render, so the list empties itself after a sync.
+  const [pendingList, setPendingList] = useState<'push' | 'pull' | null>(null);
+  const pendingFiles =
+    pendingList === 'push' ? (webdavStatusQuery.data?.pushFiles ?? []) : pendingList === 'pull' ? (webdavStatusQuery.data?.pullFiles ?? []) : [];
+  function handleConflictResolved(localChanged: boolean) {
+    setOpenConflict(null);
+    invalidateSync();
+    // Keeping the server's version (or a merge) rewrote a local file.
+    if (localChanged) queryClient.invalidateQueries();
+  }
   const anySyncInFlight = pushMutation.isPending || pullMutation.isPending || pushWebdavMutation.isPending || pullWebdavMutation.isPending;
 
   const webdavConfigured = webdavUrlDraft.trim() !== '' && webdavUsernameDraft.trim() !== '' && webdavPasswordDraft !== '';
@@ -703,15 +720,35 @@ export default function SettingsPage() {
                   </span>
                 ) : (
                   <>
-                    <span>
+                    <button
+                      className={`sync-count-btn ${pendingList === 'push' ? 'is-open' : ''}`}
+                      disabled={!webdavStatusQuery.data?.toPush}
+                      aria-expanded={pendingList === 'push'}
+                      onClick={() => setPendingList(pendingList === 'push' ? null : 'push')}
+                    >
                       <b>{webdavStatusQuery.data?.toPush ?? '—'}</b> {t('settings.sync.webdav.toPush')}
-                    </span>
-                    <span>
+                    </button>
+                    <button
+                      className={`sync-count-btn ${pendingList === 'pull' ? 'is-open' : ''}`}
+                      disabled={!webdavStatusQuery.data?.toPull}
+                      aria-expanded={pendingList === 'pull'}
+                      onClick={() => setPendingList(pendingList === 'pull' ? null : 'pull')}
+                    >
                       <b>{webdavStatusQuery.data?.toPull ?? '—'}</b> {t('settings.sync.webdav.toPull')}
-                    </span>
+                    </button>
                   </>
                 )}
               </div>
+              {pendingFiles.length > 0 && (
+                <div className="sync-pending-list">
+                  {pendingFiles.map((f) => (
+                    <div key={f.path} className="sync-pending-row">
+                      <span className={`sync-pending-change is-${f.change}`}>{t(`settings.sync.webdav.change.${f.change}`)}</span>
+                      <span className="sync-conflict-path">{f.path}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="sync-actions">
                 <button
                   className="btn-primary"
@@ -753,16 +790,20 @@ export default function SettingsPage() {
                   !activeSync.lastSyncedAt &&
                   t('settings.sync.neverSynced')}
               </div>
-              {(pushWebdavMutation.data?.conflicts.length || pullWebdavMutation.data?.conflicts.length || webdavStatusQuery.data?.conflicts.length) ? (
-                <div className="field-error" style={{ marginTop: 10 }}>
-                  {t('settings.sync.webdav.conflictNotice')}
-                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                    {(pushWebdavMutation.data?.conflicts ?? pullWebdavMutation.data?.conflicts ?? webdavStatusQuery.data?.conflicts ?? []).map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
+              {webdavConflicts.length > 0 && (
+                <div className="sync-conflicts">
+                  <p className="sync-conflicts-notice">{t('settings.sync.webdav.conflictNotice')}</p>
+                  {webdavConflicts.map((f) => (
+                    <div key={f} className="sync-conflict-row">
+                      <span className="sync-conflict-path">{f}</span>
+                      <button className="ws-row-btn" disabled={anySyncInFlight} onClick={() => setOpenConflict(f)}>
+                        {t('settings.sync.webdav.resolve')}
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ) : null}
+              )}
+              {openConflict && <WebdavConflictModal path={openConflict} onClose={() => setOpenConflict(null)} onResolved={handleConflictResolved} />}
               {(() => {
                 const err = setWebdavConfigMutation.error ?? pushWebdavMutation.error ?? pullWebdavMutation.error;
                 if (!err) return null;

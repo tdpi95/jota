@@ -113,6 +113,34 @@ export function getHistory(workspacePath: string, opts: { path?: string; limit?:
     });
 }
 
+/** Whether `data` is byte-for-byte some version of `relPath` this
+ * workspace has committed before — i.e. an ancestor of the file's local
+ * history. Backs WebDAV sync's "the server only has an older copy of ours"
+ * check (lib/sync/webdav.ts), which can't otherwise tell a stale server copy
+ * from a genuinely new one once the sync baseline is gone. Compares git blob
+ * ids (`hash-object` on the bytes vs. every blob `git log --raw` recorded for
+ * that path), so it's one `git log` per file, never a checkout. Best-effort:
+ * `false` when git isn't installed, the folder isn't a repo, or the path was
+ * never committed. */
+export function isInFileHistory(workspacePath: string, relPath: string, data: Buffer): boolean {
+  try {
+    const blob = execFileSync('git', ['hash-object', '--stdin'], { cwd: workspacePath, input: data, stdio: ['pipe', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+    const log = execFileSync('git', ['log', '--format=', '--raw', '--no-abbrev', '--', relPath], {
+      cwd: workspacePath,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    // Each --raw line is ":<mode> <mode> <old blob> <new blob> <status>\t<path>";
+    // only the post-change blob counts as a version the file actually had.
+    return log.split('\n').some((line) => line.split(/\s+/)[3] === blob);
+  } catch {
+    return false;
+  }
+}
+
 /** The workspace's current commit hash, or `null` for a repo with no commits
  * yet. Backs the frontend's auto-refresh poll (PLAN.md "Frontend"): every
  * write, from either front door (`api` or `mcp:<tool>`), is a commit, so a

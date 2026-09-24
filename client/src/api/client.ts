@@ -22,6 +22,9 @@ import type {
   SyncStatus,
   Task,
   TaskStatus,
+  WebDavConflictDetail,
+  WebDavFileVersion,
+  WebDavResolution,
   WebDavStatus,
   WebDavSyncResult,
   WebDavTestResult,
@@ -347,6 +350,19 @@ export function pullWebdav(): Promise<WebDavSyncResult> {
 
 export function getWebdavStatus(): Promise<WebDavStatus> {
   return request('/vault/webdav/status');
+}
+
+export function getWebdavConflict(path: string): Promise<WebDavConflictDetail> {
+  return request(`/vault/webdav/conflict?path=${encodeURIComponent(path)}`);
+}
+
+/** `expected` is the conflict's `version` as it was read — the server
+ * refuses (409) if either side changed since, instead of overwriting it. */
+export function resolveWebdavConflict(input: { path: string; resolution: WebDavResolution; expected: WebDavFileVersion }): Promise<{ localChanged: boolean }> {
+  return request('/vault/webdav/conflict/resolve', {
+    method: 'POST',
+    body: JSON.stringify({ path: input.path, ...input.resolution, expected: input.expected }),
+  });
 }
 
 /** Provider-agnostic "disconnect" — resets the active workspace's sync
