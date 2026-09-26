@@ -13,6 +13,7 @@ import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import { useFindShortcut } from '../lib/useFindShortcut';
+import { useViewModeShortcuts, VIEW_MODE_SHORTCUT_LABELS } from '../lib/useViewModeShortcuts';
 import type { IndexedTask } from '../types';
 
 // Every autosave is also a git commit (PLAN.md: every write is committed,
@@ -76,7 +77,7 @@ function JournalDayPageInner({ date }: { date: string }) {
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   // Today opens ready to write in; any other day opens read-only-looking
-  // (Review) since it's someone looking back rather than composing — each
+  // (Preview) since it's someone looking back rather than composing — each
   // mount (a fresh `key={date}` in JournalDayPage above) re-derives this
   // from that day's own date, so navigating via prev/next day always lands
   // on the right default rather than carrying over whatever mode was last
@@ -84,6 +85,7 @@ function JournalDayPageInner({ date }: { date: string }) {
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>(() => (date === todayStr() ? 'edit' : 'preview'));
   const editorRef = useRef<MarkdownEditorHandle>(null);
   useFindShortcut(viewMode, setViewMode, editorRef);
+  useViewModeShortcuts(setViewMode);
   // 'unsaved' (waiting out the debounce) is distinct from 'saving' (the PUT
   // is actually in flight) — the debounce timer resets on every keystroke,
   // so while actively composing with pauses shorter than the configured
@@ -110,8 +112,13 @@ function JournalDayPageInner({ date }: { date: string }) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   latestRef.current = { body, tags };
 
+  // Skipped while `dirty`: link/unlink (and a save landing mid-typing) push
+  // the server's copy of the entry into the cache, and that copy doesn't
+  // have the not-yet-autosaved edits — syncing it in would silently wipe
+  // them. The pending save still carries them and the PUT leaves
+  // linkedTasks untouched, so they reach disk intact.
   useEffect(() => {
-    if (entryQuery.data) {
+    if (entryQuery.data && !dirtyRef.current) {
       setBody(entryQuery.data.entry.body);
       setTags(entryQuery.data.entry.frontmatter.tags);
     }
@@ -200,7 +207,13 @@ function JournalDayPageInner({ date }: { date: string }) {
   function invalidateEntry() {
     // Unlike saveMutation/linkMutation/unlinkMutation above, a revert
     // changes the file out from under us without handing back the new
-    // entry shape — refetch rather than `setQueryData`.
+    // entry shape — refetch rather than `setQueryData`. A revert is an
+    // explicit "take the file's version", so drop any pending edit first —
+    // otherwise the sync effect would skip the reverted content as dirty
+    // and the debounced save would then overwrite the revert.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    dirtyRef.current = false;
+    setSaveState('idle');
     queryClient.invalidateQueries({ queryKey: ['journalEntry', date] });
     queryClient.invalidateQueries({ queryKey: ['journalYear', year] });
     queryClient.invalidateQueries({ queryKey: ['calendar'] });
@@ -253,7 +266,7 @@ function JournalDayPageInner({ date }: { date: string }) {
             type="button"
             role="radio"
             aria-checked={viewMode === m}
-            title={t(`journalDay.viewMode.${m}`)}
+            title={`${t(`journalDay.viewMode.${m}`)} (${VIEW_MODE_SHORTCUT_LABELS[m]})`}
             aria-label={t(`journalDay.viewMode.${m}`)}
             className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
             onClick={() => setViewMode(m)}

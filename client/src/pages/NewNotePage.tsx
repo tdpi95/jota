@@ -61,7 +61,9 @@ export default function NewNotePage() {
     mutationFn: (input: api.CreateNoteInput) => api.createNote(input),
     onSuccess: ({ note }) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      navigate(`/notes/${note.slug}`, { replace: true });
+      // `forceEdit` keeps the handed-off NoteDetailPage in Edit mode rather
+      // than flipping to the saved view-mode preference mid-composition.
+      navigate(`/notes/${note.slug}`, { replace: true, state: { forceEdit: true } });
     },
     onError: (err) => {
       submittedRef.current = false;
@@ -137,7 +139,7 @@ export default function NewNotePage() {
         <TagInput value={tags} onChange={handleTagsChange} placeholder={t('noteDetail.tagPlaceholder')} />
       </div>
 
-      <NoteBodyEditor body={body} onChange={handleBodyChange} />
+      <NoteBodyEditor body={body} onChange={handleBodyChange} forceEdit />
       <div className="journal-save-status">
         {saveState === 'unsaved' && t('noteDetail.unsaved')}
         {saveState === 'saving' && t('noteDetail.saving')}

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import HistoryPanel from '../components/HistoryPanel';
@@ -28,6 +28,9 @@ export default function NoteDetailPage() {
 function NoteDetailPageInner({ slug }: { slug: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  // Set by NewNotePage's hand-off right after creating the note — see
+  // NoteBodyEditor's `forceEdit`.
+  const forceEdit = Boolean((useLocation().state as { forceEdit?: boolean } | null)?.forceEdit);
   const queryClient = useQueryClient();
 
   const noteQuery = useQuery({ queryKey: ['note', slug], queryFn: () => api.getNote(slug) });
@@ -239,7 +242,7 @@ function NoteDetailPageInner({ slug }: { slug: string }) {
         <TagInput value={tags} onChange={handleTagsChange} placeholder={t('noteDetail.tagPlaceholder')} />
       </div>
 
-      <NoteBodyEditor body={body} onChange={handleBodyChange} disabled={noteQuery.isLoading} />
+      <NoteBodyEditor body={body} onChange={handleBodyChange} disabled={noteQuery.isLoading} forceEdit={forceEdit} />
       <div className="journal-save-status">
         {saveState === 'unsaved' && t('noteDetail.unsaved')}
         {saveState === 'saving' && t('noteDetail.saving')}

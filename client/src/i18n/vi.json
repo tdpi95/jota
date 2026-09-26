@@ -408,9 +408,9 @@
     "viewMode": {
       "sectionTitle": "Chế độ xem",
       "edit": "Soạn thảo",
-      "preview": "Xem lại"
+      "preview": "Xem"
     },
-    "previewEmpty": "Chưa có nội dung để xem lại."
+    "previewEmpty": "Chưa có nội dung để xem."
   },
   "journalEntriesList": {
     "yearTitle": "Nhật ký — {{year}}",
@@ -451,8 +451,8 @@
     "viewMode": {
       "sectionTitle": "Chế độ xem",
       "edit": "Soạn thảo",
-      "preview": "Xem trước"
+      "preview": "Xem"
     },
-    "previewEmpty": "Chưa có nội dung để xem trước."
+    "previewEmpty": "Chưa có nội dung để xem."
   }
 }

@@ -6,6 +6,7 @@ import * as api from '../api/client';
 import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import { useFindShortcut } from '../lib/useFindShortcut';
+import { useViewModeShortcuts, VIEW_MODE_SHORTCUT_LABELS } from '../lib/useViewModeShortcuts';
 import AttachmentField, { useAttachmentField } from './AttachmentField';
 import MarkdownEditor, { type MarkdownEditorHandle } from './MarkdownEditor';
 
@@ -41,16 +42,20 @@ export { VIEW_MODE_ICONS };
  * app-wide `note-view-mode` preference (`GET/PUT /api/preferences/note-view-mode`,
  * same persistence shape as `CalendarPage`'s due/journal toggle) — so
  * switching notes, or reopening the app, comes back to whichever mode was
- * last used rather than always resetting to Edit.
+ * last used rather than always resetting to Edit. `forceEdit` opts out of
+ * that seeding (a brand-new note always opens ready to type in); toggling
+ * still saves the preference as usual.
  */
 export default function NoteBodyEditor({
   body,
   onChange,
   disabled,
+  forceEdit,
 }: {
   body: string;
   onChange: (next: string) => void;
   disabled?: boolean;
+  forceEdit?: boolean;
 }) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
@@ -61,15 +66,17 @@ export default function NoteBodyEditor({
   const { data: noteViewModeData } = useQuery({
     queryKey: ['noteViewModePreference'],
     queryFn: () => api.getNoteViewModePreference(),
+    enabled: !forceEdit,
   });
   useEffect(() => {
-    if (noteViewModeData) setViewMode(noteViewModeData.noteViewMode);
+    if (noteViewModeData && !forceEdit) setViewMode(noteViewModeData.noteViewMode);
   }, [noteViewModeData]);
   const setNoteViewModeMutation = useMutation({ mutationFn: (next: 'edit' | 'preview') => api.setNoteViewModePreference(next) });
   function changeViewMode(next: 'edit' | 'preview') {
     setViewMode(next);
     setNoteViewModeMutation.mutate(next);
   }
+  useViewModeShortcuts(changeViewMode);
 
   return (
     <>
@@ -80,7 +87,7 @@ export default function NoteBodyEditor({
             type="button"
             role="radio"
             aria-checked={viewMode === m}
-            title={t(`noteDetail.viewMode.${m}`)}
+            title={`${t(`noteDetail.viewMode.${m}`)} (${VIEW_MODE_SHORTCUT_LABELS[m]})`}
             aria-label={t(`noteDetail.viewMode.${m}`)}
             className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
             onClick={() => changeViewMode(m)}

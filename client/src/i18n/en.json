@@ -408,9 +408,9 @@
     "viewMode": {
       "sectionTitle": "View",
       "edit": "Edit",
-      "preview": "Review"
+      "preview": "Preview"
     },
-    "previewEmpty": "Nothing to review yet."
+    "previewEmpty": "Nothing to preview yet."
   },
   "journalEntriesList": {
     "yearTitle": "Journal entries — {{year}}",
