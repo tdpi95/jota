@@ -19,13 +19,13 @@ server so AI agents like Claude can work with your tasks too.
 | -------------------------------------------- | ------------------------------------------------------------ |
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Project kanban board](docs/screenshots/project-kanban.png) |
 
-| Notes                                                             | Note (rendered preview)                                               |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------- |
-| ![Notes list with tag filtering](docs/screenshots/notes-list.png) | ![A note rendered in Preview mode](docs/screenshots/notes-detail.png) |
-
 | Journal entry                                                                    | Calendar                                             |
 | -------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | ![Journal entry with linked tasks and git history](docs/screenshots/journal.png) | ![Full-page calendar](docs/screenshots/calendar.png) |
+
+| Notes                                                             | Dark theme                                                  |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| ![Notes list with tag filtering](docs/screenshots/notes-list.png) | ![Dashboard in dark theme](docs/screenshots/dark-theme.png) |
 
 ## Download
 
