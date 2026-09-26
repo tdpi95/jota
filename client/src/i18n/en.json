@@ -156,6 +156,26 @@
       "saveFailed": "Couldn't save autosave settings.",
       "invalidValue": "Must be a whole number between {{min}} and {{max}} seconds."
     },
+    "weather": {
+      "sectionTitle": "Weather",
+      "unitLabel": "Temperature unit",
+      "unit": {
+        "celsius": "Celsius (°C)",
+        "fahrenheit": "Fahrenheit (°F)"
+      },
+      "searchLabel": "Find your location",
+      "searchPlaceholder": "City, district, or address…",
+      "search": "Search",
+      "searching": "Searching…",
+      "noResults": "No places found.",
+      "searchFailed": "Couldn't reach the location search. Check your connection and try again.",
+      "saveFailed": "Couldn't save the weather location.",
+      "currentLabel": "Current location",
+      "none": "No location set.",
+      "remove": "Remove",
+      "use": "Use",
+      "attribution": "Location search © OpenStreetMap contributors (Nominatim) · Weather data by Open-Meteo"
+    },
     "launchAtLogin": {
       "sectionTitle": "Desktop app",
       "label": "Launch at login"
@@ -314,6 +334,34 @@
     "manualPathPlaceholder": "/path/to/folder",
     "manualOpen": "+ Open",
     "failedToOpen": "Failed to open workspace."
+  },
+  "weather": {
+    "setLocationHint": "Set your location in Settings to see the weather here.",
+    "unavailable": "Couldn't load the weather for {{name}}.",
+    "feelsLike": "Feels like",
+    "highLow": "High / Low",
+    "humidity": "Humidity",
+    "wind": "Wind",
+    "precipitation": "Chance of rain",
+    "updated": "Updated {{time}}",
+    "conditions": {
+      "clear": "Clear sky",
+      "mainlyClear": "Mainly clear",
+      "partlyCloudy": "Partly cloudy",
+      "overcast": "Overcast",
+      "fog": "Fog",
+      "drizzle": "Drizzle",
+      "freezingDrizzle": "Freezing drizzle",
+      "rain": "Rain",
+      "freezingRain": "Freezing rain",
+      "snow": "Snow",
+      "snowGrains": "Snow grains",
+      "rainShowers": "Rain showers",
+      "snowShowers": "Snow showers",
+      "thunderstorm": "Thunderstorm",
+      "thunderstormHail": "Thunderstorm with hail",
+      "unknown": "Unknown"
+    }
   },
   "dashboard": {
     "title": "Dashboard",

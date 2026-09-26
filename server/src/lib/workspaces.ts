@@ -140,6 +140,23 @@ export interface WorkspaceRegistry {
    * `services/workspaces.ts`'s `getNoteViewModePreference` — `'edit'` is
    * what every note already opened in before this preference existed. */
   noteViewMode?: 'edit' | 'preview';
+  /** The Dashboard header's weather widget location, picked in Settings via
+   * Nominatim search — app-wide, not per-workspace (it's where the user is,
+   * not vault content). `undefined`/`null` normalizes to "no location" in
+   * `services/workspaces.ts`'s `getWeatherLocationPreference`, in which
+   * case the Dashboard keeps showing the plane mascot instead. */
+  weatherLocation?: WeatherLocation | null;
+  /** Unit the weather widget displays temperatures in — app-wide, same
+   * reasoning as `weatherLocation` above. `undefined` normalizes to
+   * `'celsius'` in `getTemperatureUnitPreference`. */
+  temperatureUnit?: 'celsius' | 'fahrenheit';
+}
+
+export interface WeatherLocation {
+  /** Display name as shown in Settings and the weather tooltip. */
+  name: string;
+  latitude: number;
+  longitude: number;
 }
 
 const EMPTY_REGISTRY: WorkspaceRegistry = { workspaces: [], activeWorkspaceId: null };

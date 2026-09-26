@@ -240,4 +240,57 @@ router.put('/note-view-mode', (req, res, next) => {
   }
 });
 
+// Dashboard weather widget's location (picked via Nominatim search in
+// Settings; the weather itself is fetched client-side from Open-Meteo).
+// `{ location: null }` clears it.
+router.get('/weather-location', (_req, res) => {
+  res.json({ location: workspaceService.getWeatherLocationPreference() });
+});
+
+router.put('/weather-location', (req, res, next) => {
+  try {
+    const { location } = req.body ?? {};
+    if (location === null) {
+      res.json({ location: workspaceService.setWeatherLocationPreference(null) });
+      return;
+    }
+    const { name, latitude, longitude } = location ?? {};
+    if (
+      typeof name !== 'string' ||
+      name.trim() === '' ||
+      typeof latitude !== 'number' ||
+      typeof longitude !== 'number' ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 ||
+      Math.abs(longitude) > 180
+    ) {
+      res.status(400).json({ error: 'location ({ name, latitude, longitude } or null) is required' });
+      return;
+    }
+    res.json({ location: workspaceService.setWeatherLocationPreference({ name: name.trim(), latitude, longitude }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Weather widget's temperature unit (conversion happens client-side;
+// Open-Meteo is always queried in Celsius).
+router.get('/temperature-unit', (_req, res) => {
+  res.json({ temperatureUnit: workspaceService.getTemperatureUnitPreference() });
+});
+
+router.put('/temperature-unit', (req, res, next) => {
+  try {
+    const { temperatureUnit } = req.body ?? {};
+    if (temperatureUnit !== 'celsius' && temperatureUnit !== 'fahrenheit') {
+      res.status(400).json({ error: "temperatureUnit ('celsius' | 'fahrenheit') is required" });
+      return;
+    }
+    res.json({ temperatureUnit: workspaceService.setTemperatureUnitPreference(temperatureUnit) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

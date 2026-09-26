@@ -4,12 +4,12 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import * as api from "../api/client";
-import planeImg from "../assets/jota-plane.png";
 import NoteRow from "../components/NoteRow";
 import ProjectCard from "../components/ProjectCard";
 import QuickAddTaskModal from "../components/QuickAddTaskModal";
 import SearchModal from "../components/SearchModal";
 import TaskRow from "../components/TaskRow";
+import AnimatedWeatherWidget from "../components/AnimatedWeatherWidget";
 import {
   daysBetween,
   formatDateLong,
@@ -308,7 +308,7 @@ export default function DashboardPage() {
           <div className="page-title-row">
             <h1 className="page-title">{t("dashboard.title")}</h1>
             {/* <h1 className="page-title">Jota</h1> */}
-            <img className="dashboard-title-plane" src={planeImg} alt="" />
+            <AnimatedWeatherWidget />
           </div>
           <div className="page-sub">{formatDateLong(today, language)}</div>
         </div>

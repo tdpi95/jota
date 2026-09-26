@@ -870,6 +870,213 @@ textarea {
   height: auto;
   flex-shrink: 0;
 }
+/* Dashboard weather widget (components/WeatherWidget.tsx) — takes the
+   plane's slot once a location is set in Settings. Icon colors are fixed
+   hues that read on both themes; only the cloud fills follow the theme. */
+.weather-widget {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  cursor: default;
+  border-radius: 10px;
+  padding: 0 6px 0 2px;
+  outline: none;
+}
+.weather-widget:hover,
+.weather-widget:focus-visible {
+  background: var(--surface-hover);
+}
+.weather-icon {
+  width: 42px;
+  height: 42px;
+  display: block;
+}
+/* Meteocons icons draw inside generous padding on a 128px canvas, so they
+   need a larger box than the hand-drawn set to look the same size. */
+.weather-icon-animated {
+  width: 52px;
+  height: 52px;
+  margin: -5px -4px;
+}
+.weather-icon-dark,
+[data-theme="dark"] .weather-icon-light {
+  display: none;
+}
+[data-theme="dark"] .weather-icon-dark {
+  display: block;
+}
+.weather-temp {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.wx-sun circle {
+  fill: oklch(82% 0.16 80);
+}
+.wx-sun-rays line {
+  stroke: oklch(82% 0.16 80);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+.wx-moon {
+  fill: oklch(86% 0.08 90);
+}
+.wx-cloud {
+  fill: oklch(97% 0.005 250);
+  stroke: oklch(72% 0.02 250);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.wx-cloud-dark {
+  fill: oklch(84% 0.015 250);
+}
+[data-theme="dark"] .wx-cloud {
+  fill: oklch(88% 0.01 250);
+  stroke: oklch(62% 0.02 250);
+}
+[data-theme="dark"] .wx-cloud-dark {
+  fill: oklch(70% 0.015 250);
+}
+.wx-rain line {
+  stroke: oklch(62% 0.14 245);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+.wx-snow circle {
+  fill: oklch(80% 0.07 230);
+}
+.wx-fog line {
+  stroke: oklch(70% 0.02 250);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+.wx-bolt {
+  fill: oklch(82% 0.16 80);
+  stroke: oklch(65% 0.15 65);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.weather-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  padding: 12px 14px;
+  background: var(--paper-card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px var(--shadow-color-soft);
+  color: var(--ink);
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease,
+    visibility 0.12s;
+  pointer-events: none;
+}
+.weather-widget:hover .weather-tooltip,
+.weather-widget:focus-visible .weather-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+/* The plane's "set a location" hint: same tooltip, no hover chip, since the
+   plane isn't a control. */
+.weather-widget-plane {
+  padding: 0;
+}
+.weather-widget-plane:hover,
+.weather-widget-plane:focus-visible {
+  background: none;
+}
+.weather-tooltip-hint {
+  min-width: 0;
+  width: max-content;
+  max-width: 260px;
+  color: var(--ink-muted);
+  line-height: 1.45;
+}
+.weather-tooltip-location {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+.weather-tooltip-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.weather-tooltip-temp {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 20px;
+}
+.weather-tooltip-grid {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 16px;
+  row-gap: 4px;
+  margin: 0;
+}
+.weather-tooltip-grid dt {
+  color: var(--ink-muted);
+}
+.weather-tooltip-grid dd {
+  margin: 0;
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+}
+.weather-tooltip-updated {
+  margin-top: 10px;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  font-family: "JetBrains Mono", monospace;
+}
+.weather-results {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.weather-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.weather-result-name {
+  min-width: 0;
+}
+.weather-result-full {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.weather-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
 .page-sub {
   font-size: 12px;
   color: var(--ink-muted);

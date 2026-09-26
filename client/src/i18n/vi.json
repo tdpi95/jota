@@ -156,6 +156,26 @@
       "saveFailed": "Không thể lưu cài đặt tự động lưu.",
       "invalidValue": "Phải là số nguyên từ {{min}} đến {{max}} giây."
     },
+    "weather": {
+      "sectionTitle": "Thời tiết",
+      "unitLabel": "Đơn vị nhiệt độ",
+      "unit": {
+        "celsius": "Độ C (°C)",
+        "fahrenheit": "Độ F (°F)"
+      },
+      "searchLabel": "Tìm vị trí của bạn",
+      "searchPlaceholder": "Thành phố, quận/huyện hoặc địa chỉ…",
+      "search": "Tìm",
+      "searching": "Đang tìm…",
+      "noResults": "Không tìm thấy địa điểm nào.",
+      "searchFailed": "Không kết nối được dịch vụ tìm vị trí. Hãy kiểm tra kết nối và thử lại.",
+      "saveFailed": "Không lưu được vị trí thời tiết.",
+      "currentLabel": "Vị trí hiện tại",
+      "none": "Chưa đặt vị trí.",
+      "remove": "Xoá",
+      "use": "Chọn",
+      "attribution": "Tìm vị trí © cộng tác viên OpenStreetMap (Nominatim) · Dữ liệu thời tiết từ Open-Meteo"
+    },
     "launchAtLogin": {
       "sectionTitle": "Ứng dụng desktop",
       "label": "Khởi động cùng hệ thống"
@@ -314,6 +334,34 @@
     "manualPathPlaceholder": "/đường/dẫn/thư-mục",
     "manualOpen": "+ Mở",
     "failedToOpen": "Không thể mở không gian làm việc."
+  },
+  "weather": {
+    "setLocationHint": "Đặt vị trí trong Cài đặt để xem thời tiết tại đây.",
+    "unavailable": "Không tải được thời tiết cho {{name}}.",
+    "feelsLike": "Cảm giác như",
+    "highLow": "Cao / Thấp",
+    "humidity": "Độ ẩm",
+    "wind": "Gió",
+    "precipitation": "Khả năng mưa",
+    "updated": "Cập nhật lúc {{time}}",
+    "conditions": {
+      "clear": "Trời quang",
+      "mainlyClear": "Ít mây",
+      "partlyCloudy": "Có mây rải rác",
+      "overcast": "Nhiều mây",
+      "fog": "Sương mù",
+      "drizzle": "Mưa phùn",
+      "freezingDrizzle": "Mưa phùn băng giá",
+      "rain": "Mưa",
+      "freezingRain": "Mưa băng giá",
+      "snow": "Tuyết",
+      "snowGrains": "Hạt tuyết",
+      "rainShowers": "Mưa rào",
+      "snowShowers": "Mưa tuyết",
+      "thunderstorm": "Dông",
+      "thunderstormHail": "Dông kèm mưa đá",
+      "unknown": "Không rõ"
+    }
   },
   "dashboard": {
     "title": "Tổng quan",

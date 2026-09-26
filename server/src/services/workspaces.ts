@@ -10,7 +10,7 @@ import path from 'node:path';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import { ensureGitHistory } from '../lib/vaultGit.js';
-import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WorkspaceEntry, type WorkspaceSyncConfig } from '../lib/workspaces.js';
+import { readRegistry, scaffoldWorkspaceDirs, writeRegistry, type WeatherLocation, type WorkspaceEntry, type WorkspaceSyncConfig } from '../lib/workspaces.js';
 
 /**
  * Best-effort reconciliation on open/add (PLAN.md "Sync strategy —
@@ -434,4 +434,37 @@ export function setPinnedNotesPreference(slugs: string[], homeDir: string = os.h
   return slugs;
 }
 
-export type { WorkspaceEntry };
+/**
+ * Dashboard weather widget's location — app-wide, same reasoning as
+ * `getNoteViewModePreference` above. `null` means no location set (the
+ * Dashboard shows the plane mascot instead of a weather icon).
+ */
+export function getWeatherLocationPreference(homeDir: string = os.homedir()): WeatherLocation | null {
+  return readRegistry(homeDir).weatherLocation ?? null;
+}
+
+export function setWeatherLocationPreference(location: WeatherLocation | null, homeDir: string = os.homedir()): WeatherLocation | null {
+  const registry = readRegistry(homeDir);
+  registry.weatherLocation = location;
+  writeRegistry(registry, homeDir);
+  return location;
+}
+
+/** Weather widget's temperature unit — app-wide, same shape and reasoning
+ * as `getNoteViewModePreference` above. `undefined` normalizes to
+ * `'celsius'`, what the widget showed before this preference existed. */
+export function getTemperatureUnitPreference(homeDir: string = os.homedir()): 'celsius' | 'fahrenheit' {
+  return readRegistry(homeDir).temperatureUnit ?? 'celsius';
+}
+
+export function setTemperatureUnitPreference(
+  temperatureUnit: 'celsius' | 'fahrenheit',
+  homeDir: string = os.homedir(),
+): 'celsius' | 'fahrenheit' {
+  const registry = readRegistry(homeDir);
+  registry.temperatureUnit = temperatureUnit;
+  writeRegistry(registry, homeDir);
+  return temperatureUnit;
+}
+
+export type { WeatherLocation, WorkspaceEntry };

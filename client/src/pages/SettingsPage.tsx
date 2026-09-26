@@ -6,6 +6,7 @@ import * as api from '../api/client';
 import type { SupportedLanguage } from '../i18n';
 import { formatTimestamp } from '../lib/date';
 import { getJotaBridge, type ReminderSettings } from '../lib/jotaBridge';
+import { searchLocations, TEMPERATURE_UNITS, type LocationSearchResult, type TemperatureUnit, type WeatherLocation } from '../lib/weather';
 import { ACCENT_PALETTE_SWATCH, ACCENT_PALETTES, applyAccentPalette, applyTheme, THEMES, type AccentPalette, type ThemeMode } from '../lib/theme';
 import WebdavConflictModal from '../components/WebdavConflictModal';
 import type { PullResult, WorkspaceSyncConfig } from '../types';
@@ -99,6 +100,50 @@ export default function SettingsPage() {
       return;
     }
     if (parsed !== current) setAutosaveIntervalMutation.mutate(parsed);
+  }
+
+  // --- Weather location (Dashboard weather widget; lib/weather.ts) ---
+  // Nominatim's usage policy forbids search-as-you-type, so this only
+  // searches on an explicit submit (Enter or the Search button).
+  const weatherLocationQuery = useQuery({ queryKey: ['weatherLocationPreference'], queryFn: api.getWeatherLocationPreference });
+  const weatherLocation = weatherLocationQuery.data?.location ?? null;
+  const temperatureUnitQuery = useQuery({ queryKey: ['temperatureUnitPreference'], queryFn: api.getTemperatureUnitPreference });
+  const temperatureUnit = temperatureUnitQuery.data?.temperatureUnit ?? 'celsius';
+  const setTemperatureUnitMutation = useMutation({
+    mutationFn: (unit: TemperatureUnit) => api.setTemperatureUnitPreference(unit),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['temperatureUnitPreference'], data);
+      setLocationError(null);
+    },
+    onError: () => setLocationError(t('settings.weather.saveFailed')),
+  });
+  const [locationQueryDraft, setLocationQueryDraft] = useState('');
+  const [locationResults, setLocationResults] = useState<LocationSearchResult[] | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const searchLocationsMutation = useMutation({
+    mutationFn: (query: string) => searchLocations(query, i18n.language),
+    onSuccess: (results) => {
+      setLocationResults(results);
+      setLocationError(null);
+    },
+    onError: () => {
+      setLocationResults(null);
+      setLocationError(t('settings.weather.searchFailed'));
+    },
+  });
+  const setWeatherLocationMutation = useMutation({
+    mutationFn: (location: WeatherLocation | null) => api.setWeatherLocationPreference(location),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['weatherLocationPreference'], data);
+      setLocationResults(null);
+      setLocationQueryDraft('');
+      setLocationError(null);
+    },
+    onError: () => setLocationError(t('settings.weather.saveFailed')),
+  });
+  function submitLocationSearch() {
+    const query = locationQueryDraft.trim();
+    if (query && !searchLocationsMutation.isPending) searchLocationsMutation.mutate(query);
   }
 
   const activeQuery = useQuery({ queryKey: ['workspace', 'active'], queryFn: api.getActiveWorkspace });
@@ -898,6 +943,99 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <div className="settings-section">
+        <div className="section-title">{t('settings.weather.sectionTitle')}</div>
+        <div className="sync-panel" style={{ maxWidth: 520 }}>
+          <div className="weather-current">
+            {weatherLocation ? (
+              <>
+                <span>
+                  <span className="empty-note">{t('settings.weather.currentLabel')}: </span>
+                  <b>{weatherLocation.name}</b>
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setWeatherLocationMutation.mutate(null)}
+                  disabled={setWeatherLocationMutation.isPending}
+                >
+                  {t('settings.weather.remove')}
+                </button>
+              </>
+            ) : (
+              <span className="empty-note">{t('settings.weather.none')}</span>
+            )}
+          </div>
+          <div className="sync-field">
+            <label id="temperature-unit-label">{t('settings.weather.unitLabel')}</label>
+            <div className="lang-picker" role="radiogroup" aria-labelledby="temperature-unit-label">
+              {TEMPERATURE_UNITS.map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  role="radio"
+                  aria-checked={temperatureUnit === unit}
+                  className={`ws-row-btn ${temperatureUnit === unit ? 'is-active' : ''}`}
+                  disabled={setTemperatureUnitMutation.isPending || temperatureUnitQuery.isLoading}
+                  onClick={() => temperatureUnit !== unit && setTemperatureUnitMutation.mutate(unit)}
+                >
+                  {t(`settings.weather.unit.${unit}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <form
+            className="sync-field"
+            style={{ marginBottom: 0 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitLocationSearch();
+            }}
+          >
+            <label htmlFor="weather-location-search">{t('settings.weather.searchLabel')}</label>
+            <div className="sync-actions">
+              <input
+                id="weather-location-search"
+                type="search"
+                value={locationQueryDraft}
+                placeholder={t('settings.weather.searchPlaceholder') ?? undefined}
+                onChange={(e) => setLocationQueryDraft(e.target.value)}
+              />
+              <button type="submit" className="btn-primary" disabled={!locationQueryDraft.trim() || searchLocationsMutation.isPending}>
+                {searchLocationsMutation.isPending ? t('settings.weather.searching') : t('settings.weather.search')}
+              </button>
+            </div>
+          </form>
+          {locationResults && locationResults.length === 0 && (
+            <p className="empty-note" style={{ marginTop: 10 }}>{t('settings.weather.noResults')}</p>
+          )}
+          {locationResults && locationResults.length > 0 && (
+            <ul className="weather-results">
+              {locationResults.map((result) => (
+                <li key={`${result.latitude},${result.longitude}`} className="weather-result">
+                  <div className="weather-result-name">
+                    <div>{result.name}</div>
+                    <div className="weather-result-full">{result.fullName}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={setWeatherLocationMutation.isPending}
+                    onClick={() =>
+                      setWeatherLocationMutation.mutate({ name: result.name, latitude: result.latitude, longitude: result.longitude })
+                    }
+                  >
+                    {t('settings.weather.use')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {locationError && <div className="field-error">{locationError}</div>}
+          <p className="empty-note" style={{ marginTop: 12, fontSize: 11 }}>{t('settings.weather.attribution')}</p>
+        </div>
+      </div>
 
       <div className="settings-section">
         <div className="section-title">{t('settings.autosave.sectionTitle')}</div>

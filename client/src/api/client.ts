@@ -32,6 +32,7 @@ import type {
   WorkspaceSyncConfig,
 } from '../types';
 import type { AccentPalette, ThemeMode } from '../lib/theme';
+import type { TemperatureUnit, WeatherLocation } from '../lib/weather';
 
 class ApiError extends Error {
   constructor(
@@ -474,6 +475,24 @@ export function getPinnedNotesPreference(): Promise<{ slugs: string[] }> {
 
 export function setPinnedNotesPreference(slugs: string[]): Promise<{ slugs: string[] }> {
   return request('/preferences/pinned-notes', { method: 'PUT', body: JSON.stringify({ slugs }) });
+}
+
+// Dashboard weather widget's location — app-wide preference, picked in
+// Settings via Nominatim (lib/weather.ts); `null` means none set.
+export function getWeatherLocationPreference(): Promise<{ location: WeatherLocation | null }> {
+  return request('/preferences/weather-location');
+}
+
+export function setWeatherLocationPreference(location: WeatherLocation | null): Promise<{ location: WeatherLocation | null }> {
+  return request('/preferences/weather-location', { method: 'PUT', body: JSON.stringify({ location }) });
+}
+
+export function getTemperatureUnitPreference(): Promise<{ temperatureUnit: TemperatureUnit }> {
+  return request('/preferences/temperature-unit');
+}
+
+export function setTemperatureUnitPreference(temperatureUnit: TemperatureUnit): Promise<{ temperatureUnit: TemperatureUnit }> {
+  return request('/preferences/temperature-unit', { method: 'PUT', body: JSON.stringify({ temperatureUnit }) });
 }
 
 export function setAutosaveIntervalPreference(autosaveIntervalSeconds: number): Promise<{ autosaveIntervalSeconds: number }> {
