@@ -440,6 +440,7 @@
     "noEntries": "No journal entries yet in {{year}}."
   },
   "journalDay": {
+    "failedToLoad": "Couldn't load this journal entry.",
     "previousDay": "Previous day",
     "nextDay": "Next day",
     "today": "Today",
@@ -502,5 +503,45 @@
       "preview": "Preview"
     },
     "previewEmpty": "Nothing to preview yet."
+  },
+  "encryption": {
+    "encryptAll": "Encrypt all content",
+    "decryptAll": "Decrypt all content",
+    "popupEncrypt": "Encrypt",
+    "popupDecrypt": "Decrypt",
+    "lockNow": "Lock encrypted content (forget the passphrase)",
+    "lockedChip": "Encrypted",
+    "lockedPreview": "Encrypted — click to unlock",
+    "listLabel": "Encrypted",
+    "cannotDecrypt": "Can't decrypt with this passphrase",
+    "cannotDecryptAlert": "This can't be decrypted with the current passphrase. It was encrypted with a different one, or its text was modified.",
+    "relockPrompt": "Some encrypted content can't be opened with the current passphrase. Lock and enter a different one?",
+    "changedMeanwhile": "The text changed while this was in progress — nothing was modified. Please try again.",
+    "unlock": {
+      "title": "Unlock encrypted content",
+      "setTitle": "Set encryption passphrase",
+      "hint": "Enter this workspace's encryption passphrase. It's kept in memory only, until you lock, go idle for 15 minutes, or switch workspace.",
+      "setHint": "Choose a passphrase for this workspace's encrypted content. It's never stored — you'll be asked for it again in each session.",
+      "passphrase": "Passphrase",
+      "confirm": "Confirm passphrase",
+      "noRecovery": "There is no recovery: if you forget this passphrase, the encrypted content is lost for good.",
+      "mismatch": "The two passphrases don't match.",
+      "wrong": "Wrong passphrase.",
+      "checking": "Checking…",
+      "submit": "Unlock"
+    }
+  },
+  "pageError": {
+    "title": "This page couldn't be displayed",
+    "hint": "Something in this file isn't in the shape the app expects. The rest of the app still works — pick another page, or fix the file in a text editor and try again.",
+    "retry": "Try again"
+  },
+  "rawFileRepair": {
+    "hint": "Fix it in the file below and save. Saving is only accepted once the frontmatter parses.",
+    "save": "Save fixed file",
+    "saving": "Saving…",
+    "revert": "Discard edits",
+    "saveFailed": "Couldn't save the file.",
+    "loadFailed": "Couldn't load the file's contents."
   }
 }

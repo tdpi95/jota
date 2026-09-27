@@ -5,13 +5,13 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
 import AttachmentField, { useAttachmentField } from '../components/AttachmentField';
+import { useBodyEncryption } from '../components/BodyEncryption';
 import HistoryPanel from '../components/HistoryPanel';
+import RawFileRepair, { isUnparsableFileError } from '../components/RawFileRepair';
 import MarkdownEditor, { type MarkdownEditorHandle } from '../components/MarkdownEditor';
 import { VIEW_MODE_ICONS } from '../components/NoteBodyEditor';
 import TagInput from '../components/TagInput';
-import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
-import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import { useFindShortcut } from '../lib/useFindShortcut';
 import { useViewModeShortcuts, VIEW_MODE_SHORTCUT_LABELS } from '../lib/useViewModeShortcuts';
 import type { IndexedTask } from '../types';
@@ -241,6 +241,7 @@ function JournalDayPageInner({ date }: { date: string }) {
   const searchResults: IndexedTask[] = (searchQuery.data?.tasks ?? []).filter((task) => !linkedTaskIds.includes(task.id));
 
   const attachmentState = useAttachmentField('journal', body, handleBodyChange);
+  const encryption = useBodyEncryption({ body, onChange: handleBodyChange, editorRef });
 
   return (
     <div>
@@ -255,46 +256,70 @@ function JournalDayPageInner({ date }: { date: string }) {
       </div>
       <div className="page-sub">{date === todayStr() ? t('journalDay.today') : ''}</div>
 
-      <div className="journal-tags">
-        <TagInput value={tags} onChange={handleTagsChange} placeholder={t('journalDay.tagPlaceholder')} />
-      </div>
-
-      <div className="note-view-toggle" role="radiogroup" aria-label={t('journalDay.viewMode.sectionTitle') ?? undefined}>
-        {(['edit', 'preview'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={viewMode === m}
-            title={`${t(`journalDay.viewMode.${m}`)} (${VIEW_MODE_SHORTCUT_LABELS[m]})`}
-            aria-label={t(`journalDay.viewMode.${m}`)}
-            className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
-            onClick={() => setViewMode(m)}
-          >
-            {VIEW_MODE_ICONS[m]}
-          </button>
-        ))}
-      </div>
-
-      {viewMode === 'edit' ? (
-        <>
-          <MarkdownEditor
-            ref={editorRef}
-            className="journal-body"
-            placeholder={t('journalDay.bodyPlaceholder')}
-            value={body}
-            onChange={handleBodyChange}
-            onPasteFiles={attachmentState.handleFiles}
-            disabled={entryQuery.isLoading}
-            autoFocus={focusEditorOnMount}
+      {entryQuery.isError ? (
+        // A file that can't be read. Broken frontmatter (a 422) gets the raw
+        // markdown to fix in place; anything else just the message. Either
+        // way no normal editor, so nothing can autosave over the file — and
+        // the History panel below still offers an undo.
+        isUnparsableFileError(entryQuery.error) ? (
+          <RawFileRepair
+            error={entryQuery.error.message}
+            queryKey={['journalEntry', date]}
+            loadRaw={() => api.getJournalRaw(year, date)}
+            saveRaw={(content) => api.putJournalRaw(year, date, content)}
+            onFixed={invalidateEntry}
           />
-          <AttachmentField state={attachmentState} disabled={entryQuery.isLoading} />
+        ) : (
+          <p className="field-error journal-load-error">
+            {entryQuery.error instanceof api.ApiError ? entryQuery.error.message : t('journalDay.failedToLoad')}
+          </p>
+        )
+      ) : (
+        <>
+          <div className="journal-tags">
+            <TagInput value={tags} onChange={handleTagsChange} placeholder={t('journalDay.tagPlaceholder')} />
+          </div>
+
+          <div className="body-toolbar">
+            {encryption.toolbar}
+            <div className="note-view-toggle" role="radiogroup" aria-label={t('journalDay.viewMode.sectionTitle') ?? undefined}>
+              {(['edit', 'preview'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={viewMode === m}
+                  title={`${t(`journalDay.viewMode.${m}`)} (${VIEW_MODE_SHORTCUT_LABELS[m]})`}
+                  aria-label={t(`journalDay.viewMode.${m}`)}
+                  className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
+                  onClick={() => setViewMode(m)}
+                >
+                  {VIEW_MODE_ICONS[m]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {viewMode === 'edit' ? (
+            <>
+              <MarkdownEditor
+                ref={editorRef}
+                className="journal-body"
+                placeholder={t('journalDay.bodyPlaceholder')}
+                value={body}
+                onChange={handleBodyChange}
+                onPasteFiles={attachmentState.handleFiles}
+                encryption={encryption.editorEncryption}
+                disabled={entryQuery.isLoading}
+                autoFocus={focusEditorOnMount}
+              />
+              <AttachmentField state={attachmentState} disabled={entryQuery.isLoading} />
         </>
       ) : body.trim() ? (
         <div
           className="note-preview journal-body"
-          onClick={handleRenderedAttachmentClick}
-          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(body) }}
+          onClick={encryption.handlePreviewClick}
+          dangerouslySetInnerHTML={{ __html: encryption.previewHtml }}
         />
       ) : (
         <div className="note-preview journal-body note-preview-empty">{t('journalDay.previewEmpty')}</div>
@@ -355,6 +380,9 @@ function JournalDayPageInner({ date }: { date: string }) {
           </div>
         </div>
       </div>
+
+        </>
+      )}
 
       <HistoryPanel path={`journal/${year}/${date}.md`} onReverted={invalidateEntry} taskTitles={taskTitles} />
     </div>

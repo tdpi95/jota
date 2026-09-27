@@ -108,6 +108,27 @@ test('a no-op reconcile reparses nothing', () => {
   assert.equal(stats.journalEntriesReparsed, 0);
 });
 
+test('one unparsable file is skipped instead of failing the whole reconcile', () => {
+  const dir = scratchWorkspace();
+  writeProject(dir, 'website-redesign', [makeTask('t_aaa001')]);
+  writeJournal(dir, '2026-09-10');
+  fs.mkdirSync(path.join(dir, 'notes'), { recursive: true });
+  // Leftover git conflict markers in frontmatter — invalid YAML.
+  fs.writeFileSync(
+    path.join(dir, 'notes', 'broken.md'),
+    "---\ntitle: 'Broken'\n<<<<<<< HEAD\nupdated: '2026-09-26T16:50:24.653Z'\n=======\nupdated: '2026-09-26T11:26:02.123Z'\n>>>>>>> parent of f3c6a7b\n---\nbody\n",
+    'utf8',
+  );
+
+  const stats = reconcileWorkspace(dir);
+  assert.equal(stats.projectsReparsed, 1);
+  assert.equal(stats.journalEntriesReparsed, 1);
+  assert.equal(stats.notesReparsed, 0);
+  const status = getIndexStatus(dir);
+  assert.equal(status.taskCount, 1);
+  assert.equal(status.noteCount, 0);
+});
+
 test('touching one file\'s mtime without changing content reparses only that file', () => {
   const dir = scratchWorkspace();
   writeProject(dir, 'website-redesign', [makeTask('t_aaa001')]);

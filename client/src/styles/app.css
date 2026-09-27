@@ -3716,3 +3716,141 @@ textarea {
   border-radius: 2px;
   background: var(--accent);
 }
+
+/* Encryption (milestone 31, PLAN.md "Encryption") — the body toolbar row
+   (lock/encrypt-all buttons + the edit/preview toggle), an encrypted token
+   in the editor and the preview (a lock chip while locked, its plaintext
+   in place while unlocked), the selection popup, and the passphrase
+   prompt. */
+.body-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.body-toolbar .note-view-toggle {
+  margin: 0;
+}
+.body-toolbar .ws-row-btn {
+  margin-left: 0;
+}
+.md-editor .cm-enc-token,
+.enc-inline {
+  border-radius: 4px;
+  padding: 0 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.md-editor .cm-enc-token {
+  cursor: pointer;
+}
+.md-editor .cm-enc-token.is-unlocked,
+.enc-inline.is-unlocked {
+  background: var(--accent-soft);
+  box-shadow: inset 0 -1px 0 var(--accent-border);
+  white-space: pre-wrap;
+}
+.md-editor .cm-enc-token.is-locked,
+.md-editor .cm-enc-token.is-error,
+.enc-inline.is-locked,
+.enc-inline.is-error {
+  border: 1px dashed var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--ink-muted);
+  font-size: 0.92em;
+  user-select: none;
+}
+.enc-inline.is-locked,
+.enc-inline.is-error {
+  cursor: pointer;
+}
+.enc-inline.is-locked:hover,
+.enc-inline.is-error:hover {
+  color: var(--ink);
+}
+.md-editor .cm-enc-token.is-error,
+.enc-inline.is-error {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.enc-whole {
+  border-left: 3px solid var(--accent-border);
+  padding-left: 12px;
+}
+.md-editor .cm-tooltip.cm-enc-popup {
+  border: none;
+  background: transparent;
+}
+.cm-enc-popup button {
+  padding: 4px 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: var(--paper-card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow-color-soft);
+}
+.cm-enc-popup button:hover {
+  background: var(--accent-soft);
+}
+.enc-unlock-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.enc-unlock-hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+.enc-unlock-warning {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+/* PageErrorBoundary — a page that crashed while rendering, in place of the
+   routed page (the sidebar stays usable). */
+.page-error {
+  max-width: 640px;
+}
+.page-error h2 {
+  margin: 0 0 6px;
+}
+.page-error-detail {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--danger);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.journal-load-error {
+  margin-top: 16px;
+}
+
+/* RawFileRepair — a note/journal file whose frontmatter can't be parsed,
+   shown as raw markdown to fix in place. */
+.raw-repair {
+  margin-top: 16px;
+}
+.raw-repair-error {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+}
+.raw-repair-title {
+  font-size: 18px;
+  font-family: "JetBrains Mono", monospace;
+  margin: 12px 0 0;
+}
+.raw-repair-editor {
+  margin-top: 12px;
+}
+.raw-repair-actions {
+  margin-top: 12px;
+}

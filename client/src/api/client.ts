@@ -202,6 +202,15 @@ export function getJournalEntry(year: string, date: string): Promise<{ entry: Jo
   return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}`);
 }
 
+/** A journal file's exact text, unparsed — same purpose as `getNoteRaw`. */
+export function getJournalRaw(year: string, date: string): Promise<{ content: string }> {
+  return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}/raw`);
+}
+
+export function putJournalRaw(year: string, date: string, content: string): Promise<{ entry: JournalEntry }> {
+  return request(`/journal/${encodeURIComponent(year)}/${encodeURIComponent(date)}/raw`, { method: 'PUT', body: JSON.stringify({ content }) });
+}
+
 export interface PutJournalInput {
   tags?: string[];
   linkedTasks?: string[];
@@ -262,6 +271,17 @@ export interface UpdateNoteInput {
 
 export function updateNote(slug: string, input: UpdateNoteInput): Promise<{ note: Note }> {
   return request(`/notes/${encodeURIComponent(slug)}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+/** A note file's exact text, unparsed — for fixing one whose frontmatter
+ * can't be parsed (`getNote` answers 422). */
+export function getNoteRaw(slug: string): Promise<{ content: string }> {
+  return request(`/notes/${encodeURIComponent(slug)}/raw`);
+}
+
+/** Writes the fixed text verbatim; 422 (nothing written) if it still doesn't parse. */
+export function putNoteRaw(slug: string, content: string): Promise<{ note: Note }> {
+  return request(`/notes/${encodeURIComponent(slug)}/raw`, { method: 'PUT', body: JSON.stringify({ content }) });
 }
 
 export function deleteNote(slug: string): Promise<void> {

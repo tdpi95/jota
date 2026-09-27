@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import * as api from '../api/client';
 import HistoryPanel from '../components/HistoryPanel';
 import NoteBodyEditor, { VIEW_MODE_ICONS } from '../components/NoteBodyEditor';
+import RawFileRepair, { isUnparsableFileError } from '../components/RawFileRepair';
 import TagInput from '../components/TagInput';
 import { formatTimestamp } from '../lib/date';
 
@@ -171,7 +172,27 @@ function NoteDetailPageInner({ slug }: { slug: string }) {
   }
 
   if (noteQuery.isLoading) return <p className="page-sub">{t('noteDetail.loading')}</p>;
-  if (noteQuery.isError) return <p className="field-error">{(noteQuery.error as Error).message}</p>;
+  if (noteQuery.isError) {
+    if (!isUnparsableFileError(noteQuery.error)) return <p className="field-error">{(noteQuery.error as Error).message}</p>;
+    // The file exists but its frontmatter can't be parsed — show the raw
+    // markdown to fix in place (plus History, whose undo may be the fix).
+    return (
+      <div>
+        <Link to="/notes" className="back-link">
+          {t('noteDetail.allNotes')}
+        </Link>
+        <h1 className="raw-repair-title">{`notes/${slug}.md`}</h1>
+        <RawFileRepair
+          error={noteQuery.error.message}
+          queryKey={['note', slug]}
+          loadRaw={() => api.getNoteRaw(slug)}
+          saveRaw={(content) => api.putNoteRaw(slug, content)}
+          onFixed={invalidateNote}
+        />
+        <HistoryPanel path={`notes/${slug}.md`} onReverted={invalidateNote} />
+      </div>
+    );
+  }
 
   const { frontmatter } = noteQuery.data!.note;
 

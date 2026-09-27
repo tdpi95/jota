@@ -1,13 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Annotation, Compartment, EditorState, RangeSetBuilder } from '@codemirror/state';
-import { Decoration, drawSelection, dropCursor, EditorView, keymap, placeholder as placeholderExt, ViewPlugin } from '@codemirror/view';
-import type { DecorationSet, ViewUpdate } from '@codemirror/view';
+import { Annotation, Compartment, EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, drawSelection, dropCursor, EditorView, keymap, placeholder as placeholderExt, showTooltip, ViewPlugin, WidgetType } from '@codemirror/view';
+import type { DecorationSet, Tooltip, ViewUpdate } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting, syntaxTree } from '@codemirror/language';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
 import { tags as t } from '@lezer/highlight';
 
+import { findEncryptedTokens } from '../lib/encryptionCrypto';
 import { VscodeSearchPanel } from '../lib/vscodeSearchPanel';
 
 /**
@@ -128,6 +129,125 @@ const inlineCodeBackground = ViewPlugin.fromClass(
   { decorations: (plugin) => plugin.decorations },
 );
 
+/**
+ * Encrypted tokens (milestone 31, PLAN.md "Encryption") — each
+ * `` `jota-enc:...` `` inline code span is replaced by one atomic inline
+ * widget (the cursor skips over it, backspace deletes it whole): a lock chip
+ * while locked, or — once the page has decrypted it — its plaintext, shown
+ * in place but read-only (the document itself only ever holds the token, so
+ * autosave and git only see ciphertext). Clicking the widget selects the
+ * whole token, which brings up the selection popup below with "Decrypt".
+ */
+export interface EditorEncryption {
+  /** Plaintext per token payload once decrypted, or 'error' when the
+   * session passphrase can't open it; missing = locked. */
+  decrypted: Map<string, string | 'error'>;
+  labels: { locked: string; error: string; encrypt: string; decrypt: string };
+  /** The selection popup's button: 'decrypt' when the selection touches an
+   * encrypted token, otherwise 'encrypt'. */
+  onSelectionAction: (action: 'encrypt' | 'decrypt', from: number, to: number) => void;
+}
+
+type EncryptionRef = { current: EditorEncryption | undefined };
+
+class EncryptedTokenWidget extends WidgetType {
+  constructor(
+    readonly tokenLength: number,
+    readonly status: 'locked' | 'error' | 'unlocked',
+    readonly text: string,
+  ) {
+    super();
+  }
+  eq(other: EncryptedTokenWidget) {
+    return other.tokenLength === this.tokenLength && other.status === this.status && other.text === this.text;
+  }
+  toDOM(view: EditorView) {
+    const el = document.createElement('span');
+    el.className = `cm-enc-token is-${this.status}`;
+    el.textContent = this.status === 'unlocked' ? this.text : `🔒 ${this.text}`;
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const from = view.posAtDOM(el);
+      view.dispatch({ selection: { anchor: from, head: from + this.tokenLength } });
+      view.focus();
+    });
+    return el;
+  }
+  ignoreEvent() {
+    return true;
+  }
+}
+
+const setDecryptedEffect = StateEffect.define<Map<string, string | 'error'>>();
+
+function buildTokenDecorations(state: EditorState, decrypted: Map<string, string | 'error'>, encryption: EncryptionRef): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const labels = encryption.current?.labels;
+  for (const token of findEncryptedTokens(state.doc.toString())) {
+    const value = decrypted.get(token.payload);
+    const widget =
+      value === undefined
+        ? new EncryptedTokenWidget(token.to - token.from, 'locked', labels?.locked ?? '')
+        : value === 'error'
+          ? new EncryptedTokenWidget(token.to - token.from, 'error', labels?.error ?? '')
+          : new EncryptedTokenWidget(token.to - token.from, 'unlocked', value);
+    builder.add(token.from, token.to, Decoration.replace({ widget }));
+  }
+  return builder.finish();
+}
+
+function encryptedTokensField(encryption: EncryptionRef) {
+  return StateField.define<{ decrypted: Map<string, string | 'error'>; decorations: DecorationSet }>({
+    create: (state) => {
+      const decrypted = encryption.current?.decrypted ?? new Map();
+      return { decrypted, decorations: buildTokenDecorations(state, decrypted, encryption) };
+    },
+    update: (value, tr) => {
+      let decrypted = value.decrypted;
+      for (const e of tr.effects) if (e.is(setDecryptedEffect)) decrypted = e.value;
+      if (!tr.docChanged && decrypted === value.decrypted) return value;
+      return { decrypted, decorations: buildTokenDecorations(tr.state, decrypted, encryption) };
+    },
+    provide: (f) => [
+      EditorView.decorations.from(f, (v) => v.decorations),
+      EditorView.atomicRanges.of((view) => view.state.field(f).decorations),
+    ],
+  });
+}
+
+/** The small popup above a non-empty selection: "Encrypt" it, or "Decrypt"
+ * the encrypted token(s) it touches. */
+function selectionPopupField(encryption: EncryptionRef) {
+  const compute = (state: EditorState): readonly Tooltip[] => {
+    const { from, to } = state.selection.main;
+    if (from === to || state.readOnly || !encryption.current) return [];
+    const action = findEncryptedTokens(state.doc.toString()).some((tok) => tok.from < to && tok.to > from) ? 'decrypt' : 'encrypt';
+    if (action === 'encrypt' && !state.sliceDoc(from, to).trim()) return [];
+    return [
+      {
+        pos: from,
+        above: true,
+        create: () => {
+          const dom = document.createElement('div');
+          dom.className = 'cm-enc-popup';
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = `${action === 'decrypt' ? '🔓' : '🔒'} ${encryption.current?.labels[action] ?? action}`;
+          button.addEventListener('mousedown', (e) => e.preventDefault());
+          button.addEventListener('click', () => encryption.current?.onSelectionAction(action, from, to));
+          dom.appendChild(button);
+          return { dom };
+        },
+      },
+    ];
+  };
+  return StateField.define<readonly Tooltip[]>({
+    create: compute,
+    update: (tooltips, tr) => (tr.docChanged || tr.selection ? compute(tr.state) : tooltips),
+    provide: (f) => showTooltip.computeN([f], (state) => state.field(f)),
+  });
+}
+
 // Marks a transaction as a programmatic value-sync (the effect below,
 // pushing an externally-changed `value` prop into the CM doc) rather than
 // real user input — the updateListener checks for this to avoid calling
@@ -157,6 +277,10 @@ interface MarkdownEditorProps {
    * to drop the user straight into typing rather than requiring an extra
    * click. Read only at creation, same as `placeholder`. */
   autoFocus?: boolean;
+  /** Encrypted-token display + the selection popup (milestone 31). Without
+   * it tokens still render as (inert) lock chips and there's no popup.
+   * `labels` are read at creation; `decrypted` is pushed in on change. */
+  encryption?: EditorEncryption;
 }
 
 /** Imperative handle (via `ref`) for the two things a *page* needs to drive
@@ -167,6 +291,10 @@ interface MarkdownEditorProps {
  * in one call, safe to call as soon as the editor has mounted. */
 export interface MarkdownEditorHandle {
   openFind: () => void;
+  /** Replaces `from..to` as a normal edit (keeps cursor/undo, fires
+   * `onChange`) — only if that range still holds `expected`; returns
+   * whether it did. Used to swap text for its encrypted token and back. */
+  replaceRange: (from: number, to: number, insert: string, expected: string) => boolean;
 }
 
 /**
@@ -178,7 +306,7 @@ export interface MarkdownEditorHandle {
  * only changes how it's colored on screen.
  */
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor(
-  { value, onChange, placeholder, disabled, className, onPasteFiles, autoFocus },
+  { value, onChange, placeholder, disabled, className, onPasteFiles, autoFocus, encryption },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -187,6 +315,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   onChangeRef.current = onChange;
   const onPasteFilesRef = useRef(onPasteFiles);
   onPasteFilesRef.current = onPasteFiles;
+  const encryptionRef = useRef(encryption);
+  encryptionRef.current = encryption;
   const editableCompartment = useRef(new Compartment()).current;
   const didAutoFocusRef = useRef(false);
 
@@ -196,6 +326,13 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       if (!view) return;
       view.focus();
       openSearchPanel(view);
+    },
+    replaceRange: (from, to, insert, expected) => {
+      const view = viewRef.current;
+      if (!view || to > view.state.doc.length || view.state.sliceDoc(from, to) !== expected) return false;
+      view.dispatch({ changes: { from, to, insert }, selection: { anchor: from + insert.length }, userEvent: 'input' });
+      view.focus();
+      return true;
     },
   }), []);
 
@@ -243,6 +380,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           syntaxHighlighting(markdownHighlightStyle),
           codeBlockBackground,
           inlineCodeBackground,
+          encryptedTokensField(encryptionRef),
+          selectionPopupField(encryptionRef),
           placeholderExt(placeholder ?? ''),
           editableCompartment.of([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
           EditorView.domEventHandlers({
@@ -267,6 +406,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     return () => {
       view.destroy();
       viewRef.current = null;
+      // A fresh view hasn't been auto-focused yet — without this, React
+      // StrictMode's dev-only destroy-and-recreate left the second view
+      // unfocused, since the first one had already used up the one-time flag.
+      didAutoFocusRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -282,6 +425,11 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     if (current === value) return;
     view.dispatch({ changes: { from: 0, to: current.length, insert: value }, annotations: externalValueSync.of(true) });
   }, [value]);
+
+  const decrypted = encryption?.decrypted;
+  useEffect(() => {
+    if (decrypted) viewRef.current?.dispatch({ effects: setDecryptedEffect.of(decrypted) });
+  }, [decrypted]);
 
   useEffect(() => {
     viewRef.current?.dispatch({

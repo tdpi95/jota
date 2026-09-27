@@ -440,6 +440,7 @@
     "noEntries": "Chưa có nhật ký nào trong năm {{year}}."
   },
   "journalDay": {
+    "failedToLoad": "Không tải được mục nhật ký này.",
     "previousDay": "Ngày trước",
     "nextDay": "Ngày sau",
     "today": "Hôm nay",
@@ -502,5 +503,45 @@
       "preview": "Xem"
     },
     "previewEmpty": "Chưa có nội dung để xem."
+  },
+  "encryption": {
+    "encryptAll": "Mã hóa toàn bộ nội dung",
+    "decryptAll": "Giải mã toàn bộ nội dung",
+    "popupEncrypt": "Mã hóa",
+    "popupDecrypt": "Giải mã",
+    "lockNow": "Khóa nội dung mã hóa (quên mật khẩu)",
+    "lockedChip": "Đã mã hóa",
+    "lockedPreview": "Đã mã hóa — nhấn để mở khóa",
+    "listLabel": "Đã mã hóa",
+    "cannotDecrypt": "Không giải mã được bằng mật khẩu này",
+    "cannotDecryptAlert": "Không thể giải mã bằng mật khẩu hiện tại. Có thể nó được mã hóa bằng mật khẩu khác, hoặc nội dung đã bị sửa.",
+    "relockPrompt": "Một số nội dung mã hóa không mở được bằng mật khẩu hiện tại. Khóa lại và nhập mật khẩu khác?",
+    "changedMeanwhile": "Nội dung đã thay đổi trong lúc xử lý — chưa có gì bị sửa. Vui lòng thử lại.",
+    "unlock": {
+      "title": "Mở khóa nội dung mã hóa",
+      "setTitle": "Đặt mật khẩu mã hóa",
+      "hint": "Nhập mật khẩu mã hóa của workspace này. Mật khẩu chỉ được giữ trong bộ nhớ cho đến khi bạn khóa, không thao tác 15 phút, hoặc chuyển workspace.",
+      "setHint": "Chọn mật khẩu cho nội dung mã hóa của workspace này. Mật khẩu không bao giờ được lưu — mỗi phiên bạn sẽ được hỏi lại.",
+      "passphrase": "Mật khẩu",
+      "confirm": "Xác nhận mật khẩu",
+      "noRecovery": "Không có cách khôi phục: nếu quên mật khẩu này, nội dung mã hóa sẽ mất vĩnh viễn.",
+      "mismatch": "Hai mật khẩu không khớp.",
+      "wrong": "Sai mật khẩu.",
+      "checking": "Đang kiểm tra…",
+      "submit": "Mở khóa"
+    }
+  },
+  "pageError": {
+    "title": "Không thể hiển thị trang này",
+    "hint": "Nội dung tệp này không đúng định dạng ứng dụng mong đợi. Phần còn lại của ứng dụng vẫn hoạt động — hãy chọn trang khác, hoặc sửa tệp bằng trình soạn thảo văn bản rồi thử lại.",
+    "retry": "Thử lại"
+  },
+  "rawFileRepair": {
+    "hint": "Hãy sửa lỗi trong tệp bên dưới rồi lưu. Chỉ lưu được khi phần frontmatter đã hợp lệ.",
+    "save": "Lưu tệp đã sửa",
+    "saving": "Đang lưu…",
+    "revert": "Bỏ các thay đổi",
+    "saveFailed": "Không lưu được tệp.",
+    "loadFailed": "Không tải được nội dung tệp."
   }
 }

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 import * as api from '../api/client';
 import { formatDateLong } from '../lib/date';
+import { redactEncryptedTokens } from '../lib/encryptionCrypto';
 import type { TaskStatus } from '../types';
 
 interface LinkedTaskInfo {
@@ -76,8 +77,11 @@ export default function JournalEntriesList({
 
       <div className="journal-list-body">
         {entries.map((entry) => {
-          const lineCount = entry.body.split('\n').length;
-          const isLong = entry.body.length > CLAMP_CHARS || lineCount > CLAMP_LINES;
+          // Ciphertext is never shown — each encrypted token (milestone 31)
+          // reads as a short label here; the day page decrypts it.
+          const body = redactEncryptedTokens(entry.body, `🔒 ${t('encryption.listLabel')}`);
+          const lineCount = body.split('\n').length;
+          const isLong = body.length > CLAMP_CHARS || lineCount > CLAMP_LINES;
           const isExpanded = expanded[entry.date] ?? false;
           return (
             <div className="journal-list-entry" key={entry.date}>
@@ -95,9 +99,9 @@ export default function JournalEntriesList({
                   </div>
                 )}
               </div>
-              {entry.body ? (
+              {body ? (
                 <>
-                  <p className={`journal-list-entry-body ${!isExpanded && isLong ? 'is-clamped' : ''}`}>{entry.body}</p>
+                  <p className={`journal-list-entry-body ${!isExpanded && isLong ? 'is-clamped' : ''}`}>{body}</p>
                   {isLong && (
                     <button
                       type="button"

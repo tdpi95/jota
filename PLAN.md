@@ -113,7 +113,7 @@ linkedTasks: [t_a1b2c3, t_9f0e21]
 Freeform markdown body, unparsed.
 ```
 
-`linkedTasks` is a plain array of task ids, insertion-ordered, deduped on add. Year folder created on demand.
+`linkedTasks` is a plain array of task ids, insertion-ordered, deduped on add. Year folder created on demand. The body (journal and note alike) may contain `` `jota-enc:...` `` encrypted inline tokens — see "Encryption" (milestone 31).
 
 ### Note file — one per note, `<workspace>/notes/<slug>.md`
 
@@ -309,6 +309,33 @@ Requested by the user: a current-weather icon next to the Dashboard title, in th
   - `components/WeatherWidget.tsx`, the first version with hand-drawn inline-SVG icons, is kept (unused) at the user's request, for reuse later.
 - No MCP tool: weather isn't vault content.
 
+## Encryption — milestone 31
+
+Requested by the user ("encrypt parts or the whole journal and note"). The method was recommended and then confirmed before building: journal and notes only; agents can't read encrypted content; unlock once per session; one passphrase per workspace. The first UI used fenced blocks and a modal. Before it was committed, the user redirected it to what's described here: one whole-content toggle next to Edit/Preview, a selection popup for inline encrypt/decrypt, and inline tokens, not separate blocks.
+
+- **Crypto**: AES-256-GCM, with the key from PBKDF2-SHA256 at 600,000 iterations over the passphrase. Salt (16 bytes) and IV (12 bytes) are random and stored in each token. It's all WebCrypto/`node:crypto` built-ins, with no new dependency. GCM detects a wrong passphrase or tampered ciphertext, rather than producing garbage.
+- **Renderer-only.** Encryption and decryption happen only in the client (`client/src/lib/encryptionCrypto.ts` for the format and crypto, `lib/encryption.ts` for the session). The server, SQLite index, git history, git/WebDAV sync, and MCP only ever see ciphertext. Neither the passphrase nor any plaintext ever reaches `server/`.
+- **On-disk format**: an encrypted span is one inline code span, sitting in the text exactly where the plaintext was:
+  ```markdown
+  Today I met `jota-enc:v1:pbkdf2-sha256:600000:<salt-b64>:<iv-b64>:<ciphertext‖tag-b64>` at the usual place.
+  ```
+  Plaintext is UTF-8 (it may span lines or contain markdown), with no additional authenticated data. The token itself is always one line. Base64 contains no backticks or colons, so the token is unambiguous. A whole note/entry encrypted as one is simply a body consisting of a single token. Frontmatter (`date`, `tags`, `linkedTasks`, `title`, …) always stays plaintext, so the calendar, lists, and links keep working. That is a deliberate metadata leak. Other markdown viewers show a token as harmless inline code.
+  - **Portable**: `node scripts/jota-decrypt.mjs <file.md>...` prints files with every token decrypted in place. It uses only the Node standard library, and takes the passphrase from `JOTA_PASSPHRASE` or a hidden prompt.
+- **Session**: one passphrase per workspace, never stored anywhere. It's held in renderer memory from unlock until an explicit lock (the key button, shown only while unlocked), 15 minutes without input, or an active-workspace switch (`EncryptionHost`). Derived keys are cached per salt, and every token encrypted in one session reuses that session's salt, so a page pays PBKDF2 once. There's no stored verifier: the unlock prompt checks the entered passphrase against an existing token in the same body when there is one. Otherwise it asks twice (setting a passphrase), with a no-recovery warning. A forgotten passphrase means the content is lost.
+- **UX** (`components/BodyEncryption.tsx`, shared by `JournalDayPage` and `NoteBodyEditor`):
+  - **One toolbar button next to Edit/Preview** encrypts the whole body into one token. When the body is exactly one token, the same button (shown active) decrypts it back to plain text.
+  - **Selecting text in the editor** pops up a small button above the selection (a CodeMirror tooltip).
+    - "Encrypt" turns the selection into a token in place. Surrounding whitespace stays outside it.
+    - If the selection touches any token, it offers "Decrypt" instead, which turns those tokens back into plain text.
+    - Clicking a token selects all of it, which brings up "Decrypt".
+  - **In the editor**, each token is an atomic inline widget: a "🔒 Encrypted" chip while locked, or its plaintext shown in place (highlighted, read-only) while unlocked. The document itself always holds just the token. To edit encrypted text, decrypt it, edit, and encrypt again.
+  - **The preview** renders tokens inline, decrypted when unlocked, or as a "click to unlock" chip. A fully encrypted body renders as full block markdown.
+  - **The Calendar page's journal list** shows "🔒 Encrypted" per token.
+- **Encrypting existing text doesn't erase it from history.** Earlier git commits (and anything already pushed or synced) still contain the plaintext of anything autosaved before it was encrypted. Autosave is debounced (30 s by default), so text encrypted before the first save after typing it never reaches disk as plaintext.
+- **Server side** (`server/src/lib/markdown/encrypted.ts`): the index stores journal/note bodies with every token stripped (`reindex.ts`), so encrypted content is unsearchable and never appears as a snippet. `hasBody` still sees the raw body, so an all-encrypted entry isn't "empty" to the reminder or calendar.
+- **MCP**: agents see tokens as opaque ciphertext. `putJournalEntry`/`updateNote` reject (409) any write with an `mcp:*` origin whose new body drops or alters an existing token byte-for-byte. The app UI (origin `api`) can still decrypt or remove them. The `body` parameter descriptions of `upsert_journal_entry`/`update_note` tell agents to preserve tokens verbatim.
+- Out of scope: task descriptions, project files, attachments (files under `attachments/` are never encrypted), a "remember on this device" OS-keychain option, and changing a workspace's passphrase (re-encrypting existing tokens).
+
 ## Frontend (Vite + React + TypeScript + TanStack Query, React Router)
 
 - **`AppShell`** — nav (Dashboard, Projects, Journal, Notes, Calendar, Settings) + **`WorkspaceSwitcher`** (list of known workspaces, "+ Open folder" wired to the native picker via `window.jota.pickFolder()`, active-workspace indicator) + persistent **`CalendarSidebar`**: month grid backed by `GET /api/calendar/:year/:month`; marks days with a journal entry, and colored dots (by project color) for linked/due tasks; click navigates to `/journal/:year/:date`. Also mounts **`KeyboardShortcuts`** (milestone 18, renders nothing but stays mounted across every route) — Cmd/Ctrl+1..5 and Cmd/Ctrl+, jump straight to each of the six nav items above (same order; "," for Settings, matching VS Code/Slack/macOS's own preferences-shortcut convention, shown as each nav item's hover tooltip); Cmd/Ctrl+K opens the "search everything" popup (**`SearchModal`**, shared with the Dashboard's own search button — originally Dashboard-only via a page-scoped listener, moved here after a report that it did nothing anywhere else) from any page; Cmd/Ctrl+T opens the quick-add-task popup (**`QuickAddTaskModal`**, shared with the Dashboard's own "+ Add task" button) from any page; Cmd/Ctrl+J jumps to today's journal entry with the body editor already focused. Every one of these checks a shared "is any form currently dirty" registry (`lib/unsavedChanges.tsx`'s `UnsavedChangesProvider`, wrapping the whole routed tree) first and asks the user to confirm before actually navigating if so — wired into `TaskForm`/`ProjectForm`/`QuickAddTaskModal` specifically (the forms that don't autosave; the journal/note body editors already autosave with a flush-on-unmount effect, so they don't need this).
@@ -452,6 +479,8 @@ jota/
 
 30. **Weather widget** — see "Weather widget" above: Nominatim location search in Settings, `weatherLocation` preference, Open-Meteo current weather, icon + tooltip in the Dashboard title's plane slot. Verify: with no location set the plane shows; search a city in Settings and pick it → the Dashboard shows a weather icon and temperature in place of the plane, and hovering it shows the details tooltip; Remove the location → the plane comes back.
 
+31. **Encryption** — see "Encryption" above: renderer-only AES-256-GCM/PBKDF2 inline `` `jota-enc:...` `` tokens in journal and note bodies, with a whole-content encrypt/decrypt button next to Edit/Preview and a selection popup for inline encrypt/decrypt. Also: a per-workspace session passphrase (never stored, auto-lock); tokens stripped from the search index; MCP writes can't drop them; standalone `scripts/jota-decrypt.mjs`. Verify: `npm test -w server` (`lib/markdown/encrypted.test.ts`: token detection, index stripping, MCP guard); a round-trip where client-encrypted tokens are matched by the server regex and decrypted by the CLI script, with wrong passphrase/tampered ciphertext rejected; and live in the app: select text → popup Encrypt → the file holds the token inline, the editor shows the plaintext in place while unlocked; click the token → popup Decrypt restores the text; whole-content button encrypts/decrypts; lock → chips in the editor and preview; wrong passphrase rejected; the same in a note; search/index/journal list show no ciphertext or plaintext; `jota-decrypt.mjs` recovers the files the app wrote.
+
 ## Verification
 - Milestones 4, 7–9: `curl` against the running server; cross-check the on-disk `.md` files, SQLite rows, and `git log`/`git diff` inside the workspace after each write; explicitly test index deletion + reindex reproducing identical state, and that a no-op reopen triggers no reparsing.
 - Milestone 2: confirm workspace isolation — content/index/git history of one workspace never leaks into another.
@@ -459,6 +488,7 @@ jota/
 - Milestone 6: confirm conflicting concurrent changes surface as a conflict, never a silent corruption.
 - Milestone 10: exercise the MCP server through a real MCP client rather than curl; specifically test the revert-an-agent-change path end to end, and that switching the active workspace in the app does not change what a running MCP server targets.
 - Milestones 11–16: `npm run dev` at the root, exercise each page manually inside the Electron window — add/edit/complete tasks and watch time-tracking accumulate, write/link a journal entry, confirm the calendar sidebar and dashboard update, use the History panel to undo a change, add/switch workspaces via the native picker, and push/pull against a scratch remote.
+- Milestone 31: confirm no ciphertext or encrypted plaintext reaches the SQLite index or search results, and that an MCP write dropping a token is rejected; confirm `scripts/jota-decrypt.mjs` recovers files written by the app.
 - Milestone 17: confirm the reminder still fires after closing (not quitting) the window, and does not fire twice; confirm toggling launch-at-login actually changes the OS-level login item (check the OS's own login-items setting) without affecting the current session's tray/background behavior.
 - Confirm portability end-to-end: manually edit a project `.md` file while the server is running, reload the UI, confirm changes appear; delete `<workspace>/.jota/cache/index.sqlite3` entirely, reopen the workspace, and confirm full functionality with no data loss (simulates copying just the workspace folder — `.git` included — to a new machine).
 - Confirm multi-process concurrency: run the embedded server and an MCP server pointed at the same workspace simultaneously, write through each, confirm no SQLite lock errors, no git commit conflicts, and both writes land with separate history entries.

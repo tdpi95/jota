@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import { getHistory } from '../lib/vaultGit.js';
 import { ensureGitRepo } from '../lib/workspaces.js';
-import { createNote, deleteNote, getNote, listNotes, NoteServiceError, searchNotes, updateNote } from './notes.js';
+import { createNote, deleteNote, getNote, getNoteRaw, listNotes, NoteServiceError, putNoteRaw, searchNotes, updateNote } from './notes.js';
 
 // Mirrors PLAN.md's "Notes" verify step: file, index, and git history agree
 // after create/update/delete, and a note's slug never changes even when its
@@ -200,4 +200,22 @@ test('searchNotes matches title/tags case-insensitively but never body text', ()
     byTag.map((n) => n.title),
     ['Reading list'],
   );
+});
+
+test('a note with broken frontmatter can be read raw and fixed via putNoteRaw, which rejects a still-broken fix', () => {
+  const ws = scratchWorkspace();
+  const broken = "---\ntitle: 'Broken'\n<<<<<<< HEAD\nupdated: '2026-09-26T16:50:24.653Z'\n=======\nupdated: '2026-09-26T11:26:02.123Z'\n>>>>>>> x\ntags: []\n---\nbody text\n";
+  fs.writeFileSync(path.join(ws, 'notes', 'broken.md'), broken);
+  assert.throws(() => getNote(ws, 'broken'), (err: Error & { statusCode?: number }) => err.statusCode === 422);
+  assert.equal(getNoteRaw(ws, 'broken'), broken);
+
+  assert.throws(() => putNoteRaw(ws, 'broken', broken + ' '), (err: Error & { statusCode?: number }) => err.statusCode === 422);
+  assert.equal(fs.readFileSync(path.join(ws, 'notes', 'broken.md'), 'utf8'), broken);
+
+  const fixed = "---\ntitle: 'Broken'\nupdated: '2026-09-26T16:50:24.653Z'\ntags: []\n---\nbody text\n";
+  const note = putNoteRaw(ws, 'broken', fixed);
+  assert.equal(note.frontmatter.title, 'Broken');
+  assert.equal(fs.readFileSync(path.join(ws, 'notes', 'broken.md'), 'utf8'), fixed);
+  assert.equal(getNote(ws, 'broken').body.trim(), 'body text');
+  assert.match(getHistory(ws, { path: 'notes/broken.md' })[0].message, /fix_note_file broken/);
 });

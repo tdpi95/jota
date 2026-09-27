@@ -12,6 +12,7 @@ import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import { queryAllNotes, querySearchNotes, type IndexedNote } from '../lib/index/queries.js';
 import { parseNoteFile, serializeNoteFile, type ParsedNoteFile } from '../lib/markdown/note.js';
+import { ENCRYPTED_TOKEN_GUARD_MESSAGE, isMcpOrigin, missingEncryptedTokens } from '../lib/markdown/encrypted.js';
 import { slugify } from '../lib/slug.js';
 import { commitChange } from '../lib/vaultGit.js';
 import type { NoteFrontmatter } from '../types.js';
@@ -159,6 +160,34 @@ export function getNote(workspacePath: string, slug: string): Note {
   return toNote(slug, loadNoteFile(workspacePath, slug));
 }
 
+/** `GET /api/notes/:slug/raw` — the file's exact text, unparsed. Exists so a
+ * note whose frontmatter can't be parsed (a 422 from `getNote`) can still be
+ * shown and fixed in the app instead of only in a text editor. */
+export function getNoteRaw(workspacePath: string, slug: string): string {
+  const filePath = noteFilePath(workspacePath, slug);
+  if (!fs.existsSync(filePath)) throw noteNotFoundError(workspacePath, slug);
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+/** `PUT /api/notes/:slug/raw` — replaces the file with `content` verbatim
+ * (not re-serialized, so the user's fix lands exactly as typed), but only
+ * once it parses: still-broken frontmatter is rejected with the same 422
+ * and nothing is written. Returns the now-parseable note. */
+export function putNoteRaw(workspacePath: string, slug: string, content: string, origin = 'api'): Note {
+  const filePath = noteFilePath(workspacePath, slug);
+  if (!fs.existsSync(filePath)) throw noteNotFoundError(workspacePath, slug);
+  if (typeof content !== 'string') throw new NoteServiceError('content must be a string', 400);
+  const parsed = parseNoteFile(content);
+  fs.writeFileSync(filePath, content, 'utf8');
+  try {
+    reconcileWorkspace(workspacePath);
+  } catch (err) {
+    console.error(`[notes] index reconcile failed for ${workspacePath}:`, (err as Error).message);
+  }
+  commitChange(workspacePath, { origin, message: `fix_note_file ${slug}`, paths: [noteRelPath(slug)] });
+  return toNote(slug, parsed);
+}
+
 export function createNote(workspacePath: string, input: CreateNoteInput, origin = 'api'): Note {
   const title = input.title?.trim();
   if (!title) throw new NoteServiceError('title is required', 400);
@@ -186,7 +215,13 @@ export function updateNote(workspacePath: string, slug: string, input: UpdateNot
     parsed.frontmatter.title = title;
   }
   if (input.tags !== undefined) parsed.frontmatter.tags = input.tags;
-  if (input.body !== undefined) parsed.body = input.body;
+  if (input.body !== undefined) {
+    // Milestone 31 ("Encryption") — same guard as journal.ts's putJournalEntry.
+    if (isMcpOrigin(origin) && missingEncryptedTokens(parsed.body, input.body).length > 0) {
+      throw new NoteServiceError(ENCRYPTED_TOKEN_GUARD_MESSAGE, 409);
+    }
+    parsed.body = input.body;
+  }
   parsed.frontmatter.updated = new Date().toISOString();
 
   let targetSlug = slug;

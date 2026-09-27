@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -93,6 +94,31 @@ test('revertCommit throws with git\'s own error on an unknown commit', () => {
   const dir = scratchRepo();
   commitChange(dir, { origin: 'api', message: 'seed', paths: [] });
   assert.throws(() => revertCommit(dir, 'deadbeef'), /git revert failed/);
+});
+
+test('a conflicting revert is aborted: no conflict markers, no revert in progress, unrelated changes kept', () => {
+  const dir = scratchRepo();
+  const file = path.join(dir, 'projects', 'a.md');
+  const other = path.join(dir, 'projects', 'b.md');
+  fs.writeFileSync(file, 'updated: 1\n', 'utf8');
+  fs.writeFileSync(other, 'untouched\n', 'utf8');
+  commitChange(dir, { origin: 'api', message: 'create', paths: ['projects/a.md', 'projects/b.md'] });
+  fs.writeFileSync(file, 'updated: 2\n', 'utf8');
+  commitChange(dir, { origin: 'api', message: 'second', paths: ['projects/a.md'] });
+  const [second] = getHistory(dir);
+  fs.writeFileSync(file, 'updated: 3\n', 'utf8');
+  commitChange(dir, { origin: 'api', message: 'third', paths: ['projects/a.md'] });
+  fs.writeFileSync(other, 'edited, not committed\n', 'utf8');
+
+  // Undoing the middle change conflicts with the third one on the same line.
+  assert.throws(
+    () => revertCommit(dir, second.hash),
+    (err: Error & { statusCode?: number }) => err.statusCode === 409 && /Nothing was modified/.test(err.message),
+  );
+  assert.equal(fs.readFileSync(file, 'utf8'), 'updated: 3\n');
+  assert.equal(fs.readFileSync(other, 'utf8'), 'edited, not committed\n');
+  assert.throws(() => execFileSync('git', ['rev-parse', '-q', '--verify', 'REVERT_HEAD'], { cwd: dir, stdio: 'ignore' }));
+  assert.equal(getHistory(dir).length, 3);
 });
 
 test('isGitAvailable is true when the git CLI is on PATH, false when it is not', () => {

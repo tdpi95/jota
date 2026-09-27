@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import { getHistory } from '../lib/vaultGit.js';
 import { ensureGitRepo } from '../lib/workspaces.js';
-import { getJournalEntry, linkTask, listJournalYear, listJournalYearFull, putJournalEntry, unlinkTask } from './journal.js';
+import { getJournalEntry, getJournalRaw, linkTask, listJournalYear, listJournalYearFull, putJournalEntry, putJournalRaw, unlinkTask } from './journal.js';
 
 // Mirrors PLAN.md milestone 8's verify step: file, index, and git history
 // agree after add/remove.
@@ -130,4 +130,31 @@ test('listJournalYearFull reads bodies straight off disk, scoped to the given ye
 test('listJournalYearFull returns an empty array for a year with no journal folder yet', () => {
   const ws = scratchWorkspace();
   assert.deepEqual(listJournalYearFull(ws, '2030'), []);
+});
+
+test('a journal file with broken frontmatter: getJournalEntry is a 422, listJournalYearFull skips it', () => {
+  const ws = scratchWorkspace();
+  putJournalEntry(ws, '2026', '2026-09-24', { body: 'fine' });
+  fs.mkdirSync(path.join(ws, 'journal', '2026'), { recursive: true });
+  fs.writeFileSync(path.join(ws, 'journal', '2026', '2026-09-25.md'), "---\ndate: '2026-09-25'\n<<<<<<< HEAD\ntags: [a]\n=======\ntags: [b]\n>>>>>>> x\n---\nhello\n");
+  assert.throws(() => getJournalEntry(ws, '2026', '2026-09-25'), (err: Error & { statusCode?: number }) => err.statusCode === 422);
+  // ...and a write can't silently replace it either.
+  assert.throws(() => putJournalEntry(ws, '2026', '2026-09-25', { body: 'x' }), (err: Error & { statusCode?: number }) => err.statusCode === 422);
+  assert.deepEqual(listJournalYearFull(ws, '2026').map((e) => e.date), ['2026-09-24']);
+});
+
+test('a journal entry with broken frontmatter can be read raw and fixed via putJournalRaw', () => {
+  const ws = scratchWorkspace();
+  const file = path.join(ws, 'journal', '2026', '2026-09-25.md');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const broken = "---\ndate: '2026-09-25'\n<<<<<<< HEAD\ntags: [a]\n=======\ntags: [b]\n>>>>>>> x\n---\nhello\n";
+  fs.writeFileSync(file, broken);
+  assert.equal(getJournalRaw(ws, '2026', '2026-09-25'), broken);
+  assert.equal(getJournalRaw(ws, '2026', '2026-09-26'), '');
+  assert.throws(() => putJournalRaw(ws, '2026', '2026-09-25', broken), (err: Error & { statusCode?: number }) => err.statusCode === 422);
+
+  const entry = putJournalRaw(ws, '2026', '2026-09-25', "---\ndate: '2026-09-25'\ntags: [a]\n---\nhello\n");
+  assert.deepEqual(entry.frontmatter.tags, ['a']);
+  assert.deepEqual(getJournalEntry(ws, '2026', '2026-09-25').frontmatter.tags, ['a']);
+  assert.deepEqual(listJournalYearFull(ws, '2026').map((e) => e.date), ['2026-09-25']);
 });

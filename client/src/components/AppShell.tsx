@@ -3,7 +3,9 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 import { shortcutLabel } from '../lib/shortcuts';
 import CalendarSidebar from './CalendarSidebar';
+import EncryptionHost from './EncryptionHost';
 import KeyboardShortcuts from './KeyboardShortcuts';
+import PageErrorBoundary from './PageErrorBoundary';
 import VaultChangePoller from './VaultChangePoller';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 
@@ -83,6 +85,7 @@ export default function AppShell() {
   return (
     <div className="app">
       <VaultChangePoller />
+      <EncryptionHost />
       <KeyboardShortcuts />
       <aside className="sidebar">
         <WorkspaceSwitcher />
@@ -97,7 +100,9 @@ export default function AppShell() {
         <CalendarSidebar />
       </aside>
       <main className="main">
-        <Outlet />
+        <PageErrorBoundary>
+          <Outlet />
+        </PageErrorBoundary>
       </main>
     </div>
   );

@@ -20,6 +20,11 @@ const TASK_STATUS = z.enum(['todo', 'doing', 'done']);
 const DATE = z.string().describe('YYYY-MM-DD');
 const CHECKLIST_ITEM = z.object({ text: z.string(), done: z.boolean() });
 const CONTENT_TYPE = z.enum(['task', 'note', 'journal', 'project']);
+// Milestone 31 ("Encryption") — agents only ever see ciphertext, and the
+// services reject an MCP write that drops or alters an encrypted token.
+const ENCRYPTED_BODY_NOTE =
+  'Freeform markdown. An inline code span starting `jota-enc:` is user-encrypted text you cannot read — copy every ' +
+  'such span into the new body byte-for-byte unchanged, or the write is rejected.';
 
 function ok(data: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -195,7 +200,7 @@ export function registerTools(server: McpServer, workspacePath: string): void {
         date: DATE,
         tags: z.array(z.string()).optional(),
         linkedTasks: z.array(z.string()).optional().describe('Full-replace list of linked task ids.'),
-        body: z.string().optional(),
+        body: z.string().optional().describe(ENCRYPTED_BODY_NOTE),
       },
     },
     ({ date, tags, linkedTasks, body }) =>
@@ -276,7 +281,7 @@ export function registerTools(server: McpServer, workspacePath: string): void {
         slug: z.string(),
         title: z.string().optional(),
         tags: z.array(z.string()).optional(),
-        body: z.string().optional(),
+        body: z.string().optional().describe(ENCRYPTED_BODY_NOTE),
         newSlug: z.string().optional(),
       },
     },

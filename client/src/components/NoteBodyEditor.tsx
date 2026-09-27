@@ -3,11 +3,10 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import * as api from '../api/client';
-import { handleRenderedAttachmentClick } from '../lib/attachments';
-import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import { useFindShortcut } from '../lib/useFindShortcut';
 import { useViewModeShortcuts, VIEW_MODE_SHORTCUT_LABELS } from '../lib/useViewModeShortcuts';
 import AttachmentField, { useAttachmentField } from './AttachmentField';
+import { useBodyEncryption } from './BodyEncryption';
 import MarkdownEditor, { type MarkdownEditorHandle } from './MarkdownEditor';
 
 // Pencil (edit) / eye (preview, same path HistoryPanel's "view diff" button
@@ -77,24 +76,28 @@ export default function NoteBodyEditor({
     setNoteViewModeMutation.mutate(next);
   }
   useViewModeShortcuts(changeViewMode);
+  const encryption = useBodyEncryption({ body, onChange, editorRef });
 
   return (
     <>
-      <div className="note-view-toggle" role="radiogroup" aria-label={t('noteDetail.viewMode.sectionTitle') ?? undefined}>
-        {(['edit', 'preview'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={viewMode === m}
-            title={`${t(`noteDetail.viewMode.${m}`)} (${VIEW_MODE_SHORTCUT_LABELS[m]})`}
-            aria-label={t(`noteDetail.viewMode.${m}`)}
-            className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
-            onClick={() => changeViewMode(m)}
-          >
-            {VIEW_MODE_ICONS[m]}
-          </button>
-        ))}
+      <div className="body-toolbar">
+        {encryption.toolbar}
+        <div className="note-view-toggle" role="radiogroup" aria-label={t('noteDetail.viewMode.sectionTitle') ?? undefined}>
+          {(['edit', 'preview'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={viewMode === m}
+              title={`${t(`noteDetail.viewMode.${m}`)} (${VIEW_MODE_SHORTCUT_LABELS[m]})`}
+              aria-label={t(`noteDetail.viewMode.${m}`)}
+              className={`ws-row-btn note-view-toggle-btn ${viewMode === m ? 'is-active' : ''}`}
+              onClick={() => changeViewMode(m)}
+            >
+              {VIEW_MODE_ICONS[m]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {viewMode === 'edit' ? (
@@ -106,6 +109,7 @@ export default function NoteBodyEditor({
             value={body}
             onChange={onChange}
             onPasteFiles={attachmentState.handleFiles}
+            encryption={encryption.editorEncryption}
             disabled={disabled}
           />
           <AttachmentField state={attachmentState} disabled={disabled} />
@@ -113,8 +117,8 @@ export default function NoteBodyEditor({
       ) : body.trim() ? (
         <div
           className="note-preview journal-body"
-          onClick={handleRenderedAttachmentClick}
-          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(body) }}
+          onClick={encryption.handlePreviewClick}
+          dangerouslySetInnerHTML={{ __html: encryption.previewHtml }}
         />
       ) : (
         <div className="note-preview journal-body note-preview-empty">{t('noteDetail.previewEmpty')}</div>

@@ -42,6 +42,24 @@ router.get('/:slug', (req, res, next) => {
   }
 });
 
+router.get('/:slug/raw', (req, res, next) => {
+  try {
+    const workspace = workspaceService.getActiveWorkspaceOrThrow();
+    res.json({ content: noteService.getNoteRaw(workspace.path, req.params.slug) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:slug/raw', (req, res, next) => {
+  try {
+    const workspace = workspaceService.getActiveWorkspaceOrThrow();
+    res.json({ note: noteService.putNoteRaw(workspace.path, req.params.slug, req.body?.content, 'api') });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.patch('/:slug', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();

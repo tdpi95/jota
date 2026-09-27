@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
+import { stripEncryptedTokens } from '../markdown/encrypted.js';
 import { parseJournalFile } from '../markdown/journal.js';
 import { parseNoteFile } from '../markdown/note.js';
 import { parseProjectFile, tasksOfProject } from '../markdown/project.js';
@@ -32,6 +33,20 @@ export interface IndexStatus {
   taskCount: number;
   journalEntryCount: number;
   noteCount: number;
+}
+
+/** Parses one file, or returns null (with a warning) when it can't be
+ * parsed — a single hand-broken or conflict-marked file must not stop the
+ * rest of the workspace from indexing. The skipped file keeps whatever row
+ * it already had (its stored mtime is left alone, so it's retried on the
+ * next reconcile), and reading it directly still reports the real error. */
+function tryParse<T>(fullPath: string, content: string, parse: (content: string) => T): T | null {
+  try {
+    return parse(content);
+  } catch (err) {
+    console.warn(`[index] skipping unparsable file ${fullPath}: ${(err as Error).message.split('\n')[0]}`);
+    return null;
+  }
 }
 
 function hashContent(content: string): string {
@@ -95,7 +110,8 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
     if (existing && existing.source_mtime === stat.mtimeMs) continue; // unchanged: stat only, no parse
 
     const content = fs.readFileSync(fullPath, 'utf8');
-    const parsed = parseProjectFile(content);
+    const parsed = tryParse(fullPath, content, parseProjectFile);
+    if (!parsed) continue;
     const tasks = tasksOfProject(parsed);
 
     upsertProject.run(
@@ -191,15 +207,20 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
       if (existing && existing.source_mtime === stat.mtimeMs) continue;
 
       const content = fs.readFileSync(fullPath, 'utf8');
-      const parsed = parseJournalFile(content);
+      const parsed = tryParse(fullPath, content, parseJournalFile);
+      if (!parsed) continue;
       const hasBody = parsed.body.trim().length > 0;
+      // Ciphertext never reaches the index (milestone 31, "Encryption") —
+      // encrypted content is deliberately unsearchable. `hasBody` still
+      // looks at the raw body: an all-encrypted entry isn't empty.
+      const indexedBody = stripEncryptedTokens(parsed.body);
 
       upsertEntry.run(
         date,
         year,
         hasBody ? 1 : 0,
         JSON.stringify(parsed.frontmatter.tags),
-        parsed.body,
+        indexedBody,
         stat.mtimeMs,
         hashContent(content),
       );
@@ -208,7 +229,7 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
         insertLink.run(date, taskId);
       }
       deleteJournalFtsForDate.run(date);
-      insertJournalFts.run(date, JSON.stringify(parsed.frontmatter.tags), parsed.body);
+      insertJournalFts.run(date, JSON.stringify(parsed.frontmatter.tags), indexedBody);
       reparsed++;
     }
   }
@@ -256,7 +277,9 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
     if (existing && existing.source_mtime === stat.mtimeMs) continue; // unchanged: stat only, no parse
 
     const content = fs.readFileSync(fullPath, 'utf8');
-    const parsed = parseNoteFile(content);
+    const parsed = tryParse(fullPath, content, parseNoteFile);
+    if (!parsed) continue;
+    const indexedBody = stripEncryptedTokens(parsed.body); // same as journal above
 
     upsertNote.run(
       slug,
@@ -264,12 +287,12 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
       parsed.frontmatter.created,
       parsed.frontmatter.updated,
       JSON.stringify(parsed.frontmatter.tags),
-      parsed.body,
+      indexedBody,
       stat.mtimeMs,
       hashContent(content),
     );
     deleteNotesFtsForSlug.run(slug);
-    insertNoteFts.run(slug, parsed.frontmatter.title, JSON.stringify(parsed.frontmatter.tags), parsed.body);
+    insertNoteFts.run(slug, parsed.frontmatter.title, JSON.stringify(parsed.frontmatter.tags), indexedBody);
     reparsed++;
   }
 

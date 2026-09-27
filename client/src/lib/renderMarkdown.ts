@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 
+import { ENCRYPTED_TOKEN_PREFIX, fullyEncryptedPayload } from './encryptionCrypto';
+
 // Backs NoteDetailPage's edit/preview toggle — the one place in this app
 // that renders markdown to actual HTML rather than just syntax-coloring it
 // (contrast MarkdownEditor.tsx, which deliberately never does, per PLAN.md
@@ -70,6 +72,41 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   return defaultLinkOpenRule(tokens, idx, options, env, self);
 };
 
-export function renderMarkdownToHtml(source: string): string {
-  return md.render(source);
+/** What the preview knows about each encrypted token (milestone 31, PLAN.md
+ * "Encryption"), keyed by its payload (the `jota-enc:...` text): its
+ * plaintext once decrypted, or 'error' when the session passphrase can't
+ * open it. A token missing from the map renders as a locked chip. */
+export interface EncryptedPreviewState {
+  decrypted: Map<string, string | 'error'>;
+  labels: { locked: string; error: string };
+}
+
+type RenderEnv = { encrypted?: EncryptedPreviewState } & Record<string, unknown>;
+
+function lockedChip(state: EncryptedPreviewState | undefined, isError: boolean): string {
+  const label = md.utils.escapeHtml(isError ? (state?.labels.error ?? '') : (state?.labels.locked ?? ''));
+  return `<span class="enc-inline ${isError ? 'is-error' : 'is-locked'}" data-enc-unlock="1" role="button">🔒 ${label}</span>`;
+}
+
+// An encrypted token is an inline code span — rendered decrypted in place
+// (its own markdown rendered inline, same env so attachment links behave as
+// in plain text), or as a locked chip.
+const defaultCodeInlineRule = md.renderer.rules.code_inline ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {
+  const content = tokens[idx].content;
+  if (!content.startsWith(ENCRYPTED_TOKEN_PREFIX)) return defaultCodeInlineRule(tokens, idx, options, env, self);
+  const state = (env as RenderEnv | undefined)?.encrypted;
+  const value = state?.decrypted.get(content);
+  if (value === undefined || value === 'error') return lockedChip(state, value === 'error');
+  return `<span class="enc-inline is-unlocked">${md.renderInline(value, env)}</span>`;
+};
+
+export function renderMarkdownToHtml(source: string, encrypted?: EncryptedPreviewState): string {
+  const env: RenderEnv = { encrypted };
+  // A whole note/entry encrypted as one token renders as full block
+  // markdown (headings, lists, ...), not squeezed inline.
+  const whole = fullyEncryptedPayload(source);
+  const plaintext = whole ? encrypted?.decrypted.get(whole) : undefined;
+  if (plaintext !== undefined && plaintext !== 'error') return `<div class="enc-whole">${md.render(plaintext, env)}</div>`;
+  return md.render(source, env);
 }

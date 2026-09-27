@@ -10,6 +10,7 @@ import path from 'node:path';
 import { didYouMean } from '../lib/didYouMean.js';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
+import { FrontmatterParseError } from '../lib/markdown/frontmatter.js';
 import { DEFAULT_GROUP, parseProjectFile, serializeProjectFile, tasksOfProject, type ParsedProjectFile } from '../lib/markdown/project.js';
 import { slugify } from '../lib/slug.js';
 import { commitChange } from '../lib/vaultGit.js';
@@ -133,10 +134,21 @@ export function saveProjectFile(
   commitChange(workspacePath, { origin, message, paths: [projectRelPath(slug)] });
 }
 
+/** Every project, read straight off disk. A project file whose frontmatter
+ * can't be parsed is left out (with a warning) rather than failing the whole
+ * list — and with it the Dashboard, the journal's task picker, and every
+ * other page that loads projects. Opening that project still reports why. */
 export function listProjects(workspacePath: string): ProjectSummary[] {
-  return listSlugs(workspacePath)
-    .sort()
-    .map((slug) => toSummary(slug, loadProjectFile(workspacePath, slug)));
+  const summaries: ProjectSummary[] = [];
+  for (const slug of listSlugs(workspacePath).sort()) {
+    try {
+      summaries.push(toSummary(slug, loadProjectFile(workspacePath, slug)));
+    } catch (err) {
+      if (!(err instanceof FrontmatterParseError)) throw err;
+      console.warn(`[projects] skipping unparsable project file ${projectRelPath(slug)}: ${err.message}`);
+    }
+  }
+  return summaries;
 }
 
 export function getProject(workspacePath: string, slug: string): ProjectSummary {

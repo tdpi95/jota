@@ -7,6 +7,7 @@
 
 import { execFileSync } from 'node:child_process';
 
+import { HttpError } from './httpError.js';
 import { ensureGitRepo } from './workspaces.js';
 
 /** Whether the `git` CLI is invokable at all — every workspace's undo
@@ -174,18 +175,55 @@ export function getDiff(workspacePath: string, commit: string): string {
   }
 }
 
+/** An undo that can't be applied cleanly because later changes to the same
+ * lines conflict with it — a 409, not a server error. */
+export class RevertConflictError extends HttpError {
+  constructor(message: string) {
+    super(message, 409);
+    this.name = 'RevertConflictError';
+  }
+}
+
+function isRevertInProgress(workspacePath: string): boolean {
+  try {
+    execFileSync('git', ['rev-parse', '-q', '--verify', 'REVERT_HEAD'], { cwd: workspacePath, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Reverts one commit (`git revert --no-edit`, PLAN.md) — a new undo commit,
  * not a rewrite of history, so it's safe even with later commits on top.
- * Throws with git's own stderr on failure (e.g. a revert conflict) rather
- * than silently swallowing it — unlike `commitChange`, this is a
- * user-invoked action the caller needs to know failed.
+ * Throws with git's own stderr on failure rather than silently swallowing
+ * it — unlike `commitChange`, this is a user-invoked action the caller needs
+ * to know failed.
+ *
+ * A conflicting revert (undoing an older change to lines a later commit
+ * also touched) is aborted before throwing: left alone, git stops
+ * mid-revert with `<<<<<<<` conflict markers written into the markdown file
+ * itself — which breaks that file's frontmatter parse (and so indexing and
+ * opening it) and blocks every later auto-commit until someone resolves it
+ * by hand. `git revert --abort` puts the conflicted files back to HEAD and
+ * leaves any unrelated uncommitted changes alone.
  */
 export function revertCommit(workspacePath: string, commit: string): CommitInfo {
   try {
     execFileSync('git', ['revert', '--no-edit', commit], { cwd: workspacePath, stdio: 'pipe' });
   } catch (err) {
     const stderr = (err as { stderr?: Buffer }).stderr?.toString().trim();
+    if (isRevertInProgress(workspacePath)) {
+      try {
+        execFileSync('git', ['revert', '--abort'], { cwd: workspacePath, stdio: 'pipe' });
+      } catch (abortErr) {
+        console.error(`[vaultGit] git revert --abort failed in ${workspacePath}:`, (abortErr as Error).message);
+      }
+      throw new RevertConflictError(
+        "Can't undo this change on its own: a later change to the same file conflicts with it. " +
+          'Undo the later change(s) first (newest first), then try again. Nothing was modified.',
+      );
+    }
     throw new Error(`git revert failed: ${stderr || (err as Error).message}`);
   }
   const [latest] = getHistory(workspacePath, { limit: 1 });

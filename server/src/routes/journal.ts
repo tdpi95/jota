@@ -50,6 +50,24 @@ router.put('/:year/:date', (req, res, next) => {
   }
 });
 
+router.get('/:year/:date/raw', (req, res, next) => {
+  try {
+    const workspace = workspaceService.getActiveWorkspaceOrThrow();
+    res.json({ content: journalService.getJournalRaw(workspace.path, req.params.year, req.params.date) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:year/:date/raw', (req, res, next) => {
+  try {
+    const workspace = workspaceService.getActiveWorkspaceOrThrow();
+    res.json({ entry: journalService.putJournalRaw(workspace.path, req.params.year, req.params.date, req.body?.content, 'api') });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/:year/:date/links/:taskId', (req, res, next) => {
   try {
     const workspace = workspaceService.getActiveWorkspaceOrThrow();

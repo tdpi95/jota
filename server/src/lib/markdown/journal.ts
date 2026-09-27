@@ -1,5 +1,5 @@
 import type { JournalFrontmatter } from '../../types.js';
-import { parseFrontmatter, serializeFrontmatter } from './frontmatter.js';
+import { parseFrontmatter, serializeFrontmatter, stringArray } from './frontmatter.js';
 
 export interface ParsedJournalFile {
   frontmatter: JournalFrontmatter;
@@ -8,8 +8,11 @@ export interface ParsedJournalFile {
 }
 
 export function parseJournalFile(fileContent: string): ParsedJournalFile {
-  const { data, body } = parseFrontmatter<JournalFrontmatter>(fileContent);
-  return { frontmatter: data, body };
+  const { data, body } = parseFrontmatter<Partial<Record<keyof JournalFrontmatter, unknown>>>(fileContent);
+  // Same wrong-shape coercion as note.ts. `date` is left as-is: services
+  // always know the date from the filename.
+  const frontmatter = { ...data, tags: stringArray(data.tags), linkedTasks: stringArray(data.linkedTasks) } as JournalFrontmatter;
+  return { frontmatter, body };
 }
 
 export function serializeJournalFile(parsed: ParsedJournalFile): string {

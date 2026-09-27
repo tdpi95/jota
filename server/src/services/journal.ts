@@ -10,6 +10,8 @@ import path from 'node:path';
 import { HttpError } from '../lib/httpError.js';
 import { reconcileWorkspace } from '../lib/index/reindex.js';
 import { openIndexDb } from '../lib/index/db.js';
+import { ENCRYPTED_TOKEN_GUARD_MESSAGE, isMcpOrigin, missingEncryptedTokens } from '../lib/markdown/encrypted.js';
+import { FrontmatterParseError } from '../lib/markdown/frontmatter.js';
 import { parseJournalFile, serializeJournalFile, type ParsedJournalFile } from '../lib/markdown/journal.js';
 import { commitChange } from '../lib/vaultGit.js';
 import type { JournalFrontmatter } from '../types.js';
@@ -107,6 +109,34 @@ export interface PutJournalInput {
   body?: string;
 }
 
+/** `GET /api/journal/:year/:date/raw` — the file's exact text (empty string
+ * when there's no file yet), unparsed. Exists so an entry whose frontmatter
+ * can't be parsed can still be shown and fixed in the app. */
+export function getJournalRaw(workspacePath: string, year: string, date: string): string {
+  validateDate(year, date);
+  const filePath = journalFilePath(workspacePath, date);
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+}
+
+/** `PUT /api/journal/:year/:date/raw` — writes `content` verbatim, but only
+ * once it parses (still-broken frontmatter → the same 422, nothing
+ * written). Same as notes.ts's `putNoteRaw`. */
+export function putJournalRaw(workspacePath: string, year: string, date: string, content: string, origin = 'api'): JournalEntry {
+  validateDate(year, date);
+  if (typeof content !== 'string') throw new JournalServiceError('content must be a string', 400);
+  const parsed = parseJournalFile(content);
+  const filePath = journalFilePath(workspacePath, date);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, 'utf8');
+  try {
+    reconcileWorkspace(workspacePath);
+  } catch (err) {
+    console.error(`[journal] index reconcile failed for ${workspacePath}:`, (err as Error).message);
+  }
+  commitChange(workspacePath, { origin, message: `fix_journal_file ${date}`, paths: [journalRelPath(date)] });
+  return { date, frontmatter: parsed.frontmatter, body: parsed.body };
+}
+
 /** `PUT /api/journal/:year/:date` — full-replace of the given fields (PLAN.md
  * "PUT accepts linkedTasks full-replace"); fields omitted from the input
  * keep whatever the entry already had (or the default, if new). */
@@ -119,6 +149,12 @@ export function putJournalEntry(workspacePath: string, year: string, date: strin
     linkedTasks: dedupe(input.linkedTasks ?? existing.frontmatter.linkedTasks),
   };
   const body = input.body ?? existing.body;
+  // Milestone 31 ("Encryption"): an agent can't read an encrypted token, so
+  // it can't legitimately rewrite or drop one either — the app UI (origin
+  // 'api') is still free to, since that's where the user edits them.
+  if (isMcpOrigin(origin) && missingEncryptedTokens(existing.body, body).length > 0) {
+    throw new JournalServiceError(ENCRYPTED_TOKEN_GUARD_MESSAGE, 409);
+  }
 
   writeJournalFile(workspacePath, date, { frontmatter, body }, origin, `upsert_journal_entry ${date}`);
   return { date, frontmatter, body };
@@ -185,11 +221,21 @@ export function listJournalYearFull(workspacePath: string, year: string): Journa
   const yearDir = path.join(workspacePath, 'journal', year);
   if (!fs.existsSync(yearDir)) return [];
   const files = fs.readdirSync(yearDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f));
-  const entries = files.map((file) => {
+  const entries: JournalEntryFull[] = [];
+  for (const file of files) {
     const date = file.slice(0, -'.md'.length);
-    const parsed = parseJournalFile(fs.readFileSync(path.join(yearDir, file), 'utf8'));
-    return { date, hasBody: parsed.body.trim().length > 0, tags: parsed.frontmatter.tags, body: parsed.body, linkedTasks: parsed.frontmatter.linkedTasks };
-  });
+    let parsed: ParsedJournalFile;
+    try {
+      parsed = parseJournalFile(fs.readFileSync(path.join(yearDir, file), 'utf8'));
+    } catch (err) {
+      // One broken entry mustn't blank the whole year's list — opening that
+      // day still reports why (same as projects.ts's listProjects).
+      if (!(err instanceof FrontmatterParseError)) throw err;
+      console.warn(`[journal] skipping unparsable journal file ${journalRelPath(date)}: ${err.message}`);
+      continue;
+    }
+    entries.push({ date, hasBody: parsed.body.trim().length > 0, tags: parsed.frontmatter.tags, body: parsed.body, linkedTasks: parsed.frontmatter.linkedTasks });
+  }
   entries.sort((a, b) => (a.date < b.date ? -1 : 1));
   return entries;
 }
