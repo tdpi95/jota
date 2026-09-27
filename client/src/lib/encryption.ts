@@ -92,6 +92,20 @@ export async function encryptText(plaintext: string): Promise<string> {
   return token;
 }
 
+/**
+ * An encrypt function bound to the current session's key, or null while
+ * locked — for the editor re-sealing edited regions on every keystroke. It
+ * keeps working for a call already in flight when the session locks (so the
+ * last edit before an idle lock still gets sealed rather than lost), and
+ * doesn't add to the plaintext cache (a new token per keystroke would grow
+ * it without bound; the editor already knows each region's plaintext).
+ */
+export function currentSealer(): ((plaintext: string) => Promise<string>) | null {
+  const s = session;
+  if (!s) return null;
+  return async (plaintext) => encryptToToken(plaintext, await keyFor(s, s.salt, PBKDF2_ITERATIONS), s.salt);
+}
+
 /** Decrypts one token's payload (the `jota-enc:...` text, no backticks)
  * with the session passphrase. Throws `DecryptError` on a wrong passphrase. */
 export async function decryptToken(payload: string): Promise<string> {

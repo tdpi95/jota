@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent, RefObject } from 'react';
+import type { MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { decryptToken, encryptText, ensureUnlocked, lock, useEncryptionSession } from '../lib/encryption';
 import { findEncryptedTokens, fullyEncryptedPayload } from '../lib/encryptionCrypto';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
-import type { EditorEncryption, MarkdownEditorHandle } from './MarkdownEditor';
+import type { EditorEncryption } from './MarkdownEditor';
 
 const LOCK_ICON = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -34,22 +34,15 @@ const LOCK_SESSION_ICON = (
  * inline `` `jota-enc:...` `` token sitting in the text in place of what it
  * hides — the body only ever holds tokens, never their plaintext.
  *
- * - One toolbar button encrypts the whole body into a single token, or
- *   decrypts it back when the body is exactly one token.
- * - Selecting text in the editor pops up "Encrypt" (the selection becomes a
- *   token) or "Decrypt" (the token(s) it touches become plain text again).
- * - While unlocked, the editor shows each token's plaintext in place
- *   (read-only) and the preview renders it; while locked both show a chip.
+ * - One toolbar button encrypts the whole body into a single token, or —
+ *   when the body is exactly one token — removes that encryption for good.
+ * - While unlocked, the editor opens every token into editable text in
+ *   place and re-encrypts it on every edit (MarkdownEditor), so it stays
+ *   encrypted on disk; selecting text pops up "Encrypt", or "Remove
+ *   encryption" on encrypted text. The preview renders tokens decrypted.
+ * - While locked, both show a chip; clicking one asks for the passphrase.
  */
-export function useBodyEncryption({
-  body,
-  onChange,
-  editorRef,
-}: {
-  body: string;
-  onChange: (next: string) => void;
-  editorRef: RefObject<MarkdownEditorHandle | null>;
-}) {
+export function useBodyEncryption({ body, onChange }: { body: string; onChange: (next: string) => void }) {
   const { t } = useTranslation();
   const session = useEncryptionSession();
   const bodyRef = useRef(body);
@@ -74,6 +67,12 @@ export function useBodyEncryption({
         () => !cancelled && setDecrypted((prev) => new Map(prev).set(token.payload, 'error')),
       );
     }
+    // Every edit of encrypted text seals it into a new token — drop the
+    // ones no longer in the body so the map doesn't grow per keystroke.
+    if (decrypted.size > tokens.length + 16) {
+      const live = new Set(tokens.map((tok) => tok.payload));
+      setDecrypted((prev) => new Map([...prev].filter(([payload]) => live.has(payload))));
+    }
     return () => {
       cancelled = true;
     };
@@ -85,7 +84,13 @@ export function useBodyEncryption({
   async function toggleWhole() {
     const current = bodyRef.current;
     if (fullPayload) {
-      if (!(await ensureUnlocked('decrypt', fullPayload))) return;
+      // Locked: this only unlocks, to read and edit — which never changes
+      // the file. Removing the encryption is a separate, confirmed click.
+      if (!session.unlocked) {
+        await ensureUnlocked('decrypt', fullPayload);
+        return;
+      }
+      if (!window.confirm(t('encryption.confirmRemoveAll'))) return;
       let plaintext: string;
       try {
         plaintext = await decryptToken(fullPayload);
@@ -99,60 +104,34 @@ export function useBodyEncryption({
     }
     if (!current.trim()) return;
     if (!(await ensureUnlocked('encrypt', tokens[0]?.payload))) return;
-    const token = await encryptText(current.trim());
+    // Encrypted parts already in the body fold into the one new token as
+    // plain text (one that can't be decrypted stays a token inside it).
+    let flat = current;
+    for (const tok of [...findEncryptedTokens(current)].reverse()) {
+      try {
+        flat = flat.slice(0, tok.from) + (await decryptToken(tok.payload)) + flat.slice(tok.to);
+      } catch {
+        // keep it as is
+      }
+    }
+    const token = await encryptText(flat.trim());
     if (bodyRef.current !== current) return window.alert(t('encryption.changedMeanwhile'));
     onChange(`${token}\n`);
   }
 
-  async function encryptRange(from: number, to: number) {
-    const selected = bodyRef.current.slice(from, to);
-    const inner = selected.trim();
-    if (!inner) return;
-    // Surrounding whitespace stays outside the token, so encrypting "a word "
-    // mid-sentence keeps the sentence's spacing.
-    const start = from + (selected.length - selected.trimStart().length);
-    if (!(await ensureUnlocked('encrypt', tokens[0]?.payload))) return;
-    const token = await encryptText(inner);
-    if (!editorRef.current?.replaceRange(start, start + inner.length, token, inner)) window.alert(t('encryption.changedMeanwhile'));
-  }
-
-  async function decryptRange(from: number, to: number) {
-    const touched = findEncryptedTokens(bodyRef.current).filter((tok) => tok.from < to && tok.to > from);
-    if (touched.length === 0) return;
-    if (!(await ensureUnlocked('decrypt', touched[0].payload))) return;
-    const plaintexts: string[] = [];
-    for (const tok of touched) {
-      try {
-        plaintexts.push(await decryptToken(tok.payload));
-      } catch {
-        window.alert(t('encryption.cannotDecryptAlert'));
-        return;
-      }
-    }
-    // Last to first, so the earlier tokens' offsets stay valid.
-    for (let i = touched.length - 1; i >= 0; i--) {
-      const tok = touched[i];
-      if (!editorRef.current?.replaceRange(tok.from, tok.to, plaintexts[i], `\`${tok.payload}\``)) {
-        window.alert(t('encryption.changedMeanwhile'));
-        return;
-      }
-    }
-  }
-
-  async function unlockForPreview() {
-    if (tokens.length === 0) return;
+  async function unlockFor(payload?: string) {
     if (!session.unlocked) {
-      await ensureUnlocked('decrypt', tokens[0].payload);
-    } else if (window.confirm(t('encryption.relockPrompt'))) {
+      await ensureUnlocked('decrypt', payload ?? tokens[0]?.payload);
+    } else if ((payload ? decrypted.get(payload) === 'error' : tokens.some((tok) => decrypted.get(tok.payload) === 'error')) && window.confirm(t('encryption.relockPrompt'))) {
       // A token this passphrase can't open — offer to start over with another.
       lock();
-      await ensureUnlocked('decrypt', tokens.find((tok) => decrypted.get(tok.payload) === 'error')?.payload);
+      await ensureUnlocked('decrypt', payload ?? tokens.find((tok) => decrypted.get(tok.payload) === 'error')?.payload);
     }
   }
 
   function handlePreviewClick(event: MouseEvent<HTMLElement>) {
     if ((event.target as HTMLElement).closest('[data-enc-unlock]')) {
-      void unlockForPreview();
+      if (tokens.length > 0) void unlockFor();
       return;
     }
     handleRenderedAttachmentClick(event);
@@ -163,28 +142,37 @@ export function useBodyEncryption({
       locked: t('encryption.lockedChip'),
       error: t('encryption.cannotDecrypt'),
       encrypt: t('encryption.popupEncrypt'),
-      decrypt: t('encryption.popupDecrypt'),
+      remove: t('encryption.popupRemove'),
     }),
     [t],
   );
 
-  const actionsRef = useRef({ encryptRange, decryptRange });
-  actionsRef.current = { encryptRange, decryptRange };
+  const unlockForRef = useRef(unlockFor);
+  unlockForRef.current = unlockFor;
+  const tokensRef = useRef(tokens);
+  tokensRef.current = tokens;
   const editorEncryption = useMemo<EditorEncryption>(
     () => ({
+      unlocked: session.unlocked,
       decrypted,
       labels,
-      onSelectionAction: (action, from, to) => void (action === 'encrypt' ? actionsRef.current.encryptRange(from, to) : actionsRef.current.decryptRange(from, to)),
+      ensureUnlockedForEncrypt: () => ensureUnlocked('encrypt', tokensRef.current[0]?.payload),
+      confirmRemove: () => window.confirm(t('encryption.confirmRemove')),
+      onTokenClick: (payload) => void unlockForRef.current(payload),
+      onSealed: (payload, plaintext) => setDecrypted((prev) => new Map(prev).set(payload, plaintext)),
     }),
-    [decrypted, labels],
+    [session.unlocked, decrypted, labels, t],
   );
 
   const previewHtml = renderMarkdownToHtml(body, { decrypted, labels: { locked: t('encryption.lockedPreview'), error: labels.error } });
 
-  const wholeLabel = fullPayload ? t('encryption.decryptAll') : t('encryption.encryptAll');
+  const wholeLabel = !fullPayload ? t('encryption.encryptAll') : session.unlocked ? t('encryption.removeAll') : t('encryption.unlockAll');
   const toolbar = (
     <>
-      {session.unlocked && (
+      {/* Only while there's something here it would hide — once this body's
+          last token is decrypted back to plain text, locking changes nothing
+          on this page. */}
+      {session.unlocked && tokens.length > 0 && (
         <button type="button" className="ws-row-btn note-view-toggle-btn" title={t('encryption.lockNow')} aria-label={t('encryption.lockNow')} onClick={lock}>
           {LOCK_SESSION_ICON}
         </button>

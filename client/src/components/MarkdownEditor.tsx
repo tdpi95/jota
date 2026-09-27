@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Annotation, Compartment, EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state';
+import { Annotation, Compartment, EditorState, findClusterBreak, RangeSetBuilder, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { Decoration, drawSelection, dropCursor, EditorView, keymap, placeholder as placeholderExt, showTooltip, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet, Tooltip, ViewUpdate } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -8,6 +8,9 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
 import { tags as t } from '@lezer/highlight';
 
+import { currentSealer } from '../lib/encryption';
+import { findRegions, hasSentinels, openableTokens, REGION_CLOSE, REGION_OPEN, sealRegions, stripSentinels } from '../lib/encryptedRegions';
+import type { SealedRegion } from '../lib/encryptedRegions';
 import { findEncryptedTokens } from '../lib/encryptionCrypto';
 import { VscodeSearchPanel } from '../lib/vscodeSearchPanel';
 
@@ -130,51 +133,80 @@ const inlineCodeBackground = ViewPlugin.fromClass(
 );
 
 /**
- * Encrypted tokens (milestone 31, PLAN.md "Encryption") — each
- * `` `jota-enc:...` `` inline code span is replaced by one atomic inline
- * widget (the cursor skips over it, backspace deletes it whole): a lock chip
- * while locked, or — once the page has decrypted it — its plaintext, shown
- * in place but read-only (the document itself only ever holds the token, so
- * autosave and git only see ciphertext). Clicking the widget selects the
- * whole token, which brings up the selection popup below with "Decrypt".
+ * Encryption in the editor (milestone 31, PLAN.md "Encryption"). The body
+ * this editor takes and hands back (`value`/`onChange`) only ever holds
+ * encrypted `` `jota-enc:...` `` tokens. While the session is unlocked, the
+ * editor's own document opens each token it can decrypt into an *editable
+ * region*: its plaintext between two hidden sentinel characters
+ * (lib/encryptedRegions.ts), highlighted and typed into like any other text.
+ * Every edit re-seals the regions into tokens before `onChange` sees the
+ * body, so autosave, git and disk only ever get ciphertext. Locking closes
+ * every region back into its token (and drops undo history, which would
+ * otherwise still hold the plaintext).
+ *
+ * A token that isn't open (locked, can't be decrypted with this passphrase,
+ * or still decrypting) is an atomic chip; clicking it asks to unlock.
  */
 export interface EditorEncryption {
+  unlocked: boolean;
   /** Plaintext per token payload once decrypted, or 'error' when the
    * session passphrase can't open it; missing = locked. */
   decrypted: Map<string, string | 'error'>;
-  labels: { locked: string; error: string; encrypt: string; decrypt: string };
-  /** The selection popup's button: 'decrypt' when the selection touches an
-   * encrypted token, otherwise 'encrypt'. */
-  onSelectionAction: (action: 'encrypt' | 'decrypt', from: number, to: number) => void;
+  labels: { locked: string; error: string; encrypt: string; remove: string };
+  /** Before "Encrypt" turns a selection into a region — resolves false if
+   * the user cancelled the passphrase prompt. */
+  ensureUnlockedForEncrypt: () => Promise<boolean>;
+  /** Before "Remove encryption" saves a region as plain text for good. */
+  confirmRemove: () => boolean;
+  onTokenClick: (payload: string) => void;
+  /** A token this editor just sealed a region into, and its plaintext —
+   * so the page needn't decrypt what the editor already knows. */
+  onSealed: (payload: string, plaintext: string) => void;
 }
 
 type EncryptionRef = { current: EditorEncryption | undefined };
 
 class EncryptedTokenWidget extends WidgetType {
   constructor(
-    readonly tokenLength: number,
+    readonly payload: string,
     readonly status: 'locked' | 'error' | 'unlocked',
     readonly text: string,
+    readonly encryption: EncryptionRef,
   ) {
     super();
   }
   eq(other: EncryptedTokenWidget) {
-    return other.tokenLength === this.tokenLength && other.status === this.status && other.text === this.text;
+    return other.payload === this.payload && other.status === this.status && other.text === this.text;
   }
-  toDOM(view: EditorView) {
+  toDOM() {
     const el = document.createElement('span');
     el.className = `cm-enc-token is-${this.status}`;
     el.textContent = this.status === 'unlocked' ? this.text : `🔒 ${this.text}`;
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      const from = view.posAtDOM(el);
-      view.dispatch({ selection: { anchor: from, head: from + this.tokenLength } });
-      view.focus();
+      this.encryption.current?.onTokenClick(this.payload);
     });
     return el;
   }
   ignoreEvent() {
     return true;
+  }
+}
+
+/** The visible edges of an open region; the sentinel characters themselves
+ * are hidden behind these. */
+class RegionEdgeWidget extends WidgetType {
+  constructor(readonly edge: 'start' | 'end') {
+    super();
+  }
+  eq(other: RegionEdgeWidget) {
+    return other.edge === this.edge;
+  }
+  toDOM() {
+    const el = document.createElement('span');
+    el.className = `cm-enc-edge is-${this.edge}`;
+    if (this.edge === 'start') el.textContent = '🔓';
+    return el;
   }
 }
 
@@ -187,10 +219,10 @@ function buildTokenDecorations(state: EditorState, decrypted: Map<string, string
     const value = decrypted.get(token.payload);
     const widget =
       value === undefined
-        ? new EncryptedTokenWidget(token.to - token.from, 'locked', labels?.locked ?? '')
+        ? new EncryptedTokenWidget(token.payload, 'locked', labels?.locked ?? '', encryption)
         : value === 'error'
-          ? new EncryptedTokenWidget(token.to - token.from, 'error', labels?.error ?? '')
-          : new EncryptedTokenWidget(token.to - token.from, 'unlocked', value);
+          ? new EncryptedTokenWidget(token.payload, 'error', labels?.error ?? '', encryption)
+          : new EncryptedTokenWidget(token.payload, 'unlocked', value, encryption);
     builder.add(token.from, token.to, Decoration.replace({ widget }));
   }
   return builder.finish();
@@ -215,13 +247,137 @@ function encryptedTokensField(encryption: EncryptionRef) {
   });
 }
 
-/** The small popup above a non-empty selection: "Encrypt" it, or "Decrypt"
- * the encrypted token(s) it touches. */
-function selectionPopupField(encryption: EncryptionRef) {
+const regionStart = Decoration.replace({ widget: new RegionEdgeWidget('start') });
+const regionEnd = Decoration.replace({ widget: new RegionEdgeWidget('end') });
+const regionText = Decoration.mark({ class: 'cm-enc-region' });
+
+function buildRegionDecorations(state: EditorState): { decorations: DecorationSet; edges: DecorationSet } {
+  const decorations = new RangeSetBuilder<Decoration>();
+  const edges = new RangeSetBuilder<Decoration>();
+  for (const r of findRegions(state.doc.toString())) {
+    decorations.add(r.open, r.open + 1, regionStart);
+    edges.add(r.open, r.open + 1, regionStart);
+    if (r.close > r.open + 1) decorations.add(r.open + 1, r.close, regionText);
+    if (r.close < state.doc.length) {
+      decorations.add(r.close, r.close + 1, regionEnd);
+      edges.add(r.close, r.close + 1, regionEnd);
+    }
+  }
+  return { decorations: decorations.finish(), edges: edges.finish() };
+}
+
+const regionsField = StateField.define<{ decorations: DecorationSet; edges: DecorationSet }>({
+  create: buildRegionDecorations,
+  update: (value, tr) => (tr.docChanged ? buildRegionDecorations(tr.state) : value),
+  provide: (f) => [
+    EditorView.decorations.from(f, (v) => v.decorations),
+    // Only the (hidden) sentinels are atomic — the text between them is
+    // ordinary editable text.
+    EditorView.atomicRanges.of((view) => view.state.field(f).edges),
+  ],
+});
+
+// Marks a programmatic rewrite that doesn't change the body — pushing an
+// externally-changed `value` prop into the doc, or opening/closing regions
+// on unlock/lock — as opposed to real user input. The updateListener skips
+// these so `onChange` never fires for a change the caller itself supplied:
+// without that, every external `value` update (e.g. the journal entry
+// finishing its initial fetch) round-tripped back through `onChange`
+// indistinguishably from a real edit, and JournalDayPage's autosave scheduled
+// a pointless save on every page load. `keepRegionsBalanced` skips them too.
+const externalValueSync = Annotation.define<boolean>();
+// This editor's own region edits (encrypt a selection, remove encryption):
+// real edits, but allowed to add/remove sentinels.
+const regionEdit = Annotation.define<boolean>();
+
+function clusterBefore(state: EditorState, pos: number): number {
+  const line = state.doc.lineAt(pos);
+  return pos === line.from ? pos - 1 : line.from + findClusterBreak(line.text, pos - line.from, false);
+}
+
+function clusterAfter(state: EditorState, pos: number): number {
+  const line = state.doc.lineAt(pos);
+  return pos === line.to ? pos + 1 : line.from + findClusterBreak(line.text, pos - line.from, true);
+}
+
+/**
+ * A region's two sentinels are only ever removed together, so no edit can
+ * turn encrypted text into plain text by accident (only "Remove encryption"
+ * does that):
+ * - Backspace/Delete on a region edge steps over the hidden sentinel and
+ *   deletes the character beyond it instead.
+ * - Any other edit that would take just one sentinel (a selection spanning
+ *   a region edge, deleted or typed over) puts that sentinel back at the
+ *   edit, so the region shrinks to what's left of it — anything typed there
+ *   lands inside the region.
+ * - Nothing but undo/redo may insert a sentinel (pastes are stripped by the
+ *   clipboard filter).
+ */
+const keepRegionsBalanced = EditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged || tr.annotation(externalValueSync) || tr.annotation(regionEdit)) return tr;
+  const undoRedo = tr.isUserEvent('undo') || tr.isUserEvent('redo');
+  let insertsSentinel = false;
+  tr.changes.iterChanges((_fA, _tA, _fB, _tB, text) => {
+    if (hasSentinels(text.toString())) insertsSentinel = true;
+  });
+  if (insertsSentinel && !undoRedo) return [];
+  const start = tr.startState;
+  const before = start.doc.toString();
+  if (!hasSentinels(before)) return tr;
+
+  const deletedAt = (pos: number) => {
+    let hit = false;
+    tr.changes.iterChangedRanges((fA, tA) => {
+      if (pos >= fA && pos < tA) hit = true;
+    });
+    return hit;
+  };
+  const lone: { pos: number; char: string }[] = [];
+  for (const r of findRegions(before)) {
+    const open = deletedAt(r.open);
+    const close = r.close < before.length ? deletedAt(r.close) : open;
+    if (open && !close) lone.push({ pos: r.open, char: REGION_OPEN });
+    if (close && !open) lone.push({ pos: r.close, char: REGION_CLOSE });
+  }
+  if (lone.length === 0) return tr;
+
+  // Backspace/Delete of exactly one sentinel: skip over it.
+  let single: { fromA: number; toA: number; empty: boolean } | null = null;
+  let count = 0;
+  tr.changes.iterChanges((fA, tA, _fB, _tB, text) => {
+    count++;
+    single = { fromA: fA, toA: tA, empty: text.length === 0 };
+  });
+  const s = single as { fromA: number; toA: number; empty: boolean } | null;
+  if (count === 1 && s && s.empty && s.toA - s.fromA === 1 && lone.length === 1 && start.selection.main.empty && tr.isUserEvent('delete')) {
+    const backward = start.selection.main.head > s.fromA;
+    const from = backward ? clusterBefore(start, s.fromA) : s.toA;
+    const to = backward ? s.fromA : clusterAfter(start, s.toA);
+    const outOfDoc = from < 0 || to > start.doc.length;
+    if (outOfDoc || hasSentinels(start.sliceDoc(from, to))) return { selection: { anchor: backward ? s.fromA : s.toA } };
+    return { changes: { from, to }, selection: { anchor: from }, userEvent: backward ? 'delete.backward' : 'delete.forward', scrollIntoView: true };
+  }
+
+  // Otherwise put each lone sentinel back where its part of the edit landed:
+  // an opening one before that change's inserted text, a closing one after.
+  const restore: { from: number; insert: string }[] = [];
+  tr.changes.iterChanges((fA, tA, fB, tB) => {
+    for (const l of lone) if (l.pos >= fA && l.pos < tA) restore.push({ from: l.char === REGION_OPEN ? fB : tB, insert: l.char });
+  });
+  return [
+    { changes: tr.changes, selection: tr.selection, effects: tr.effects, scrollIntoView: tr.scrollIntoView, userEvent: tr.annotation(Transaction.userEvent) },
+    { changes: restore, sequential: true },
+  ];
+});
+
+/** The small popup above a non-empty selection: "Encrypt" it, or "Remove
+ * encryption" from the region(s) it touches. */
+function selectionPopupField(encryption: EncryptionRef, actions: { current: { encrypt: (from: number, to: number) => void; remove: (from: number, to: number) => void } }) {
   const compute = (state: EditorState): readonly Tooltip[] => {
     const { from, to } = state.selection.main;
     if (from === to || state.readOnly || !encryption.current) return [];
-    const action = findEncryptedTokens(state.doc.toString()).some((tok) => tok.from < to && tok.to > from) ? 'decrypt' : 'encrypt';
+    const touchesRegion = findRegions(state.doc.toString()).some((r) => r.open < to && r.close + 1 > from);
+    const action = touchesRegion ? 'remove' : 'encrypt';
     if (action === 'encrypt' && !state.sliceDoc(from, to).trim()) return [];
     return [
       {
@@ -232,9 +388,9 @@ function selectionPopupField(encryption: EncryptionRef) {
           dom.className = 'cm-enc-popup';
           const button = document.createElement('button');
           button.type = 'button';
-          button.textContent = `${action === 'decrypt' ? '🔓' : '🔒'} ${encryption.current?.labels[action] ?? action}`;
+          button.textContent = `${action === 'remove' ? '🔓' : '🔒'} ${encryption.current?.labels[action] ?? action}`;
           button.addEventListener('mousedown', (e) => e.preventDefault());
-          button.addEventListener('click', () => encryption.current?.onSelectionAction(action, from, to));
+          button.addEventListener('click', () => actions.current[action](from, to));
           dom.appendChild(button);
           return { dom };
         },
@@ -248,16 +404,19 @@ function selectionPopupField(encryption: EncryptionRef) {
   });
 }
 
-// Marks a transaction as a programmatic value-sync (the effect below,
-// pushing an externally-changed `value` prop into the CM doc) rather than
-// real user input — the updateListener checks for this to avoid calling
-// `onChange` for a change the caller itself just supplied. Without it, every
-// external `value` update (e.g. the journal entry finishing its initial
-// fetch) round-tripped back through `onChange` indistinguishably from a real
-// edit, which JournalDayPage's autosave couldn't tell apart from the user
-// actually typing — scheduling a real (and pointless) autosave on every
-// page load.
-const externalValueSync = Annotation.define<boolean>();
+/** The smallest single change turning `from` into `to` — keeps the cursor
+ * and scroll position where they were for an edit elsewhere in the text. */
+function minimalChange(from: string, to: string): { from: number; to: number; insert: string } {
+  let start = 0;
+  while (start < from.length && start < to.length && from[start] === to[start]) start++;
+  let endA = from.length;
+  let endB = to.length;
+  while (endA > start && endB > start && from[endA - 1] === to[endB - 1]) {
+    endA--;
+    endB--;
+  }
+  return { from: start, to: endA, insert: to.slice(start, endB) };
+}
 
 interface MarkdownEditorProps {
   value: string;
@@ -277,24 +436,21 @@ interface MarkdownEditorProps {
    * to drop the user straight into typing rather than requiring an extra
    * click. Read only at creation, same as `placeholder`. */
   autoFocus?: boolean;
-  /** Encrypted-token display + the selection popup (milestone 31). Without
-   * it tokens still render as (inert) lock chips and there's no popup.
-   * `labels` are read at creation; `decrypted` is pushed in on change. */
+  /** Encryption (milestone 31): editable regions while unlocked, the
+   * selection popup, and chips for tokens that aren't open. Without it
+   * tokens still render as (inert) lock chips and there's no popup.
+   * `labels` are read at creation; the rest is followed live. */
   encryption?: EditorEncryption;
 }
 
-/** Imperative handle (via `ref`) for the two things a *page* needs to drive
- * from outside — both exist specifically because a page-level Cmd/Ctrl+F
+/** Imperative handle (via `ref`) for the one thing a *page* needs to drive
+ * from outside — it exists specifically because a page-level Cmd/Ctrl+F
  * shortcut (`useFindShortcut`) can't rely on this editor already having
  * focus, or even being mounted at all (a page's Preview mode unmounts it
  * entirely): `openFind` focuses the view and opens/refocuses the find panel
  * in one call, safe to call as soon as the editor has mounted. */
 export interface MarkdownEditorHandle {
   openFind: () => void;
-  /** Replaces `from..to` as a normal edit (keeps cursor/undo, fires
-   * `onChange`) — only if that range still holds `expected`; returns
-   * whether it did. Used to swap text for its encrypted token and back. */
-  replaceRange: (from: number, to: number, insert: string, expected: string) => boolean;
 }
 
 /**
@@ -318,7 +474,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const encryptionRef = useRef(encryption);
   encryptionRef.current = encryption;
   const editableCompartment = useRef(new Compartment()).current;
+  const historyCompartment = useRef(new Compartment()).current;
   const didAutoFocusRef = useRef(false);
+  // The body as last handed out via `onChange` or taken in via `value` —
+  // what the document currently stands for. While regions are open the
+  // document itself differs from it (plaintext instead of tokens).
+  const bodyRef = useRef(value);
+  // Each open region's plaintext and the token it was last sealed into, so
+  // an unedited region reseals to the same token.
+  const sealedRef = useRef<SealedRegion[]>([]);
+  // Bumped per edit and per external sync; a seal finishing after a newer
+  // one started is dropped.
+  const sealSeqRef = useRef(0);
+  const sealingRef = useRef<Promise<void>>(Promise.resolve());
+  // A selection waiting on the passphrase prompt to be encrypted.
+  const pendingEncryptRef = useRef<{ from: number; to: number } | null>(null);
 
   useImperativeHandle(ref, () => ({
     openFind: () => {
@@ -327,14 +497,115 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       view.focus();
       openSearchPanel(view);
     },
-    replaceRange: (from, to, insert, expected) => {
-      const view = viewRef.current;
-      if (!view || to > view.state.doc.length || view.state.sliceDoc(from, to) !== expected) return false;
-      view.dispatch({ changes: { from, to, insert }, selection: { anchor: from + insert.length }, userEvent: 'input' });
-      view.focus();
-      return true;
-    },
   }), []);
+
+  function emitBody(doc: string) {
+    const seq = ++sealSeqRef.current;
+    if (!hasSentinels(doc)) {
+      sealedRef.current = [];
+      bodyRef.current = doc;
+      onChangeRef.current(doc);
+      return;
+    }
+    // Regions but no session (an edit landing just after a lock, before the
+    // regions closed): there's nothing to seal them with, and plaintext must
+    // never go out — the edit is dropped when the regions close.
+    const encrypt = currentSealer();
+    if (!encrypt) return;
+    const previous = sealedRef.current;
+    sealingRef.current = sealRegions(doc, previous, encrypt).then(
+      ({ body, sealed }) => {
+        if (seq !== sealSeqRef.current) return;
+        const known = new Set(previous.map((r) => r.token));
+        for (const r of sealed) if (!known.has(r.token)) encryptionRef.current?.onSealed(r.token.slice(1, -1), r.text);
+        sealedRef.current = sealed;
+        if (body === bodyRef.current) return;
+        bodyRef.current = body;
+        onChangeRef.current(body);
+      },
+      (err) => console.error('failed to seal encrypted text:', err),
+    );
+  }
+
+  /** Opens every token in the document whose plaintext is known. */
+  function openKnownTokens(view: EditorView) {
+    const enc = encryptionRef.current;
+    if (!enc?.unlocked) return;
+    const { changes, sealed } = openableTokens(view.state.doc.toString(), enc.decrypted);
+    if (changes.length === 0) return;
+    sealedRef.current = [...sealedRef.current, ...sealed];
+    view.dispatch({ changes, annotations: [externalValueSync.of(true), Transaction.addToHistory.of(false)] });
+  }
+
+  /** Closes every region back into its token — on lock. Waits for a seal
+   * still in flight so the last edit isn't lost, then also drops undo
+   * history: it holds the plaintext, and undoing past the close would put
+   * that plaintext back as ordinary text. */
+  function closeRegions() {
+    void sealingRef.current.then(() => {
+      const view = viewRef.current;
+      if (!view || encryptionRef.current?.unlocked || !hasSentinels(view.state.doc.toString())) return;
+      sealSeqRef.current++;
+      sealedRef.current = [];
+      view.dispatch({
+        changes: minimalChange(view.state.doc.toString(), bodyRef.current),
+        annotations: [externalValueSync.of(true), Transaction.addToHistory.of(false)],
+      });
+      view.dispatch({ effects: historyCompartment.reconfigure([]) });
+      view.dispatch({ effects: historyCompartment.reconfigure(history()) });
+    });
+  }
+
+  // The selection popup's two actions.
+  const regionActionsRef = useRef({
+    encrypt: async (from: number, to: number) => {
+      const view = viewRef.current;
+      const enc = encryptionRef.current;
+      if (!view || !enc) return;
+      const selected = view.state.sliceDoc(from, to);
+      const inner = selected.trim();
+      if (!inner) return;
+      // Surrounding whitespace stays outside the region, so encrypting
+      // "a word " mid-sentence keeps the sentence's spacing.
+      const start = from + (selected.length - selected.trimStart().length);
+      // Unlocking opens other tokens and shifts positions — the range is
+      // mapped through every edit while the prompt is up (updateListener).
+      const range = { from: start, to: start + inner.length };
+      pendingEncryptRef.current = range;
+      const ok = await enc.ensureUnlockedForEncrypt();
+      pendingEncryptRef.current = null;
+      const current = viewRef.current;
+      if (!ok || !current || range.to <= range.from) return;
+      // Tokens inside the selection that unlocking just opened merge into
+      // the new region — regions don't nest.
+      const inside = current.state.sliceDoc(range.from, range.to);
+      const merged: { from: number; to: number }[] = [];
+      for (let i = 0; i < inside.length; i++) {
+        if (inside[i] === REGION_OPEN || inside[i] === REGION_CLOSE) merged.push({ from: range.from + i, to: range.from + i + 1 });
+      }
+      current.dispatch({
+        changes: [{ from: range.from, insert: REGION_OPEN }, ...merged, { from: range.to, insert: REGION_CLOSE }],
+        selection: { anchor: range.to + 2 - merged.length },
+        annotations: regionEdit.of(true),
+        userEvent: 'input.encrypt',
+      });
+      current.focus();
+    },
+    remove: (from: number, to: number) => {
+      const view = viewRef.current;
+      if (!view || !encryptionRef.current?.confirmRemove()) return;
+      const doc = view.state.doc.toString();
+      const changes: { from: number; to: number }[] = [];
+      for (const r of findRegions(doc)) {
+        if (!(r.open < to && r.close + 1 > from)) continue;
+        changes.push({ from: r.open, to: r.open + 1 });
+        if (r.close < doc.length) changes.push({ from: r.close, to: r.close + 1 });
+      }
+      if (changes.length === 0) return;
+      view.dispatch({ changes, annotations: regionEdit.of(true), userEvent: 'delete.decrypt' });
+      view.focus();
+    },
+  });
 
   // Created once per mount; external `value` changes after that are synced
   // by the effect below rather than tearing the view down (that would drop
@@ -347,7 +618,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       state: EditorState.create({
         doc: value,
         extensions: [
-          history(),
+          historyCompartment.of(history()),
           drawSelection(),
           dropCursor(),
           indentOnInput(),
@@ -381,7 +652,11 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           codeBlockBackground,
           inlineCodeBackground,
           encryptedTokensField(encryptionRef),
-          selectionPopupField(encryptionRef),
+          regionsField,
+          keepRegionsBalanced,
+          EditorView.clipboardOutputFilter.of((text) => stripSentinels(text)),
+          EditorView.clipboardInputFilter.of((text) => stripSentinels(text)),
+          selectionPopupField(encryptionRef, regionActionsRef),
           placeholderExt(placeholder ?? ''),
           editableCompartment.of([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),
           EditorView.domEventHandlers({
@@ -395,14 +670,20 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           }),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return;
+            const pending = pendingEncryptRef.current;
+            if (pending) {
+              pending.from = update.changes.mapPos(pending.from, 1);
+              pending.to = update.changes.mapPos(pending.to, -1);
+            }
             if (update.transactions.some((tr) => tr.annotation(externalValueSync))) return;
-            onChangeRef.current(update.state.doc.toString());
+            emitBody(update.state.doc.toString());
           }),
         ],
       }),
       parent: containerRef.current,
     });
     viewRef.current = view;
+    openKnownTokens(view);
     return () => {
       view.destroy();
       viewRef.current = null;
@@ -415,21 +696,35 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   }, []);
 
   // Sync value changes that came from outside (e.g. the journal entry
-  // fetch resolving after the editor already mounted empty) — skip when
-  // the doc already matches so this never fights with the user's own
-  // typing (each keystroke's onChange round-trips back through `value`).
+  // fetch resolving after the editor already mounted empty) — skip when it's
+  // the body the document already stands for, so this never fights with the
+  // user's own typing (each keystroke's onChange round-trips back through
+  // `value`). Tokens it brings in open straight away while unlocked.
   useEffect(() => {
     const view = viewRef.current;
-    if (!view) return;
-    const current = view.state.doc.toString();
-    if (current === value) return;
-    view.dispatch({ changes: { from: 0, to: current.length, insert: value }, annotations: externalValueSync.of(true) });
+    if (!view || value === bodyRef.current) return;
+    sealSeqRef.current++;
+    bodyRef.current = value;
+    sealedRef.current = [];
+    view.dispatch({ changes: minimalChange(view.state.doc.toString(), value), annotations: externalValueSync.of(true) });
+    openKnownTokens(view);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const decrypted = encryption?.decrypted;
+  const unlocked = encryption?.unlocked ?? false;
   useEffect(() => {
-    if (decrypted) viewRef.current?.dispatch({ effects: setDecryptedEffect.of(decrypted) });
+    const view = viewRef.current;
+    if (!view || !decrypted) return;
+    view.dispatch({ effects: setDecryptedEffect.of(decrypted) });
+    openKnownTokens(view);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [decrypted]);
+
+  useEffect(() => {
+    if (!unlocked) closeRegions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlocked]);
 
   useEffect(() => {
     viewRef.current?.dispatch({

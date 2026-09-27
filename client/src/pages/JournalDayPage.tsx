@@ -241,7 +241,7 @@ function JournalDayPageInner({ date }: { date: string }) {
   const searchResults: IndexedTask[] = (searchQuery.data?.tasks ?? []).filter((task) => !linkedTaskIds.includes(task.id));
 
   const attachmentState = useAttachmentField('journal', body, handleBodyChange);
-  const encryption = useBodyEncryption({ body, onChange: handleBodyChange, editorRef });
+  const encryption = useBodyEncryption({ body, onChange: handleBodyChange });
 
   return (
     <div>

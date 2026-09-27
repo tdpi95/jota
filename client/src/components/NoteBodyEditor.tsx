@@ -76,7 +76,7 @@ export default function NoteBodyEditor({
     setNoteViewModeMutation.mutate(next);
   }
   useViewModeShortcuts(changeViewMode);
-  const encryption = useBodyEncryption({ body, onChange, editorRef });
+  const encryption = useBodyEncryption({ body, onChange });
 
   return (
     <>
