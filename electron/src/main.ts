@@ -52,11 +52,15 @@ let trayCallbacks: TrayCallbacks | null = null;
 // the process tree by PID rather than relying on process-group membership.
 function spawnServer(port: number): ChildProcess {
   if (isDev) {
-    // Same server, run straight from TS source via the hoisted tsx binary —
+    // Same server, run straight from TS source via the hoisted tsx CLI —
     // equivalent to `npm run dev -w server`, just with a fixed port so the
-    // client's Vite dev-server proxy config can target it statically.
-    const tsxBin = path.join(repoRoot, 'node_modules', '.bin', 'tsx');
-    return spawn(tsxBin, ['src/index.ts'], {
+    // client's Vite dev-server proxy config can target it statically. Invoke
+    // the CLI with the real Node used by npm instead of spawning the `.bin`
+    // shim directly: Windows' shim is `tsx.cmd`, so trying to execute the
+    // extensionless Unix shim fails with ENOENT there.
+    const nodeBin = process.env.npm_node_execpath ?? 'node';
+    const tsxWindowsShim = path.join(__dirname, 'tsxWindowsShim.js');
+    return spawn(nodeBin, ['--require', tsxWindowsShim, '--import', 'tsx', 'src/index.ts'], {
       cwd: path.join(repoRoot, 'server'),
       env: { ...process.env, PORT: String(port) },
       stdio: 'inherit',
@@ -415,28 +419,35 @@ if (process.argv.includes(APPIMAGE_MCP_SERVER_FLAG)) {
       isQuitting = true;
     });
 
-    app.whenReady().then(async () => {
-      serverPort = isDev ? DEV_SERVER_PORT : await getFreePort();
-      serverProcess = spawnServer(serverPort);
-      await waitForServer(serverPort);
+    void app
+      .whenReady()
+      .then(async () => {
+        serverPort = isDev ? DEV_SERVER_PORT : await getFreePort();
+        serverProcess = spawnServer(serverPort);
+        await waitForServer(serverPort);
 
-      await applyLaunchAtLoginDefaultIfUndecided(serverPort);
+        await applyLaunchAtLoginDefaultIfUndecided(serverPort);
 
-      await createWindow(serverPort);
-      trayCallbacks = { onOpen: showMainWindow, onSettings: () => navigateMainWindow('/settings'), onQuit: () => app.quit() };
-      tray = createTray(trayCallbacks, await fetchLanguage(serverPort));
+        await createWindow(serverPort);
+        trayCallbacks = { onOpen: showMainWindow, onSettings: () => navigateMainWindow('/settings'), onQuit: () => app.quit() };
+        tray = createTray(trayCallbacks, await fetchLanguage(serverPort));
 
-      stopReminderScheduler = startReminderScheduler({
-        getServerPort: () => serverPort,
-        onNotificationClick: () => navigateMainWindow('/journal'),
-        // The reminder scheduler already polls the language preference once a
-        // minute for its own notification text — reuse that poll to keep the
-        // tray in sync too, rather than a second independent poller.
-        onLanguageChange: (lang) => {
-          if (tray && trayCallbacks) applyTrayLanguage(tray, trayCallbacks, lang);
-        },
+        stopReminderScheduler = startReminderScheduler({
+          getServerPort: () => serverPort,
+          onNotificationClick: () => navigateMainWindow('/journal'),
+          // The reminder scheduler already polls the language preference once a
+          // minute for its own notification text — reuse that poll to keep the
+          // tray in sync too, rather than a second independent poller.
+          onLanguageChange: (lang) => {
+            if (tray && trayCallbacks) applyTrayLanguage(tray, trayCallbacks, lang);
+          },
+        });
+      })
+      .catch((err) => {
+        console.error('[main] startup failed:', err);
+        stopServer();
+        app.exit(1);
       });
-    });
 
     app.on('window-all-closed', () => {
       // Intentional no-op: the tray keeps the app running (see above) — only
