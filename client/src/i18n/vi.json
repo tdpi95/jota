@@ -505,14 +505,18 @@
     "previewEmpty": "Chưa có nội dung để xem."
   },
   "encryption": {
-    "encryptAll": "Mã hóa toàn bộ nội dung",
-    "removeAll": "Gỡ mã hóa toàn bộ nội dung",
-    "unlockAll": "Mở khóa để đọc và sửa (vẫn giữ mã hóa)",
+    "encrypt": "Mã hóa",
+    "encryptTitle": "Mã hóa toàn bộ nội dung",
+    "show": "Hiện",
+    "showTitle": "Hiện nội dung mã hóa để đọc và sửa — chỉ trên màn hình, trên đĩa vẫn được mã hóa",
+    "hide": "Ẩn",
+    "hideTitle": "Ẩn lại nội dung mã hóa (quên mật khẩu)",
+    "decrypt": "Giải mã",
+    "decryptTitle": "Gỡ mã hóa và lưu dưới dạng văn bản thường",
     "confirmRemoveAll": "Gỡ mã hóa toàn bộ nội dung? Nội dung sẽ được lưu xuống đĩa dưới dạng văn bản thường.\n\nNếu chỉ muốn đọc hoặc sửa thì không cần gỡ — khi đã mở khóa, bạn có thể sửa trực tiếp và nội dung vẫn được mã hóa.",
     "confirmRemove": "Gỡ mã hóa phần văn bản đã chọn? Phần này sẽ được lưu xuống đĩa dưới dạng văn bản thường.",
     "popupEncrypt": "Mã hóa",
     "popupRemove": "Gỡ mã hóa",
-    "lockNow": "Khóa nội dung mã hóa (quên mật khẩu)",
     "lockedChip": "Đã mã hóa",
     "lockedPreview": "Đã mã hóa — nhấn để mở khóa",
     "listLabel": "Đã mã hóa",
@@ -531,7 +535,12 @@
       "mismatch": "Hai mật khẩu không khớp.",
       "wrong": "Sai mật khẩu.",
       "checking": "Đang kiểm tra…",
-      "submit": "Mở khóa"
+      "submit": "Mở khóa",
+      "encryptTitle": "Mã hóa bằng mật khẩu",
+      "removeTitle": "Gỡ mã hóa",
+      "removeHint": "Nhập mật khẩu mã hóa của workspace này. Nội dung sẽ được giải mã và lưu xuống đĩa dưới dạng văn bản thường. Nếu chỉ muốn đọc hoặc sửa, hãy dùng Hiện.",
+      "submitEncrypt": "Mã hóa",
+      "submitRemove": "Giải mã"
     }
   },
   "pageError": {

@@ -110,3 +110,53 @@ Fixes:
 Verified live in the scratch workspace:
 - Locked, the padlock showed the unlock prompt.
 - Unlocked, its title was "Remove encryption from all content". Cancelling that dialog, and the popup's dialog, left the document and the file (no new commit) encrypted.
+
+## Toolbar and popup refinement (2026-09-28)
+
+Requested by the user: "show only one lock button if the journal/note is not encrypted. when the journal/note is encrypted, show 2 button: temporary decrypt (for edit and view on UI only), strip the encryption and save to disk… user can click the temporary decrypt button again to hide… no need a separated key button. lock and unlock button in passphrase modal should change the text based on current behavior. the inline encrypt popup button only show on key up, don't show when user is dragging the mouse."
+
+- **Build**
+  - `BodyEncryption.tsx`: the padlock toggle and the key button are replaced by labelled icon buttons (`.enc-toolbar-btn`).
+    - **Encrypt** is shown unless the body is exactly one token.
+    - **Show/Hide** is shown whenever the body has a token. It only unlocks or locks the session.
+    - **Decrypt** is shown only for a fully encrypted body. While locked, it goes through `ensureUnlocked('remove', …)`, whose prompt is the confirmation. While unlocked, it uses the existing `confirmRemoveAll` dialog.
+    - "Show"/"Hide" was picked over "Unlock"/"Lock" to match the user's wording ("hide the text"). "Decrypt" is the permanent action, and its tooltip spells out that it saves plain text.
+  - `lib/encryption.ts`: `UnlockRequest.mode` is now `'encrypt' | 'unlock' | 'remove'` (`'decrypt'` was renamed to `'unlock'`). `EncryptionHost` picks the title, hint and submit label from it:
+    - Setting a passphrase: "Set encryption passphrase" / "Encrypt".
+    - Encrypting with an existing passphrase: "Encrypt with passphrase" / "Encrypt".
+    - Showing: "Unlock encrypted content" / "Unlock".
+    - Removing: "Remove encryption" / "Decrypt".
+  - `MarkdownEditor.tsx`: `selectionHeldTracker`, a view plugin, reports a press (a mousedown or keydown in the editor, ignoring presses on the popup itself) and its release (mouseup, keyup or blur, watched on `window` since a drag can end outside the editor) through a `setSelectionHeld` effect. `selectionPopupField` returns no tooltip while held and recomputes on release.
+  - i18n: `encryptAll`/`removeAll`/`unlockAll`/`lockNow` were replaced by `encrypt`/`show`/`hide`/`decrypt`, each with a `*Title` tooltip. Added `unlock.encryptTitle`, `removeTitle`, `removeHint`, `submitEncrypt` and `submitRemove`. Both en and vi were updated.
+- **Verified (2026-09-28)**: client `tsc --noEmit` is clean. Live, in a scratch workspace (temporary vite config 5180 → 4175 and a launch entry with a scratch `HOME`, both removed afterwards):
+  - A plain body showed only "Encrypt".
+  - A scripted mousedown, then selecting "Alice", showed no popup. After a `window` mouseup it showed "🔒 Encrypt". Keyboard selection behaved the same between keydown and keyup.
+  - Clicking the popup opened "Set encryption passphrase" with the submit button reading "Encrypt".
+  - Partially encrypted, the toolbar showed "Encrypt" and "Hide". Hide turned the region into a chip and the button into "Show". Show opened "Unlock encrypted content" / "Unlock".
+  - After "Encrypt" (whole), the toolbar showed "Hide" and "Decrypt". Hide changed it to "Show" and "Decrypt", and the file held only the token.
+  - Decrypt while locked opened "Remove encryption" / "Decrypt". After the passphrase, the body was plain text again and the toolbar was back to just "Encrypt".
+
+### Follow-up: encrypted text has its own color (2026-09-28)
+
+The user asked: "use a different color for encrypted text instead of the same color as selected text". Encrypted spans had used `--accent-soft`, which is also the selection color (`::selection`, `.cm-selectionBackground`).
+
+- **Build**: new theme tokens in `app.css`: `--enc-hue`, `--enc-soft` and `--enc-border`, with dark-theme values.
+  - The hue is `calc(var(--accent-hue) + 180)`, opposite the accent, so it stays distinct from the selection under every palette. Under the default palette it's blue.
+  - The wash is translucent (0.7 alpha) so CodeMirror's selection layer, drawn beneath the text, still shows through inside a region.
+  - Every `.cm-enc-*` / `.enc-inline` / `.enc-whole` rule uses these tokens. The error chip keeps `--danger`.
+- **Verified live** (scratch workspace, same temporary setup, removed afterwards): an open region was blue-tinted next to a peach selection in light theme, and teal next to a brown selection in dark theme.
+
+### Follow-up: right-click to remove encryption (2026-09-28)
+
+The user asked: "show remove encryption popup when user right click on encrypted text".
+
+- **Build** (`MarkdownEditor.tsx`):
+  - `regionContextMenu`, a `contextmenu` DOM handler, maps the click to a document position. If that position is inside an open region, it cancels the native menu and dispatches `setContextTarget`. Anywhere else the native menu is left alone.
+  - `selectionPopupField` now also tracks `context`. While it's set, the popup offers "Remove encryption" at that spot, and the action goes through the same confirmed `remove(pos, pos)`. `context` is cleared by a new press (a left click elsewhere, Escape or any key), an edit, or a non-empty selection.
+  - A right-click's own mousedown comes before its `contextmenu` event, so the press clears the old target and the event sets the new one.
+  - It only applies to open regions (while shown). A locked chip still unlocks on click.
+- **Verified live** (scratch workspace, same temporary setup, removed afterwards):
+  - Right-click on an open region showed "🔓 Remove encryption", and the native menu was cancelled (`defaultPrevented` true).
+  - Right-click on plain text showed no popup and kept the native menu.
+  - A left click elsewhere and Escape both dismissed it.
+  - Clicking it, with the confirm accepted, turned the region into plain text.

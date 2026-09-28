@@ -370,37 +370,127 @@ const keepRegionsBalanced = EditorState.transactionFilter.of((tr) => {
   ];
 });
 
+/** Whether a mouse button or key is held — the selection popup waits for
+ * its release, so it doesn't pop up (and follow along) mid-drag. */
+const setSelectionHeld = StateEffect.define<boolean>();
+
+/** Tracks the press/release that `setSelectionHeld` reports. A press on the
+ * popup itself doesn't count (that would hide it before its click lands);
+ * the release is watched on the window, since a drag can end outside. */
+const selectionHeldTracker = ViewPlugin.fromClass(
+  class {
+    held = false;
+    constructor(readonly view: EditorView) {
+      window.addEventListener('mouseup', this.release, true);
+      window.addEventListener('keyup', this.release, true);
+      window.addEventListener('blur', this.release);
+    }
+    press = (event: Event) => {
+      if ((event.target as HTMLElement | null)?.closest?.('.cm-enc-popup')) return;
+      this.set(true);
+    };
+    release = () => this.set(false);
+    set(held: boolean) {
+      if (this.held === held) return;
+      this.held = held;
+      // Not mid-update: the press handlers run from DOM events, never from
+      // inside CodeMirror's own update cycle.
+      this.view.dispatch({ effects: setSelectionHeld.of(held) });
+    }
+    destroy() {
+      window.removeEventListener('mouseup', this.release, true);
+      window.removeEventListener('keyup', this.release, true);
+      window.removeEventListener('blur', this.release);
+    }
+  },
+  {
+    eventHandlers: {
+      mousedown(event) {
+        this.press(event);
+      },
+      keydown(event) {
+        this.press(event);
+      },
+    },
+  },
+);
+
+/** A right-click on an open encrypted region: the position the popup
+ * offers "Remove encryption" at, or null to drop that offer. */
+const setContextTarget = StateEffect.define<number | null>();
+
+/** Right-clicking open encrypted text shows the popup's "Remove encryption"
+ * there instead of the native context menu. Anywhere else the native menu
+ * is left alone. */
+const regionContextMenu = EditorView.domEventHandlers({
+  contextmenu(event, view) {
+    if (view.state.readOnly) return false;
+    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (pos === null) return false;
+    const region = findRegions(view.state.doc.toString()).find((r) => r.open <= pos && pos <= r.close);
+    if (!region) return false;
+    event.preventDefault();
+    // Clicking the region's start edge resolves to its opening sentinel —
+    // step inside, so the position counts as touching the region.
+    view.dispatch({ effects: setContextTarget.of(Math.max(pos, region.open + 1)) });
+    return true;
+  },
+});
+
 /** The small popup above a non-empty selection: "Encrypt" it, or "Remove
- * encryption" from the region(s) it touches. */
+ * encryption" from the region(s) it touches — or, after a right-click on
+ * open encrypted text, "Remove encryption" at that spot. Shown only once
+ * the selection is made — after the mouse button or key is released. */
 function selectionPopupField(encryption: EncryptionRef, actions: { current: { encrypt: (from: number, to: number) => void; remove: (from: number, to: number) => void } }) {
-  const compute = (state: EditorState): readonly Tooltip[] => {
+  const popup = (pos: number, action: 'encrypt' | 'remove', from: number, to: number): Tooltip => ({
+    pos,
+    above: true,
+    create: () => {
+      const dom = document.createElement('div');
+      dom.className = 'cm-enc-popup';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = `${action === 'remove' ? '🔓' : '🔒'} ${encryption.current?.labels[action] ?? action}`;
+      button.addEventListener('mousedown', (e) => e.preventDefault());
+      button.addEventListener('click', () => actions.current[action](from, to));
+      dom.appendChild(button);
+      return { dom };
+    },
+  });
+  const compute = (state: EditorState, context: number | null): readonly Tooltip[] => {
+    if (state.readOnly || !encryption.current) return [];
+    if (context !== null) return [popup(context, 'remove', context, context)];
     const { from, to } = state.selection.main;
-    if (from === to || state.readOnly || !encryption.current) return [];
+    if (from === to) return [];
     const touchesRegion = findRegions(state.doc.toString()).some((r) => r.open < to && r.close + 1 > from);
     const action = touchesRegion ? 'remove' : 'encrypt';
     if (action === 'encrypt' && !state.sliceDoc(from, to).trim()) return [];
-    return [
-      {
-        pos: from,
-        above: true,
-        create: () => {
-          const dom = document.createElement('div');
-          dom.className = 'cm-enc-popup';
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.textContent = `${action === 'remove' ? '🔓' : '🔒'} ${encryption.current?.labels[action] ?? action}`;
-          button.addEventListener('mousedown', (e) => e.preventDefault());
-          button.addEventListener('click', () => actions.current[action](from, to));
-          dom.appendChild(button);
-          return { dom };
-        },
-      },
-    ];
+    return [popup(from, action, from, to)];
   };
-  return StateField.define<readonly Tooltip[]>({
-    create: compute,
-    update: (tooltips, tr) => (tr.docChanged || tr.selection ? compute(tr.state) : tooltips),
-    provide: (f) => showTooltip.computeN([f], (state) => state.field(f)),
+  type Value = { held: boolean; context: number | null; tooltips: readonly Tooltip[] };
+  return StateField.define<Value>({
+    create: (state) => ({ held: false, context: null, tooltips: compute(state, null) }),
+    update: (value, tr) => {
+      let { held, context } = value;
+      let contextSet = false;
+      for (const e of tr.effects) {
+        if (e.is(setSelectionHeld)) {
+          held = e.value;
+          // Any new press (left click elsewhere, a key) dismisses the
+          // right-click offer; a right-click's own press comes before its
+          // contextmenu event, so it sets a fresh one right after.
+          if (held) context = null;
+        } else if (e.is(setContextTarget)) {
+          context = e.value;
+          contextSet = true;
+        }
+      }
+      if (context !== null && !contextSet && (tr.docChanged || (tr.selection && !tr.state.selection.main.empty))) context = null;
+      if (held) return value.tooltips.length === 0 && value.held && value.context === context ? value : { held, context, tooltips: [] };
+      if (held !== value.held || context !== value.context || tr.docChanged || tr.selection) return { held, context, tooltips: compute(tr.state, context) };
+      return value;
+    },
+    provide: (f) => showTooltip.computeN([f], (state) => state.field(f).tooltips),
   });
 }
 
@@ -656,6 +746,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           keepRegionsBalanced,
           EditorView.clipboardOutputFilter.of((text) => stripSentinels(text)),
           EditorView.clipboardInputFilter.of((text) => stripSentinels(text)),
+          selectionHeldTracker,
+          regionContextMenu,
           selectionPopupField(encryptionRef, regionActionsRef),
           placeholderExt(placeholder ?? ''),
           editableCompartment.of([EditorView.editable.of(!disabled), EditorState.readOnly.of(!!disabled)]),

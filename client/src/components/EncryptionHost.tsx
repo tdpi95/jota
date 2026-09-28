@@ -36,6 +36,13 @@ function UnlockDialog({ request }: { request: UnlockRequest }) {
   // Setting a passphrase for the first time (nothing existing to check it
   // against) asks twice — a typo here would make the content unrecoverable.
   const needsConfirm = request.mode === 'encrypt' && !request.verifyPayload;
+  const texts = needsConfirm
+    ? { title: 'setTitle', hint: 'setHint', submit: 'submitEncrypt' }
+    : request.mode === 'encrypt'
+      ? { title: 'encryptTitle', hint: 'hint', submit: 'submitEncrypt' }
+      : request.mode === 'remove'
+        ? { title: 'removeTitle', hint: 'removeHint', submit: 'submitRemove' }
+        : { title: 'title', hint: 'hint', submit: 'submit' };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,9 +65,9 @@ function UnlockDialog({ request }: { request: UnlockRequest }) {
   }
 
   return (
-    <Modal title={t(needsConfirm ? 'encryption.unlock.setTitle' : 'encryption.unlock.title')} onClose={() => finishUnlockRequest(false)}>
+    <Modal title={t(`encryption.unlock.${texts.title}`)} onClose={() => finishUnlockRequest(false)}>
       <form className="enc-unlock-form" onSubmit={handleSubmit}>
-        <p className="enc-unlock-hint">{t(needsConfirm ? 'encryption.unlock.setHint' : 'encryption.unlock.hint')}</p>
+        <p className="enc-unlock-hint">{t(`encryption.unlock.${texts.hint}`)}</p>
         <div className="form-field">
           <label htmlFor="enc-passphrase">{t('encryption.unlock.passphrase')}</label>
           <input
@@ -94,7 +101,7 @@ function UnlockDialog({ request }: { request: UnlockRequest }) {
         {error && <p className="field-error">{error}</p>}
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={!passphrase || checking}>
-            {checking ? t('encryption.unlock.checking') : t('encryption.unlock.submit')}
+            {checking ? t('encryption.unlock.checking') : t(`encryption.unlock.${texts.submit}`)}
           </button>
           <button type="button" className="btn-secondary" onClick={() => finishUnlockRequest(false)}>
             {t('common.cancel')}

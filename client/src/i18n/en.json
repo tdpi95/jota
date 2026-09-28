@@ -505,14 +505,18 @@
     "previewEmpty": "Nothing to preview yet."
   },
   "encryption": {
-    "encryptAll": "Encrypt all content",
-    "removeAll": "Remove encryption from all content",
-    "unlockAll": "Unlock to read and edit (stays encrypted)",
+    "encrypt": "Encrypt",
+    "encryptTitle": "Encrypt all content",
+    "show": "Show",
+    "showTitle": "Show encrypted content to read and edit — on screen only, it stays encrypted on disk",
+    "hide": "Hide",
+    "hideTitle": "Hide encrypted content again (forgets the passphrase)",
+    "decrypt": "Decrypt",
+    "decryptTitle": "Remove encryption and save as plain text",
     "confirmRemoveAll": "Remove encryption from all content? It will be saved to disk as plain text.\n\nTo just read or edit it, you don't need to do this — while unlocked, you can edit encrypted text directly and it stays encrypted.",
     "confirmRemove": "Remove encryption from the selected text? It will be saved to disk as plain text.",
     "popupEncrypt": "Encrypt",
     "popupRemove": "Remove encryption",
-    "lockNow": "Lock encrypted content (forget the passphrase)",
     "lockedChip": "Encrypted",
     "lockedPreview": "Encrypted — click to unlock",
     "listLabel": "Encrypted",
@@ -531,7 +535,12 @@
       "mismatch": "The two passphrases don't match.",
       "wrong": "Wrong passphrase.",
       "checking": "Checking…",
-      "submit": "Unlock"
+      "submit": "Unlock",
+      "encryptTitle": "Encrypt with passphrase",
+      "removeTitle": "Remove encryption",
+      "removeHint": "Enter this workspace's encryption passphrase. The content will be decrypted and saved to disk as plain text. To just read or edit it, use Show instead.",
+      "submitEncrypt": "Encrypt",
+      "submitRemove": "Decrypt"
     }
   },
   "pageError": {

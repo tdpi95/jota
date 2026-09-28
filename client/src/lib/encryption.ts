@@ -146,9 +146,11 @@ export function useEncryptionSession(): { unlocked: boolean; version: number } {
 
 export interface UnlockRequest {
   id: number;
-  /** 'encrypt' asks for the passphrase twice unless `verifyPayload` can
-   * confirm it; 'decrypt' asks once and checks it against `verifyPayload`. */
-  mode: 'encrypt' | 'decrypt';
+  /** What the passphrase is for — the prompt's title and submit button say
+   * so. 'encrypt' asks for it twice unless `verifyPayload` can confirm it;
+   * 'unlock' (show on screen) and 'remove' (save as plain text) ask once and
+   * check it against `verifyPayload`. */
+  mode: 'encrypt' | 'unlock' | 'remove';
   /** An existing token's payload to verify the entered passphrase against. */
   verifyPayload?: string;
   resolve: (unlocked: boolean) => void;

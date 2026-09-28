@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { handleRenderedAttachmentClick } from '../lib/attachments';
@@ -20,11 +20,16 @@ const UNLOCK_ICON = (
     <path d="M8 11V7a4 4 0 0 1 7.5-2" />
   </svg>
 );
-// A key: "end the unlocked session", distinct from the padlock toggle.
-const LOCK_SESSION_ICON = (
+const SHOW_ICON = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="7.5" cy="15.5" r="4.5" />
-    <path d="m10.7 12.3 9.8-9.8M17 6l3 3M14.5 8.5l2 2" />
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const HIDE_ICON = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
   </svg>
 );
 
@@ -34,13 +39,17 @@ const LOCK_SESSION_ICON = (
  * inline `` `jota-enc:...` `` token sitting in the text in place of what it
  * hides — the body only ever holds tokens, never their plaintext.
  *
- * - One toolbar button encrypts the whole body into a single token, or —
- *   when the body is exactly one token — removes that encryption for good.
- * - While unlocked, the editor opens every token into editable text in
- *   place and re-encrypts it on every edit (MarkdownEditor), so it stays
- *   encrypted on disk; selecting text pops up "Encrypt", or "Remove
- *   encryption" on encrypted text. The preview renders tokens decrypted.
- * - While locked, both show a chip; clicking one asks for the passphrase.
+ * Toolbar, by what the body holds:
+ * - nothing encrypted: "Encrypt" (the whole body into one token);
+ * - some inline tokens: "Encrypt" plus the "Show"/"Hide" toggle;
+ * - exactly one token: "Show"/"Hide" plus "Decrypt", which removes the
+ *   encryption for good (saves the plain text).
+ * "Show" unlocks the session — on screen only, the file is untouched: the
+ * editor opens every token into editable text in place and re-encrypts it on
+ * every edit (MarkdownEditor), and the preview renders tokens decrypted.
+ * "Hide" locks it again. Selecting text pops up "Encrypt", or "Remove
+ * encryption" on encrypted text. While locked, tokens show as chips;
+ * clicking one asks for the passphrase.
  */
 export function useBodyEncryption({ body, onChange }: { body: string; onChange: (next: string) => void }) {
   const { t } = useTranslation();
@@ -81,27 +90,8 @@ export function useBodyEncryption({ body, onChange }: { body: string; onChange: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens, session.unlocked, session.version]);
 
-  async function toggleWhole() {
+  async function encryptAll() {
     const current = bodyRef.current;
-    if (fullPayload) {
-      // Locked: this only unlocks, to read and edit — which never changes
-      // the file. Removing the encryption is a separate, confirmed click.
-      if (!session.unlocked) {
-        await ensureUnlocked('decrypt', fullPayload);
-        return;
-      }
-      if (!window.confirm(t('encryption.confirmRemoveAll'))) return;
-      let plaintext: string;
-      try {
-        plaintext = await decryptToken(fullPayload);
-      } catch {
-        window.alert(t('encryption.cannotDecryptAlert'));
-        return;
-      }
-      if (bodyRef.current !== current) return window.alert(t('encryption.changedMeanwhile'));
-      onChange(plaintext);
-      return;
-    }
     if (!current.trim()) return;
     if (!(await ensureUnlocked('encrypt', tokens[0]?.payload))) return;
     // Encrypted parts already in the body fold into the one new token as
@@ -119,13 +109,38 @@ export function useBodyEncryption({ body, onChange }: { body: string; onChange: 
     onChange(`${token}\n`);
   }
 
+  // Show/hide only unlocks or locks the session — never writes anything.
+  async function toggleShown() {
+    if (session.unlocked) lock();
+    else await ensureUnlocked('unlock', tokens[0]?.payload);
+  }
+
+  async function removeAll() {
+    const current = bodyRef.current;
+    if (!fullPayload) return;
+    // While locked, the passphrase prompt (titled and worded for removal)
+    // is the confirmation; while unlocked, ask explicitly.
+    if (session.unlocked) {
+      if (!window.confirm(t('encryption.confirmRemoveAll'))) return;
+    } else if (!(await ensureUnlocked('remove', fullPayload))) return;
+    let plaintext: string;
+    try {
+      plaintext = await decryptToken(fullPayload);
+    } catch {
+      window.alert(t('encryption.cannotDecryptAlert'));
+      return;
+    }
+    if (bodyRef.current !== current) return window.alert(t('encryption.changedMeanwhile'));
+    onChange(plaintext);
+  }
+
   async function unlockFor(payload?: string) {
     if (!session.unlocked) {
-      await ensureUnlocked('decrypt', payload ?? tokens[0]?.payload);
+      await ensureUnlocked('unlock', payload ?? tokens[0]?.payload);
     } else if ((payload ? decrypted.get(payload) === 'error' : tokens.some((tok) => decrypted.get(tok.payload) === 'error')) && window.confirm(t('encryption.relockPrompt'))) {
       // A token this passphrase can't open — offer to start over with another.
       lock();
-      await ensureUnlocked('decrypt', payload ?? tokens.find((tok) => decrypted.get(tok.payload) === 'error')?.payload);
+      await ensureUnlocked('unlock', payload ?? tokens.find((tok) => decrypted.get(tok.payload) === 'error')?.payload);
     }
   }
 
@@ -166,28 +181,29 @@ export function useBodyEncryption({ body, onChange }: { body: string; onChange: 
 
   const previewHtml = renderMarkdownToHtml(body, { decrypted, labels: { locked: t('encryption.lockedPreview'), error: labels.error } });
 
-  const wholeLabel = !fullPayload ? t('encryption.encryptAll') : session.unlocked ? t('encryption.removeAll') : t('encryption.unlockAll');
+  const button = (key: string, icon: ReactNode, label: string, title: string, onClick: () => void, extra?: { pressed?: boolean; disabled?: boolean }) => (
+    <button
+      key={key}
+      type="button"
+      className="ws-row-btn note-view-toggle-btn enc-toolbar-btn"
+      title={title}
+      aria-pressed={extra?.pressed}
+      disabled={extra?.disabled}
+      onClick={onClick}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
   const toolbar = (
     <>
-      {/* Only while there's something here it would hide — once this body's
-          last token is decrypted back to plain text, locking changes nothing
-          on this page. */}
-      {session.unlocked && tokens.length > 0 && (
-        <button type="button" className="ws-row-btn note-view-toggle-btn" title={t('encryption.lockNow')} aria-label={t('encryption.lockNow')} onClick={lock}>
-          {LOCK_SESSION_ICON}
-        </button>
-      )}
-      <button
-        type="button"
-        className={`ws-row-btn note-view-toggle-btn ${fullPayload ? 'is-active' : ''}`}
-        title={wholeLabel}
-        aria-label={wholeLabel}
-        aria-pressed={Boolean(fullPayload)}
-        disabled={!fullPayload && !body.trim()}
-        onClick={() => void toggleWhole()}
-      >
-        {fullPayload ? LOCK_ICON : UNLOCK_ICON}
-      </button>
+      {!fullPayload &&
+        button('encrypt', LOCK_ICON, t('encryption.encrypt'), t('encryption.encryptTitle'), () => void encryptAll(), { disabled: !body.trim() })}
+      {tokens.length > 0 &&
+        (session.unlocked
+          ? button('toggle', HIDE_ICON, t('encryption.hide'), t('encryption.hideTitle'), () => void toggleShown(), { pressed: true })
+          : button('toggle', SHOW_ICON, t('encryption.show'), t('encryption.showTitle'), () => void toggleShown(), { pressed: false }))}
+      {fullPayload && button('remove', UNLOCK_ICON, t('encryption.decrypt'), t('encryption.decryptTitle'), () => void removeAll())}
     </>
   );
 
