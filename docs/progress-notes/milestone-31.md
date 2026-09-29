@@ -160,3 +160,40 @@ The user asked: "show remove encryption popup when user right click on encrypted
   - Right-click on plain text showed no popup and kept the native menu.
   - A left click elsewhere and Escape both dismissed it.
   - Clicking it, with the confirm accepted, turned the region into plain text.
+
+### Follow-up: the decryptor is a web page, not a Node script (2026-09-29)
+
+The user asked: "write decryptor in html instead of mjs, not all users have node". `scripts/jota-decrypt.mjs` was replaced by `scripts/jota-decrypt.html`, and the `.mjs` is deleted.
+
+- **Build**
+  - A single file with no external resources. It's opened from disk (double-click) and uses the browser's WebCrypto.
+  - Browsers treat `file://` as a secure context, so `crypto.subtle` is available there. It's missing on a `data:` URL, which is why the browser pane's file preview couldn't run it.
+  - A CSP of `default-src 'none'` (inline script and style only) forbids any network request.
+  - You enter the passphrase, then choose, drop, or paste files. Keys are derived once per salt.
+  - Tokens are decrypted one at a time. One that fails (wrong passphrase, a different passphrase, or modified) is kept verbatim and highlighted, and the card reports "Decrypted N of M". The old CLI failed the whole file instead.
+  - Copy falls back to selecting the text when the clipboard API is blocked. Save downloads `<name>.decrypted.md` and never writes over the original.
+  - It has light and dark themes and works at phone width.
+  - `.github/workflows/build.yml`: the release job sparse-checks-out the file and attaches it to every GitHub Release next to the installers. Otherwise users without a checkout had no way to get it.
+- **Verified (2026-09-29)**, served from a temporary localhost static server (a secure context, like `file://`) with the launch entry removed afterwards. The test file held four tokens:
+  - Two were made with Node's crypto under `scratch-pass`, one containing markdown, Unicode, a backtick span and a newline.
+  - One was made under a different passphrase.
+  - One was made by the client's own `encryptToToken` (via tsx).
+  - With `scratch-pass`: "Decrypted 3 of 4". The output was byte-exact for all three, with the foreign token highlighted.
+  - With a wrong passphrase: "Wrong passphrase, or the encrypted text was modified", with all 4 highlighted.
+  - Pasted plain text: "No encrypted text found".
+  - No console errors (CSP included), and dark theme rendered correctly.
+
+### Follow-up: show the passphrase in the prompt (2026-09-29)
+
+The user asked: "allow user to see the passphrase in encrypt/decrypt modal".
+
+- **Build**
+  - `EncryptionHost.tsx`'s `UnlockDialog` has an eye toggle inside the passphrase field (`.enc-passphrase-field` / `.enc-passphrase-toggle`, with en/vi `showPassphrase`/`hidePassphrase` labels and `aria-pressed`).
+  - One `visible` state switches both the passphrase and the confirm field between `password` and `text`, since comparing the two is the point of revealing them.
+  - The dialog is keyed per request, so every prompt starts hidden. The toggle's `mousedown` is prevented so the caret stays in the field.
+  - The fields turn off autocapitalize, autocorrect and spellcheck, so a revealed passphrase isn't underlined or altered.
+  - `.form-field input[type="password"]` joined the shared input rule. Password inputs had been falling back to browser defaults, and without the rule the field would have changed look when toggled.
+- **Verified live** (scratch workspace, same temporary setup, removed afterwards):
+  - On "Set encryption passphrase", the toggle switched both fields to text and back.
+  - After typing in the confirm field and toggling, focus was still on the confirm field, and Enter encrypted (the toolbar showed Hide/Decrypt).
+  - The single-field "Unlock" prompt opened hidden, and the toggle rendered correctly in dark theme.

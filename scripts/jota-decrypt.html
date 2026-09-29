@@ -1,0 +1,488 @@
+<!doctype html>
+<!--
+  Jota decryptor (milestone 31, PLAN.md "Encryption").
+
+  Decrypts Jota's encrypted text without the app, and without Node: open
+  this file in any modern browser (double-click it — no server, no
+  internet). Everything runs in this page via the browser's built-in
+  WebCrypto; the Content-Security-Policy below forbids any network
+  request, so neither the files nor the passphrase can leave the page.
+  Nothing is written anywhere unless you click "Save".
+
+  Format (see client/src/lib/encryptionCrypto.ts) — one inline code span:
+    `jota-enc:v1:pbkdf2-sha256:<iterations>:<salt-b64>:<iv-b64>:<base64 of AES-256-GCM ciphertext || 16-byte tag>`
+  key = PBKDF2-HMAC-SHA256(passphrase, salt, iterations, 32 bytes)
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'"
+    />
+    <title>Jota Decryptor</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f8f6f3;
+        --card: #fffdfb;
+        --ink: #2a2521;
+        --muted: #6f6861;
+        --hairline: #ddd6ce;
+        --accent: #b8612a;
+        --accent-ink: #fff;
+        --soft: #f3e7dc;
+        --good: #2f7a52;
+        --danger: #b3372b;
+        --danger-soft: #f7e3df;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --paper: #1f1c1a;
+          --card: #292522;
+          --ink: #f0ece8;
+          --muted: #aaa39c;
+          --hairline: #443e39;
+          --accent: #e0915a;
+          --accent-ink: #1f1c1a;
+          --soft: #3a2f27;
+          --good: #6cc193;
+          --danger: #ee8a7d;
+          --danger-soft: #402824;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 32px 16px 64px;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+      }
+      .lead {
+        margin: 0 0 24px;
+        color: var(--muted);
+      }
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input[type='password'],
+      textarea {
+        width: 100%;
+        padding: 9px 11px;
+        border: 1px solid var(--hairline);
+        border-radius: 7px;
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+      }
+      textarea {
+        min-height: 110px;
+        resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+      }
+      input:focus,
+      textarea:focus,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .drop {
+        border: 1.5px dashed var(--hairline);
+        border-radius: 8px;
+        padding: 18px;
+        text-align: center;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .drop.is-over {
+        border-color: var(--accent);
+        background: var(--soft);
+      }
+      .drop strong {
+        color: var(--ink);
+      }
+      .file-list {
+        margin: 8px 0 0;
+        font-size: 13px;
+        color: var(--ink);
+      }
+      .or {
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      button {
+        font: inherit;
+        border-radius: 7px;
+        padding: 8px 16px;
+        cursor: pointer;
+        border: 1px solid var(--hairline);
+        background: var(--card);
+        color: var(--ink);
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+        font-weight: 600;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .status {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .status.is-error {
+        color: var(--danger);
+      }
+      #results {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 24px;
+      }
+      .result {
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .result header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .result .name {
+        font-weight: 600;
+        word-break: break-all;
+      }
+      .result .note {
+        font-size: 13px;
+        color: var(--good);
+      }
+      .result .note.is-error {
+        color: var(--danger);
+      }
+      .result .buttons {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+      .result .buttons button {
+        padding: 4px 12px;
+        font-size: 13px;
+      }
+      .result pre {
+        margin: 0;
+        padding: 14px;
+        max-height: 420px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .result pre mark {
+        background: var(--danger-soft);
+        color: var(--danger);
+        border-radius: 3px;
+      }
+      .fine {
+        margin-top: 28px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Jota Decryptor</h1>
+      <p class="lead">
+        Read encrypted Jota journal entries and notes without the app. Works offline: nothing you open or type here leaves this page.
+      </p>
+
+      <form class="panel" id="form">
+        <div>
+          <label for="passphrase">Passphrase</label>
+          <input id="passphrase" type="password" autocomplete="off" autofocus />
+        </div>
+
+        <div>
+          <label>Files</label>
+          <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="file-list">
+            <strong>Choose .md files</strong> or drop them here
+            <div class="file-list" id="file-list"></div>
+          </div>
+          <input id="files" class="visually-hidden" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple tabindex="-1" />
+        </div>
+
+        <div class="or">or</div>
+
+        <div>
+          <label for="pasted">Paste text</label>
+          <textarea id="pasted" spellcheck="false" placeholder="Met `jota-enc:v1:pbkdf2-sha256:600000:…` today."></textarea>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="primary" id="decrypt">Decrypt</button>
+          <span class="status" id="status" role="status"></span>
+        </div>
+      </form>
+
+      <div id="results"></div>
+
+      <p class="fine">
+        Decrypted text is shown here only. <strong>Save</strong> downloads a plain-text copy (named <code>*.decrypted.md</code>) and
+        leaves the original file untouched. Anything that can't be decrypted stays as it was and is highlighted.
+      </p>
+    </main>
+
+    <script>
+      'use strict';
+
+      const TOKEN_RE = /`(jota-enc:[^`\n]*)`/g;
+      const $ = (id) => document.getElementById(id);
+      let chosenFiles = [];
+
+      function fromBase64(value) {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+
+      function parsePayload(payload) {
+        const parts = payload.split(':');
+        const [prefix, version, kdf, iterationsRaw, salt, iv, data] = parts;
+        if (parts.length !== 7 || prefix !== 'jota-enc' || version !== 'v1' || kdf !== 'pbkdf2-sha256') {
+          throw new Error('unsupported format');
+        }
+        const iterations = Number(iterationsRaw);
+        if (!Number.isInteger(iterations) || iterations < 1) throw new Error('unsupported format');
+        return { iterations, saltB64: salt, salt: fromBase64(salt), iv: fromBase64(iv), data: fromBase64(data) };
+      }
+
+      // PBKDF2 at 600k iterations is slow on purpose — derive once per salt.
+      function makeKeyCache(passphrase) {
+        const cache = new Map();
+        let base;
+        return (salt, saltB64, iterations) => {
+          const id = saltB64 + ':' + iterations;
+          if (!cache.has(id)) {
+            base ??= crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+            cache.set(
+              id,
+              base.then((b) =>
+                crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, b, { name: 'AES-GCM', length: 256 }, false, ['decrypt']),
+              ),
+            );
+          }
+          return cache.get(id);
+        };
+      }
+
+      async function decryptPayload(payload, keyFor) {
+        const p = parsePayload(payload);
+        const key = await keyFor(p.salt, p.saltB64, p.iterations);
+        // AES-GCM in WebCrypto takes ciphertext || tag, exactly as stored.
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: p.iv }, key, p.data);
+        return new TextDecoder().decode(plain);
+      }
+
+      /** Replaces every token it can decrypt; returns the text plus the
+       * spans (in the output) of tokens it couldn't. */
+      async function decryptText(text, keyFor) {
+        const matches = [...text.matchAll(TOKEN_RE)];
+        let out = '';
+        let pos = 0;
+        let ok = 0;
+        const failed = [];
+        for (const m of matches) {
+          out += text.slice(pos, m.index);
+          pos = m.index + m[0].length;
+          try {
+            out += await decryptPayload(m[1], keyFor);
+            ok++;
+          } catch {
+            failed.push([out.length, out.length + m[0].length]);
+            out += m[0];
+          }
+        }
+        out += text.slice(pos);
+        return { out, total: matches.length, ok, failed };
+      }
+
+      function setStatus(text, isError = false) {
+        const el = $('status');
+        el.textContent = text;
+        el.classList.toggle('is-error', isError);
+      }
+
+      function showChosenFiles() {
+        $('file-list').textContent = chosenFiles.length ? chosenFiles.map((f) => f.name).join(', ') : '';
+      }
+
+      function renderResult(name, result) {
+        const card = document.createElement('section');
+        card.className = 'result';
+        const header = document.createElement('header');
+        const title = document.createElement('span');
+        title.className = 'name';
+        title.textContent = name;
+        const note = document.createElement('span');
+        note.className = 'note';
+        if (result.total === 0) {
+          note.textContent = 'No encrypted text found';
+          note.style.color = 'var(--muted)';
+        } else if (result.failed.length === 0) {
+          note.textContent = `Decrypted ${result.ok} of ${result.total}`;
+        } else {
+          note.classList.add('is-error');
+          note.textContent =
+            result.ok === 0
+              ? 'Wrong passphrase, or the encrypted text was modified'
+              : `Decrypted ${result.ok} of ${result.total} — the rest need a different passphrase or were modified`;
+        }
+        const buttons = document.createElement('span');
+        buttons.className = 'buttons';
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.textContent = 'Copy';
+        copy.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(result.out);
+            copy.textContent = 'Copied';
+          } catch {
+            // Clipboard can be unavailable on file:// — select the text instead.
+            getSelection().selectAllChildren(pre);
+            copy.textContent = 'Selected — press Ctrl+C';
+          }
+          setTimeout(() => (copy.textContent = 'Copy'), 2000);
+        });
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.textContent = 'Save';
+        save.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(new Blob([result.out], { type: 'text/markdown;charset=utf-8' }));
+          a.download = name.replace(/(\.(md|markdown|txt))?$/i, '.decrypted.md');
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+        buttons.append(copy, save);
+        header.append(title, note, buttons);
+
+        const pre = document.createElement('pre');
+        let pos = 0;
+        for (const [from, to] of result.failed) {
+          pre.append(result.out.slice(pos, from));
+          const mark = document.createElement('mark');
+          mark.textContent = result.out.slice(from, to);
+          pre.append(mark);
+          pos = to;
+        }
+        pre.append(result.out.slice(pos));
+        card.append(header, pre);
+        $('results').append(card);
+      }
+
+      $('drop').addEventListener('click', () => $('files').click());
+      $('drop').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          $('files').click();
+        }
+      });
+      $('files').addEventListener('change', () => {
+        chosenFiles = [...$('files').files];
+        showChosenFiles();
+      });
+      for (const type of ['dragenter', 'dragover']) {
+        $('drop').addEventListener(type, (e) => {
+          e.preventDefault();
+          $('drop').classList.add('is-over');
+        });
+      }
+      for (const type of ['dragleave', 'drop']) {
+        $('drop').addEventListener(type, () => $('drop').classList.remove('is-over'));
+      }
+      $('drop').addEventListener('drop', (e) => {
+        e.preventDefault();
+        chosenFiles = [...e.dataTransfer.files];
+        showChosenFiles();
+      });
+      // A file dropped anywhere else would make the browser navigate to it.
+      window.addEventListener('dragover', (e) => e.preventDefault());
+      window.addEventListener('drop', (e) => e.preventDefault());
+
+      $('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const passphrase = $('passphrase').value;
+        const pasted = $('pasted').value;
+        if (!passphrase) return setStatus('Enter the passphrase.', true);
+        if (chosenFiles.length === 0 && !pasted.trim()) return setStatus('Choose a file or paste some text.', true);
+        if (!window.crypto?.subtle) return setStatus("This browser can't decrypt here (WebCrypto is unavailable). Try a current Chrome, Edge, Firefox or Safari.", true);
+
+        $('results').replaceChildren();
+        $('decrypt').disabled = true;
+        setStatus('Decrypting…');
+        try {
+          const keyFor = makeKeyCache(passphrase);
+          for (const file of chosenFiles) renderResult(file.name, await decryptText(await file.text(), keyFor));
+          if (pasted.trim()) renderResult('Pasted text', await decryptText(pasted, keyFor));
+          setStatus('');
+        } catch (err) {
+          setStatus('Something went wrong: ' + err.message, true);
+        } finally {
+          $('decrypt').disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

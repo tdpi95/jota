@@ -50,6 +50,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/jota-decrypt.html
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -58,5 +63,9 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          # The standalone decryptor (PLAN.md "Encryption"), for users
+          # without a checkout of this repo.
+          files: |
+            artifacts/*
+            scripts/jota-decrypt.html
           generate_release_notes: true

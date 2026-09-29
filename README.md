@@ -8,8 +8,9 @@ account, no cloud backend, and no lock-in: you can read, edit, `grep`,
 sync, or back up your vault with tools you already use.
 
 Built in: kanban with automatic time tracking, a daily journaling reminder,
-git-backed undo for every edit, optional git or WebDAV sync, and an MCP
-server so AI agents like Claude can work with your tasks too.
+git-backed undo for every edit, optional git or WebDAV sync, passphrase
+encryption for private journal entries and notes, and an MCP server so AI
+agents like Claude can work with your tasks too.
 
 **[⬇ Download the latest release](https://github.com/tdpi95/jota/releases/latest)**
 
@@ -95,6 +96,10 @@ nothing stops you from opening it in other tools too.
   entries — just markdown files with a title, tags, and created/updated
   timestamps (`<workspace>/notes/<slug>.md`), with an Edit/Preview toggle for
   rendered markdown and the same git history/undo as everything else.
+- **Encryption**: encrypt a whole journal entry or note, or just a
+  selected phrase inside one, with a passphrase that's never stored. The
+  file keeps only ciphertext, yet stays plain markdown. See
+  [Encryption](#encryption) below.
 - **File attachments**: attach images and files to tasks, journal entries,
   and notes (inserted as a plain markdown link/image, rendered inline in
   Preview mode), plus a profile image per project.
@@ -134,6 +139,85 @@ nothing stops you from opening it in other tools too.
   today, from a tray-resident background app (the app stays running in the
   tray after the window closes; only "Quit" actually quits). Launch-at-login
   and reminder time are configurable in Settings.
+
+## Encryption
+
+Journal entries and notes can hold private text that's encrypted on disk.
+You can encrypt the whole entry, or just a sentence or word inside it.
+
+### Using it
+
+- **Encrypt** encrypts the whole entry. To encrypt only part of it, select
+  the text and click the **🔒 Encrypt** popup that appears above it.
+- **Show** asks for your passphrase and reveals the encrypted text on
+  screen. You can read and edit it like any other text, and it's saved
+  encrypted again after every edit. Click **Hide** to lock it again.
+- **Decrypt** removes the encryption for good and saves the entry as plain
+  text. For part of an entry, select the encrypted text, or right-click
+  it, and choose **🔓 Remove encryption**.
+
+While hidden, encrypted text shows as a 🔒 **Encrypted** chip in both the
+editor and the preview. Click a chip to unlock.
+
+### The passphrase
+
+- One passphrase per workspace. You set it the first time you encrypt
+  something, typing it twice.
+- It's **never stored**, on disk or in any keychain. Jota keeps it in
+  memory only until you click Hide, stop using the app for 15 minutes,
+  switch workspace, or quit. You'll enter it again each session.
+- **There's no recovery.** If you forget it, the encrypted text is gone.
+
+### How it's stored
+
+Each encrypted piece is an inline code span in place of the text it hides,
+so the file is still valid, hand-editable markdown:
+
+```markdown
+Met `jota-enc:v1:pbkdf2-sha256:600000:…` at the usual place today.
+```
+
+It uses AES-256-GCM with a key derived from your passphrase by
+PBKDF2-SHA256 (600,000 iterations). A fresh random IV is used for every
+piece. Encryption happens only in the app window. The server, the search
+index and git only ever see ciphertext.
+
+### Good to know
+
+- **Titles, tags and dates stay readable.** Only the body text is
+  encrypted, not the frontmatter.
+- **Git history keeps what was already committed.** Text that was saved as
+  plain text before you encrypted it remains in the workspace's history.
+  Encrypt private text before it's saved: edits autosave on a delay, so
+  text encrypted right away never reaches disk as plain text.
+- **Search skips encrypted text.** The surrounding plain text is still
+  found.
+- **AI agents can't read it.** MCP tools see the tokens as-is. An agent
+  edit that would drop or change one is rejected, so an agent can't
+  accidentally destroy encrypted content.
+- **Tasks and projects can't be encrypted**, only journal entries and
+  notes.
+
+### Decrypting without the app
+
+`jota-decrypt.html` is a single web page that decrypts your files in any
+modern browser, so your data stays readable even without Jota. There's
+nothing to install. Download it from the
+[latest release](https://github.com/tdpi95/jota/releases/latest), or take
+[scripts/jota-decrypt.html](scripts/jota-decrypt.html) from this repo, and
+keep a copy next to your backups.
+
+1. Double-click it to open it in your browser. It works offline.
+2. Enter your passphrase, then choose or drop your `.md` files, or paste
+   text.
+3. Click **Decrypt**. Each file is shown with its encrypted text restored,
+   with **Copy** and **Save** buttons. Save downloads a
+   `*.decrypted.md` copy and leaves your original file untouched.
+
+Everything happens inside the page. It makes no network requests at all
+(its Content-Security-Policy blocks them), so your files and passphrase
+never leave your computer. Text it can't decrypt (a wrong passphrase, or a
+piece encrypted with a different one) is left as-is and highlighted.
 
 ## Development requirements
 

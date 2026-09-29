@@ -530,6 +530,8 @@
       "hint": "Enter this workspace's encryption passphrase. It's kept in memory only, until you lock, go idle for 15 minutes, or switch workspace.",
       "setHint": "Choose a passphrase for this workspace's encrypted content. It's never stored — you'll be asked for it again in each session.",
       "passphrase": "Passphrase",
+      "showPassphrase": "Show passphrase",
+      "hidePassphrase": "Hide passphrase",
       "confirm": "Confirm passphrase",
       "noRecovery": "There is no recovery: if you forget this passphrase, the encrypted content is lost for good.",
       "mismatch": "The two passphrases don't match.",

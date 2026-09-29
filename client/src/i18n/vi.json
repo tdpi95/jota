@@ -530,6 +530,8 @@
       "hint": "Nhập mật khẩu mã hóa của workspace này. Mật khẩu chỉ được giữ trong bộ nhớ cho đến khi bạn khóa, không thao tác 15 phút, hoặc chuyển workspace.",
       "setHint": "Chọn mật khẩu cho nội dung mã hóa của workspace này. Mật khẩu không bao giờ được lưu — mỗi phiên bạn sẽ được hỏi lại.",
       "passphrase": "Mật khẩu",
+      "showPassphrase": "Hiện mật khẩu",
+      "hidePassphrase": "Ẩn mật khẩu",
       "confirm": "Xác nhận mật khẩu",
       "noRecovery": "Không có cách khôi phục: nếu quên mật khẩu này, nội dung mã hóa sẽ mất vĩnh viễn.",
       "mismatch": "Hai mật khẩu không khớp.",

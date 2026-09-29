@@ -2293,6 +2293,7 @@ textarea {
   letter-spacing: 0.05em;
 }
 .form-field input[type="text"],
+.form-field input[type="password"],
 .form-field input:not([type]),
 .form-field input[type="date"],
 .form-field textarea {
@@ -3841,6 +3842,35 @@ textarea {
   margin: 0;
   color: var(--ink-muted);
   font-size: 13px;
+}
+/* Passphrase input with its show/hide toggle inside, at the right edge. */
+.enc-passphrase-field {
+  position: relative;
+}
+.form-field .enc-passphrase-field input {
+  padding-right: 38px;
+}
+.enc-passphrase-toggle {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.enc-passphrase-toggle:hover,
+.enc-passphrase-toggle[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--surface-hover);
 }
 .enc-unlock-warning {
   margin: 0;
