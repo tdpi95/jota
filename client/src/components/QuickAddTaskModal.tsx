@@ -19,7 +19,7 @@ import TaskForm from './TaskForm';
  *   description), with the project select kept above it and the typed title
  *   carried over.
  * - `created`: the task just created, via `TaskDetailView`, with Edit, a
- *   Todo/Doing/Done toggle, and "Go to project".
+ *   status-cycle button (same as the project board's), and "Go to project".
  * - `editing`: `TaskForm` in edit mode for that same task; saving or
  *   cancelling returns to `created`.
  */

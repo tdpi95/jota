@@ -8,20 +8,8 @@ import DueDateBadge from './DueDateBadge';
 import Modal from './Modal';
 import TaskDetailView from './TaskDetailView';
 import TaskForm from './TaskForm';
+import TaskStatusButton from './TaskStatusButton';
 import TimeSpentBadge from './TimeSpentBadge';
-
-const NEXT_STATUS: Record<TaskStatus, TaskStatus> = { todo: 'doing', doing: 'done', done: 'todo' };
-
-function StatusIcon({ status }: { status: TaskStatus }) {
-  if (status === 'doing') return <span className="pulse" />;
-  if (status === 'done')
-    return (
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 13l4 4L19 7" />
-      </svg>
-    );
-  return null;
-}
 
 /**
  * One task row: status-cycle button (todo → doing → done → todo), title,
@@ -64,19 +52,12 @@ export default function TaskRow({
   const [viewing, setViewing] = useState(false);
   const [logged, setLogged] = useState(false);
 
-  const nextStatus = NEXT_STATUS[task.status];
   const hasChecklist = task.checklist.length > 0;
   const checklistDoneCount = task.checklist.filter((item) => item.done).length;
 
   return (
     <div className="task-row">
-      <button
-        className={`status-btn st-${task.status}`}
-        onClick={() => onStatusChange(nextStatus)}
-        title={t('taskRow.markAs', { status: t(`taskRow.status.${nextStatus}`) })}
-      >
-        <StatusIcon status={task.status} />
-      </button>
+      <TaskStatusButton status={task.status} onChange={onStatusChange} />
       <div className="task-main" onClick={() => setViewing(true)}>
         <div className="task-title-row">
           <span className={`task-title ${task.status === 'done' ? 'st-done' : ''}`}>{task.text}</span>

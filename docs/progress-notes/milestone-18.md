@@ -2,6 +2,12 @@
 
 [← back to PROGRESS.md](../../PROGRESS.md)
 
+## Milestone 18 notes, part 38 (created-task view: board-style status button)
+
+- User follow-up on part 35: "use status button like in project page instead of 3 plain buttons." The created-task view's Todo/Doing/Done `.ws-row-btn` segmented toggle is replaced by the same round status-cycle button the Kanban/Dashboard rows use (todo → doing → done → todo, pulsing dot for Doing, green check for Done, "Mark as …" tooltip), with the current status shown as a label beside it.
+- The button, its `StatusIcon` and the `NEXT_STATUS` cycle moved out of `TaskRow` into a shared `TaskStatusButton` component, so the board and the modal can't drift apart. `TaskRow` renders it unchanged. `TaskDetailView` only shows it when `onStatusChange` is passed, so `TaskRow`'s own view modal still has no status control, and the button is disabled while an update is in flight. `taskRow.statusLabel` is now the row's `aria-label`; no new i18n keys.
+- **Verified**: `npx tsc --noEmit` (client) clean. **Verified live** via the Browser pane against a fresh isolated scratch server/workspace (temporary `launch.json` entry reverted afterwards). Ctrl+T → Enter showed the round button with "Todo"; one click made it "Doing" with the pulsing dot (the Dashboard's Doing bucket behind the modal updated too); another made it "Done" (green check). The project's History panel recorded `todo→doing` and `doing→done`. The Kanban board's own row status button still cycled a different task correctly after the extraction. No console errors after the scratch workspace was registered.
+
 ## Milestone 18 notes, part 37 (fix: the remaining ways one hand-edited file could break indexing)
 
 - Follow-up to part 36 (user: "check if notes and journal can break the index", then "fix all problems"). A scratch probe ran ~15 hand-edit cases through `rebuildIndex`. Note and journal **frontmatter** were already safe: `note.ts`/`journal.ts` already coerce wrong-shaped values, and invalid YAML was already skipped by `tryParse`. Four other cases aborted reconciliation for the whole workspace (and, during a rebuild, left the freshly-deleted index half-filled), because nothing guarded the index *writes*:

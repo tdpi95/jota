@@ -6,9 +6,8 @@ import { formatTimestamp } from '../lib/date';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import type { Task, TaskStatus } from '../types';
 import DueDateBadge from './DueDateBadge';
+import TaskStatusButton from './TaskStatusButton';
 import TimeSpentBadge from './TimeSpentBadge';
-
-const STATUSES: TaskStatus[] = ['todo', 'doing', 'done'];
 
 /**
  * Body of a task's *view* `Modal` — badges, created time, interactive
@@ -17,9 +16,9 @@ const STATUSES: TaskStatus[] = ['todo', 'doing', 'done'];
  * inside one popup (`QuickAddTaskModal`: quick-add → created → edit) doesn't
  * remount the overlay on every step. Shared by `TaskRow`'s click-to-view and
  * `QuickAddTaskModal`'s "here's the task you just created" step; the latter
- * also passes `onStatusChange` (a Todo/Doing/Done toggle, same
- * `.ws-row-btn.is-active` pattern as the app's other segmented toggles) and
- * `onGoToProject`, both omitted by `TaskRow`, whose row already carries its
+ * also passes `onStatusChange` (the same round status-cycle
+ * `TaskStatusButton` the project page's rows use, plus the current status
+ * as a label) and `onGoToProject`, both omitted by `TaskRow`, whose row already carries its
  * own status button and "go to project" action.
  */
 export default function TaskDetailView({
@@ -70,18 +69,8 @@ export default function TaskDetailView({
       <div className="page-sub">{t('taskRow.created', { time: formatTimestamp(task.created) })}</div>
       {onStatusChange && (
         <div className="task-detail-status" role="group" aria-label={t('taskRow.statusLabel')}>
-          {STATUSES.map((status) => (
-            <button
-              key={status}
-              type="button"
-              className={`ws-row-btn ${task.status === status ? 'is-active' : ''}`}
-              aria-pressed={task.status === status}
-              disabled={pending || task.status === status}
-              onClick={() => onStatusChange(status)}
-            >
-              {t(`projectDetail.columns.${status}`)}
-            </button>
-          ))}
+          <TaskStatusButton status={task.status} onChange={onStatusChange} disabled={pending} />
+          <span className="task-detail-status-label">{t(`projectDetail.columns.${task.status}`)}</span>
         </div>
       )}
       {hasChecklist && (

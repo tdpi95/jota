@@ -2328,16 +2328,22 @@ textarea {
 .form-actions.task-detail-actions {
   margin-top: 16px;
 }
-/* TaskDetailView's optional Todo/Doing/Done toggle and one-line notice
-   (QuickAddTaskModal's "created" step — TaskRow's view modal passes
-   neither). */
+/* TaskDetailView's optional status-cycle button + current-status label and
+   one-line notice (QuickAddTaskModal's "created" step — TaskRow's view modal
+   passes neither). */
 .task-detail-status {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 12px;
 }
-.task-detail-status .ws-row-btn {
-  margin-left: 0;
+.task-detail-status .status-btn {
+  margin-top: 0;
+}
+.task-detail-status-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .task-detail-notice {
   font-size: 12px;
