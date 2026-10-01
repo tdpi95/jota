@@ -84,7 +84,12 @@ export default function TaskForm({
       description: values.description?.trim() ? values.description : null,
       checklist: values.checklist,
     });
-    if (!task) setValues(initialValues());
+    // Only the inline quick-add row stays mounted after submitting and needs
+    // clearing for the next task; a full form lives in a `Modal` that moves on
+    // (closes, or shows the created task) once the create succeeds, and
+    // clearing it early would flash an empty form meanwhile — or lose the
+    // typed values if the create fails.
+    if (compact) setValues(initialValues());
   }
 
   if (compact) {

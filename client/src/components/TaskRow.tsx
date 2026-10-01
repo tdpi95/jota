@@ -3,12 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { UpdateTaskInput } from '../api/client';
-import { handleRenderedAttachmentClick } from '../lib/attachments';
-import { formatTimestamp } from '../lib/date';
-import { renderMarkdownToHtml } from '../lib/renderMarkdown';
 import type { Task, TaskStatus } from '../types';
 import DueDateBadge from './DueDateBadge';
 import Modal from './Modal';
+import TaskDetailView from './TaskDetailView';
 import TaskForm from './TaskForm';
 import TimeSpentBadge from './TimeSpentBadge';
 
@@ -32,12 +30,12 @@ function StatusIcon({ status }: { status: TaskStatus }) {
  * journal entry, PLAN.md's "+ log to today" quick action — built here on
  * the shared row so Dashboard (milestone 14) gets it for free once it
  * reuses this component). Clicking the row's title/meta area opens a *view*
- * `Modal` — badges, when created, checklist (still interactively checkable),
- * and description (rendered as markdown, same `renderMarkdownToHtml`
- * NoteBodyEditor's preview uses) — plus an Edit button that swaps straight
- * to the edit `Modal` — instead of the old inline expand-in-place (PLAN.md
- * milestone 18); every task opens it, not just ones with a checklist or
- * description, since "when created" alone is worth seeing. An optional `project`
+ * `Modal` (`TaskDetailView`: badges, when created, checklist — still
+ * interactively checkable — and description rendered as markdown) plus an
+ * Edit button that swaps straight to the edit `Modal` — instead of the old
+ * inline expand-in-place (PLAN.md milestone 18); every task opens it, not
+ * just ones with a checklist or description, since "when created" alone is
+ * worth seeing. An optional `project`
  * badge (name + color dot) is shown first in the meta row when the caller
  * spans multiple projects (the Dashboard) — omitted on a single project's
  * own task list (ProjectDetailPage), where it would be redundant. When
@@ -69,12 +67,6 @@ export default function TaskRow({
   const nextStatus = NEXT_STATUS[task.status];
   const hasChecklist = task.checklist.length > 0;
   const checklistDoneCount = task.checklist.filter((item) => item.done).length;
-
-  function toggleChecklistItem(index: number) {
-    onSave({
-      checklist: task.checklist.map((item, i) => (i === index ? { ...item, done: !item.done } : item)),
-    });
-  }
 
   return (
     <div className="task-row">
@@ -167,50 +159,14 @@ export default function TaskRow({
 
       {viewing && (
         <Modal title={task.text} onClose={() => setViewing(false)}>
-          <div className="task-meta-row">
-            <DueDateBadge due={task.due} />
-            {hasChecklist && (
-              <span className="checklist-badge">
-                {checklistDoneCount}/{task.checklist.length}
-              </span>
-            )}
-            {task.tags.map((tag) => (
-              <span className="tag-pill" key={tag}>
-                {tag}
-              </span>
-            ))}
-            <TimeSpentBadge spentMinutes={task.spentMinutes} doingSince={task.doingSince} />
-          </div>
-          <div className="page-sub">{t('taskRow.created', { time: formatTimestamp(task.created) })}</div>
-          {hasChecklist && (
-            <div className="task-checklist">
-              {task.checklist.map((item, index) => (
-                <label className="task-checklist-item" key={index}>
-                  <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(index)} />
-                  <span className={item.done ? 'st-done' : ''}>{item.text}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          {task.description && (
-            <div
-              className="task-desc note-preview"
-              onClick={handleRenderedAttachmentClick}
-              dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(task.description) }}
-            />
-          )}
-          <div className="form-actions task-detail-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                setViewing(false);
-                setEditing(true);
-              }}
-            >
-              {t('common.edit')}
-            </button>
-          </div>
+          <TaskDetailView
+            task={task}
+            onSave={onSave}
+            onEdit={() => {
+              setViewing(false);
+              setEditing(true);
+            }}
+          />
         </Modal>
       )}
 

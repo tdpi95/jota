@@ -112,7 +112,7 @@ function projectNotFoundError(workspacePath: string, slug: string): ProjectServi
 export function loadProjectFile(workspacePath: string, slug: string): ParsedProjectFile {
   const filePath = projectFilePath(workspacePath, slug);
   if (!fs.existsSync(filePath)) throw projectNotFoundError(workspacePath, slug);
-  return parseProjectFile(fs.readFileSync(filePath, 'utf8'));
+  return parseProjectFile(fs.readFileSync(filePath, 'utf8'), slug);
 }
 
 /** Serializes and writes a project file, then best-effort re-indexes and

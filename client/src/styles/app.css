@@ -1222,6 +1222,15 @@ textarea {
   max-width: 220px;
   flex-shrink: 0;
 }
+/* QuickAddTaskModal's "More fields" step moves the project select into a
+   stacked .form-field, where it should match the other full-width inputs. */
+.form-field .quick-add-select {
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--paper);
+  max-width: none;
+}
 .search-results {
   margin-top: 8px;
   max-height: 420px;
@@ -2318,6 +2327,23 @@ textarea {
    tight there). */
 .form-actions.task-detail-actions {
   margin-top: 16px;
+}
+/* TaskDetailView's optional Todo/Doing/Done toggle and one-line notice
+   (QuickAddTaskModal's "created" step — TaskRow's view modal passes
+   neither). */
+.task-detail-status {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.task-detail-status .ws-row-btn {
+  margin-left: 0;
+}
+.task-detail-notice {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--good);
+  margin-bottom: 8px;
 }
 .color-swatches {
   display: flex;

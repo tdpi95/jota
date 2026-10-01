@@ -129,6 +129,45 @@ test('one unparsable file is skipped instead of failing the whole reconcile', ()
   assert.equal(status.noteCount, 0);
 });
 
+test('a hand-written project file with sparse or missing frontmatter is still indexed', () => {
+  const dir = scratchWorkspace();
+  writeProject(dir, 'website-redesign', [makeTask('t_aaa001')]);
+  // Only what a person would bother typing: no created/archived/description/group.
+  fs.writeFileSync(
+    path.join(dir, 'projects', 'alpha.md'),
+    '---\nname: Alpha\ncolor: "#4f7cff"\n---\n\n- [ ] Buy milk @created(2026-09-29T10:00) <!-- id:t_alpha01 -->\n',
+    'utf8',
+  );
+  // No frontmatter at all, and a wrong-shaped value in another.
+  fs.writeFileSync(
+    path.join(dir, 'projects', 'bare.md'),
+    '- [ ] Bare task @created(2026-09-29T10:00) <!-- id:t_bare001 -->\n',
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(dir, 'projects', 'numbers.md'),
+    '---\nname: 2026\ngroup: 7\ndescription: [a, b]\n---\n\n- [ ] Numbered @created(2026-09-29T10:00) <!-- id:t_num0001 -->\n',
+    'utf8',
+  );
+
+  const stats = reconcileWorkspace(dir);
+  assert.equal(stats.projectsReparsed, 4);
+  assert.equal(getIndexStatus(dir).taskCount, 4);
+
+  const db = openIndexDb(dir);
+  const rows = db.prepare('SELECT slug, name, created, archived, description, group_name, color FROM projects ORDER BY slug').all();
+  db.close();
+  assert.deepEqual(
+    rows.map((r) => ({ ...r })),
+    [
+      { slug: 'alpha', name: 'Alpha', created: '', archived: 0, description: '', group_name: 'Default', color: '#4f7cff' },
+      { slug: 'bare', name: 'bare', created: '', archived: 0, description: '', group_name: 'Default', color: '' },
+      { slug: 'numbers', name: '2026', created: '', archived: 0, description: '', group_name: '7', color: '' },
+      { slug: 'website-redesign', name: 'website-redesign', created: '2026-01-01', archived: 0, description: '', group_name: 'Default', color: '#4f86f7' },
+    ],
+  );
+});
+
 test('touching one file\'s mtime without changing content reparses only that file', () => {
   const dir = scratchWorkspace();
   writeProject(dir, 'website-redesign', [makeTask('t_aaa001')]);
@@ -288,4 +327,162 @@ test('rebuildIndex after deleting the sqlite file reproduces identical state', (
   assert.equal(after.projectCount, before.projectCount);
   assert.equal(after.taskCount, before.taskCount);
   assert.equal(after.journalEntryCount, before.journalEntryCount);
+});
+
+// --- Files that used to abort reconciliation for the whole workspace ---
+
+const rawTask = (id: string, text: string) => `- [ ] ${text} @created(2026-09-29T10:00) <!-- id:${id} -->\n`;
+
+/** Writes a raw project file and pushes its mtime forward, so an incremental
+ * reconcile is guaranteed to see it as changed even within one millisecond. */
+function writeRawProject(dir: string, slug: string, lines: string[]) {
+  const filePath = path.join(dir, 'projects', `${slug}.md`);
+  const previous = fs.existsSync(filePath) ? fs.statSync(filePath).mtimeMs : 0;
+  fs.writeFileSync(filePath, `---\nname: ${slug}\n---\n\n${lines.join('\n')}`, 'utf8');
+  const next = new Date(Math.max(Date.now(), previous + 1000));
+  fs.utimesSync(filePath, next, next);
+}
+
+function taskSnapshot(dir: string) {
+  const db = openIndexDb(dir);
+  try {
+    return {
+      tasks: db.prepare('SELECT id, project_slug, text FROM tasks ORDER BY id').all().map((r) => ({ ...r })),
+      fts: db.prepare('SELECT id, project_slug, text FROM tasks_fts ORDER BY id').all().map((r) => ({ ...r })),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/** The index an incremental reconcile left behind must equal a from-scratch
+ * rebuild's (PLAN.md's portability constraint). Returns the snapshot. */
+function assertMatchesRebuild(dir: string) {
+  reconcileWorkspace(dir);
+  const incremental = taskSnapshot(dir);
+  rebuildIndex(dir);
+  assert.deepEqual(incremental, taskSnapshot(dir));
+  return incremental;
+}
+
+test('duplicate linkedTasks in a journal entry index as one link instead of aborting', () => {
+  const dir = scratchWorkspace();
+  writeProject(dir, 'website-redesign', [makeTask('t_aaa001')]);
+  fs.writeFileSync(path.join(dir, 'journal', '2026', '2026-09-10.md'), '---\nlinkedTasks: [t_aaa001, t_aaa001]\n---\nx\n', 'utf8');
+  writeJournal(dir, '2026-09-11');
+
+  const stats = reconcileWorkspace(dir);
+  assert.equal(stats.journalEntriesReparsed, 2);
+  assert.equal(countRows(dir, 'journal_task_links'), 1);
+});
+
+test('broken symlinks are skipped, and a file that turns into one is dropped from the index', () => {
+  const dir = scratchWorkspace();
+  fs.mkdirSync(path.join(dir, 'notes'), { recursive: true });
+  writeProject(dir, 'website-redesign', [makeTask('t_aaa001')]);
+  writeJournal(dir, '2026-09-10');
+  fs.writeFileSync(path.join(dir, 'notes', 'kept.md'), '---\ntitle: Kept\n---\nbody\n', 'utf8');
+  fs.writeFileSync(path.join(dir, 'notes', 'gone.md'), '---\ntitle: Gone\n---\nbody\n', 'utf8');
+  reconcileWorkspace(dir);
+  assert.equal(countRows(dir, 'notes'), 2);
+
+  const missing = path.join(dir, 'nowhere.md');
+  fs.rmSync(path.join(dir, 'notes', 'gone.md'));
+  fs.symlinkSync(missing, path.join(dir, 'notes', 'gone.md'));
+  fs.symlinkSync(missing, path.join(dir, 'journal', '2026', '2026-09-11.md'));
+  fs.symlinkSync(missing, path.join(dir, 'projects', 'dangling.md'));
+
+  reconcileWorkspace(dir);
+  const status = getIndexStatus(dir);
+  assert.deepEqual(
+    [status.projectCount, status.taskCount, status.journalEntryCount, status.noteCount],
+    [1, 1, 1, 1],
+  );
+});
+
+test('a journal file in the wrong year folder is ignored, not indexed over the real one', () => {
+  const dir = scratchWorkspace();
+  writeJournal(dir, '2026-09-10', 'the real entry');
+  fs.mkdirSync(path.join(dir, 'journal', '2025'), { recursive: true });
+  // Sorts (and so used to be scanned) after nothing / before the real one —
+  // either way it must not count.
+  fs.writeFileSync(path.join(dir, 'journal', '2025', '2026-09-10.md'), '---\n---\nmisfiled copy\n', 'utf8');
+  fs.writeFileSync(path.join(dir, 'journal', '2025', '2026-09-11.md'), '---\n---\nmisfiled only\n', 'utf8');
+
+  const stats = reconcileWorkspace(dir);
+  assert.equal(stats.journalEntriesScanned, 1);
+  const db = openIndexDb(dir);
+  const rows = db.prepare('SELECT date, year, body FROM journal_entries').all().map((r) => ({ ...r }));
+  db.close();
+  assert.deepEqual(rows, [{ date: '2026-09-10', year: '2026', body: 'the real entry\n' }]);
+});
+
+test('a task id repeated within one project file indexes only the first line', () => {
+  const dir = scratchWorkspace();
+  writeRawProject(dir, 'alpha', [rawTask('t_dup0001', 'First'), rawTask('t_other01', 'Other'), rawTask('t_dup0001', 'Second')]);
+
+  const snapshot = assertMatchesRebuild(dir);
+  assert.deepEqual(
+    snapshot.tasks.map((t) => [t.id, t.text]),
+    [
+      ['t_dup0001', 'First'],
+      ['t_other01', 'Other'],
+    ],
+  );
+});
+
+test('a task id in two project files goes to the alphabetically first one, incrementally the same as a rebuild', () => {
+  const dir = scratchWorkspace();
+  const owner = () => taskSnapshot(dir).tasks.find((t) => t.id === 't_dup0001')?.project_slug;
+
+  // "bravo" is indexed alone first, then "alpha" appears with the same id
+  // (a sync tool's conflicted copy, say): alpha sorts first, so it takes over.
+  writeRawProject(dir, 'bravo', [rawTask('t_dup0001', 'Bravo copy'), rawTask('t_bravo01', 'Bravo own')]);
+  reconcileWorkspace(dir);
+  writeRawProject(dir, 'alpha', [rawTask('t_dup0001', 'Alpha copy')]);
+  assertMatchesRebuild(dir);
+  assert.equal(owner(), 'alpha');
+
+  // Editing the losing file doesn't steal it back.
+  writeRawProject(dir, 'bravo', [rawTask('t_dup0001', 'Bravo copy, edited'), rawTask('t_bravo01', 'Bravo own')]);
+  assertMatchesRebuild(dir);
+  assert.equal(owner(), 'alpha');
+
+  // The winner drops the id while a third file that sorts after bravo picks
+  // it up in the same pass: bravo, untouched, must still end up with it.
+  writeRawProject(dir, 'alpha', [rawTask('t_alpha01', 'Alpha own')]);
+  writeRawProject(dir, 'charlie', [rawTask('t_dup0001', 'Charlie copy')]);
+  assertMatchesRebuild(dir);
+  assert.equal(owner(), 'bravo');
+
+  // Deleting the winner hands it to the next copy.
+  fs.rmSync(path.join(dir, 'projects', 'bravo.md'));
+  assertMatchesRebuild(dir);
+  assert.equal(owner(), 'charlie');
+  assert.equal(countRows(dir, 'task_id_shadows'), 0);
+});
+
+test('a file that fails to index for an unforeseen reason is rolled back and skipped, not fatal', () => {
+  const dir = scratchWorkspace();
+  writeProject(dir, 'a-project', [makeTask('t_aaa001')]);
+  writeProject(dir, 'poison', [makeTask('t_ppp001')]);
+  writeProject(dir, 'z-project', [makeTask('t_zzz001')]);
+  // Fail a *later* write for one file (its task, after its project row
+  // already went in) — simulates any error SQLite might raise mid-file.
+  const db = openIndexDb(dir);
+  db.exec(`
+    CREATE TRIGGER poison_task BEFORE INSERT ON tasks
+    WHEN NEW.project_slug = 'poison' BEGIN SELECT RAISE(ABORT, 'simulated failure'); END;
+  `);
+  db.close();
+
+  const stats = reconcileWorkspace(dir);
+  assert.equal(stats.projectsReparsed, 2);
+  const check = openIndexDb(dir);
+  const slugs = check.prepare('SELECT slug FROM projects ORDER BY slug').all().map((r) => r.slug);
+  const ftsSlugs = check.prepare('SELECT slug FROM projects_fts ORDER BY slug').all().map((r) => r.slug);
+  check.close();
+  assert.deepEqual(slugs, ['a-project', 'z-project']); // poison's half-written rows rolled back
+  assert.deepEqual(ftsSlugs, ['a-project', 'z-project']);
+  assert.equal(getIndexStatus(dir).taskCount, 2);
 });

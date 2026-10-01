@@ -83,6 +83,18 @@ CREATE TABLE IF NOT EXISTS notes (
   source_hash TEXT NOT NULL
 );
 
+-- Task ids a project file contains but that aren't in \`tasks\` because
+-- another file already holds them (a duplicate id — see reconcileProjects in
+-- lib/index/reindex.ts): remembered so that file is reparsed to claim the id
+-- once the winning copy goes away. A new table needs no migration — an older
+-- index simply has none recorded, which is right, since a duplicate id used
+-- to abort indexing outright.
+CREATE TABLE IF NOT EXISTS task_id_shadows (
+  id TEXT NOT NULL,
+  project_slug TEXT NOT NULL,
+  PRIMARY KEY (id, project_slug)
+);
+
 CREATE TABLE IF NOT EXISTS index_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

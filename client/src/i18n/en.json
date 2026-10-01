@@ -318,6 +318,7 @@
     "editTask": "Edit task",
     "editTaskModalTitle": "Edit task",
     "created": "Created {{time}}",
+    "statusLabel": "Status",
     "deleteTask": "Delete task",
     "confirmDelete": "Delete \"{{text}}\"?",
     "status": {
@@ -377,6 +378,8 @@
       "project": "Project"
     },
     "searchResultGoTo": "Go to {{type}}",
+    "taskAddedTo": "Added to {{project}}",
+    "projectLabel": "Project",
     "quickAddTaskTitle": "Quick add task",
     "taskTitlePlaceholder": "Task title…",
     "addTaskSubmit": "Add task",

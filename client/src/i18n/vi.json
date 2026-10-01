@@ -318,6 +318,7 @@
     "editTask": "Sửa việc",
     "editTaskModalTitle": "Sửa việc",
     "created": "Tạo lúc {{time}}",
+    "statusLabel": "Trạng thái",
     "deleteTask": "Xóa việc",
     "confirmDelete": "Xóa \"{{text}}\"?",
     "status": {
@@ -377,6 +378,8 @@
       "project": "Dự án"
     },
     "searchResultGoTo": "Đi tới {{type}}",
+    "taskAddedTo": "Đã thêm vào {{project}}",
+    "projectLabel": "Dự án",
     "quickAddTaskTitle": "Thêm nhanh việc",
     "taskTitlePlaceholder": "Tên công việc…",
     "addTaskSubmit": "Thêm việc",

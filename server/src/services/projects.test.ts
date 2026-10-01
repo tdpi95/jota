@@ -111,3 +111,34 @@ test('deleteProject removes the file, drops it from listProjects, and commits', 
   );
   assert.equal(getHistory(ws)[0].message, '[api] delete_project website-redesign');
 });
+
+test('a hand-written project file with sparse frontmatter loads, lists, and survives an app write', () => {
+  const ws = scratchWorkspace();
+  const filePath = path.join(ws, 'projects', 'alpha.md');
+  fs.writeFileSync(
+    filePath,
+    '---\ncolor: "#4f7cff"\n---\n\n- [ ] Buy milk @created(2026-09-29T10:00) <!-- id:t_alpha01 -->\n',
+    'utf8',
+  );
+
+  const project = getProject(ws, 'alpha');
+  assert.deepEqual(project.frontmatter, {
+    color: '#4f7cff',
+    name: 'alpha', // falls back to the slug
+    created: '',
+    archived: false,
+    description: '',
+    group: DEFAULT_GROUP,
+  });
+  assert.deepEqual(
+    listProjects(ws).map((p) => p.frontmatter.name),
+    ['alpha'],
+  );
+
+  updateProject(ws, 'alpha', { description: 'Groceries' });
+  const content = fs.readFileSync(filePath, 'utf8');
+  assert.match(content, /^---\ncolor: '#4f7cff'\nname: alpha\n/); // hand-typed key keeps its place
+  assert.match(content, /description: Groceries/);
+  assert.match(content, /Buy milk/);
+  assert.equal(getProject(ws, 'alpha').frontmatter.description, 'Groceries');
+});
