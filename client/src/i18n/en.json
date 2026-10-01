@@ -560,5 +560,14 @@
     "revert": "Discard edits",
     "saveFailed": "Couldn't save the file.",
     "loadFailed": "Couldn't load the file's contents."
+  },
+  "links": {
+    "linkedFrom": "Linked from",
+    "missing": "No note or task matches this link",
+    "kind": {
+      "journal": "Journal",
+      "note": "Note",
+      "task": "Task"
+    }
   }
 }

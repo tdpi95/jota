@@ -4,6 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
+import { createProject } from './projects.js';
+import { createTask, updateTask } from './tasks.js';
 import { getHistory } from '../lib/vaultGit.js';
 import { ensureGitRepo } from '../lib/workspaces.js';
 import { getJournalEntry, getJournalRaw, linkTask, listJournalYear, listJournalYearFull, putJournalEntry, putJournalRaw, unlinkTask } from './journal.js';
@@ -157,4 +159,27 @@ test('a journal entry with broken frontmatter can be read raw and fixed via putJ
   assert.deepEqual(entry.frontmatter.tags, ['a']);
   assert.deepEqual(getJournalEntry(ws, '2026', '2026-09-25').frontmatter.tags, ['a']);
   assert.deepEqual(listJournalYearFull(ws, '2026').map((e) => e.date), ['2026-09-25']);
+});
+
+test('linked tasks are mirrored into a titles-only block that never reaches the body, and follow renames', () => {
+  const ws = scratchWorkspace();
+  const project = createProject(ws, { name: 'Work' });
+  const task = createTask(ws, project.slug, { text: 'Fix login bug' });
+
+  putJournalEntry(ws, '2026', '2026-09-10', { body: 'Notes.' });
+  linkTask(ws, '2026', '2026-09-10', task.id);
+  const file = path.join(ws, 'journal', '2026', '2026-09-10.md');
+  assert.match(fs.readFileSync(file, 'utf8'), /<!-- jota:linked-tasks -->\n## Linked tasks\n\n- Fix login bug\n<!-- \/jota:linked-tasks -->/);
+  assert.equal(getJournalEntry(ws, '2026', '2026-09-10').body, 'Notes.');
+
+  // Saving the (block-free) body again keeps exactly one block.
+  putJournalEntry(ws, '2026', '2026-09-10', { body: 'Notes, edited.' });
+  assert.equal(fs.readFileSync(file, 'utf8').match(/jota:linked-tasks -->/g)?.length, 2);
+
+  updateTask(ws, project.slug, task.id, { text: 'Fix SSO bug' });
+  assert.match(fs.readFileSync(file, 'utf8'), /- Fix SSO bug/);
+  assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /login/);
+
+  unlinkTask(ws, '2026', '2026-09-10', task.id);
+  assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /linked-tasks/);
 });

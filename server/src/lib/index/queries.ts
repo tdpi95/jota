@@ -537,3 +537,28 @@ export function queryFullTextSearch(workspacePath: string, input: SearchInput): 
     db.close();
   }
 }
+
+export interface WikilinkSource {
+  kind: 'task' | 'journal' | 'note';
+  id: string;
+}
+
+/** Every source whose text links to any of `targets` (compared
+ * case-insensitively — a note can be linked by slug or title, and a title
+ * match shouldn't depend on capitalization). Backs `services/links.ts`'s
+ * backlinks. */
+export function queryWikilinkSources(workspacePath: string, targets: string[]): WikilinkSource[] {
+  if (targets.length === 0) return [];
+  const db = openIndexDb(workspacePath);
+  try {
+    const placeholders = targets.map(() => '?').join(', ');
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT source_kind, source_id FROM wikilinks WHERE target COLLATE NOCASE IN (${placeholders}) ORDER BY source_kind, source_id`,
+      )
+      .all(...targets) as { source_kind: WikilinkSource['kind']; source_id: string }[];
+    return rows.map((r) => ({ kind: r.source_kind, id: r.source_id }));
+  } finally {
+    db.close();
+  }
+}

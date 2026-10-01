@@ -4,7 +4,7 @@ import type { TaskStatus } from '../types';
 
 const NEXT_STATUS: Record<TaskStatus, TaskStatus> = { todo: 'doing', doing: 'done', done: 'todo' };
 
-function StatusIcon({ status }: { status: TaskStatus }) {
+export function StatusIcon({ status }: { status: TaskStatus }) {
   if (status === 'doing') return <span className="pulse" />;
   if (status === 'done')
     return (

@@ -560,5 +560,14 @@
     "revert": "Bỏ các thay đổi",
     "saveFailed": "Không lưu được tệp.",
     "loadFailed": "Không tải được nội dung tệp."
+  },
+  "links": {
+    "linkedFrom": "Được liên kết từ",
+    "missing": "Không có ghi chú hoặc công việc nào khớp với liên kết này",
+    "kind": {
+      "journal": "Nhật ký",
+      "note": "Ghi chú",
+      "task": "Công việc"
+    }
   }
 }

@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it';
 
 import { ENCRYPTED_TOKEN_PREFIX, fullyEncryptedPayload } from './encryptionCrypto';
+import { wikilinkHref, type ResolvedLink } from './wikilinks';
 
 // Backs NoteDetailPage's edit/preview toggle — the one place in this app
 // that renders markdown to actual HTML rather than just syntax-coloring it
@@ -81,7 +82,16 @@ export interface EncryptedPreviewState {
   labels: { locked: string; error: string };
 }
 
-type RenderEnv = { encrypted?: EncryptedPreviewState } & Record<string, unknown>;
+/** What the preview knows about each `[[wikilink]]` (milestone 32), keyed by
+ * its target as written. A target not in the map yet (the lookup is still
+ * in flight) renders as plain text; one that resolved to nothing renders as
+ * a dangling-link marker. */
+export interface WikilinkPreviewState {
+  resolved: Map<string, ResolvedLink>;
+  labels: { missing: string };
+}
+
+type RenderEnv = { encrypted?: EncryptedPreviewState; wikilinks?: WikilinkPreviewState } & Record<string, unknown>;
 
 function lockedChip(state: EncryptedPreviewState | undefined, isError: boolean): string {
   const label = md.utils.escapeHtml(isError ? (state?.labels.error ?? '') : (state?.labels.locked ?? ''));
@@ -101,8 +111,41 @@ md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {
   return `<span class="enc-inline is-unlocked">${md.renderInline(value, env)}</span>`;
 };
 
-export function renderMarkdownToHtml(source: string, encrypted?: EncryptedPreviewState): string {
-  const env: RenderEnv = { encrypted };
+// `[[target]]` / `[[target|label]]` (milestone 32). Registered before the
+// built-in `link` rule, which would otherwise read `[[x]]` as a link
+// reference. Code spans are consumed by the backtick rule before this ever
+// sees them, so a link inside code stays literal text.
+const WIKILINK_AT_POS_RE = /^\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]*))?\]\]/;
+md.inline.ruler.before('link', 'wikilink', (state, silent) => {
+  if (state.src.charCodeAt(state.pos) !== 0x5b || state.src.charCodeAt(state.pos + 1) !== 0x5b) return false;
+  const match = WIKILINK_AT_POS_RE.exec(state.src.slice(state.pos));
+  if (!match) return false;
+  if (!silent) {
+    const token = state.push('wikilink', '', 0);
+    token.meta = { target: match[1].trim(), label: match[2]?.trim() || null };
+  }
+  state.pos += match[0].length;
+  return true;
+});
+
+md.renderer.rules.wikilink = (tokens, idx, _options, env) => {
+  const { target, label } = tokens[idx].meta as { target: string; label: string | null };
+  const state = (env as RenderEnv | undefined)?.wikilinks;
+  const resolved = state?.resolved.get(target);
+  // An explicit `|label` wins; otherwise show the target's live title, so a
+  // bare `[[t_a1b2c3]]` reads as the task's text rather than its id.
+  const text = md.utils.escapeHtml(label ?? resolved?.ref?.title ?? target);
+  if (!resolved) return `<span class="wikilink is-pending">${text}</span>`;
+  if (!resolved.ref) return `<span class="wikilink is-missing" title="${md.utils.escapeHtml(state?.labels.missing ?? '')}">${text}</span>`;
+  const ref = resolved.ref;
+  const status = ref.kind === 'task' && ref.status ? `<span class="wikilink-status st-${ref.status}"></span>` : '';
+  const done = ref.status === 'done' ? ' is-done' : '';
+  const taskId = ref.kind === 'task' ? ` data-task-id="${md.utils.escapeHtml(ref.id)}"` : '';
+  return `<a class="wikilink wikilink-${ref.kind}${done}" href="${md.utils.escapeHtml(wikilinkHref(ref))}" data-wikilink="${ref.kind}"${taskId}>${status}${text}</a>`;
+};
+
+export function renderMarkdownToHtml(source: string, encrypted?: EncryptedPreviewState, wikilinks?: WikilinkPreviewState): string {
+  const env: RenderEnv = { encrypted, wikilinks };
   // A whole note/entry encrypted as one token renders as full block
   // markdown (headings, lists, ...), not squeezed inline.
   const whole = fullyEncryptedPayload(source);

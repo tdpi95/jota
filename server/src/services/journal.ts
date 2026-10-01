@@ -14,6 +14,8 @@ import { ENCRYPTED_TOKEN_GUARD_MESSAGE, isMcpOrigin, missingEncryptedTokens } fr
 import { FrontmatterParseError } from '../lib/markdown/frontmatter.js';
 import { parseJournalFile, serializeJournalFile, type ParsedJournalFile } from '../lib/markdown/journal.js';
 import { commitChange } from '../lib/vaultGit.js';
+import { queryJournalLinksForTask } from '../lib/index/queries.js';
+import { listProjects } from './projects.js';
 import type { JournalFrontmatter } from '../types.js';
 
 export class JournalServiceError extends HttpError {
@@ -91,10 +93,20 @@ export function getJournalEntry(workspacePath: string, year: string, date: strin
   return { date, frontmatter: parsed.frontmatter, body: parsed.body };
 }
 
+/** Task titles for the generated "Linked tasks" block, read from the project
+ * files (not the index) so they're current. A link whose task is gone shows
+ * its bare id. */
+function linkedTitles(workspacePath: string, ids: string[]): string[] {
+  if (ids.length === 0) return [];
+  const byId = new Map<string, string>();
+  for (const project of listProjects(workspacePath)) for (const task of project.tasks) byId.set(task.id, task.text);
+  return ids.map((id) => byId.get(id) ?? id);
+}
+
 function writeJournalFile(workspacePath: string, date: string, parsed: ParsedJournalFile, origin: string, message: string): void {
   const filePath = journalFilePath(workspacePath, date);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, serializeJournalFile(parsed), 'utf8');
+  fs.writeFileSync(filePath, serializeJournalFile(parsed, linkedTitles(workspacePath, parsed.frontmatter.linkedTasks)), 'utf8');
   try {
     reconcileWorkspace(workspacePath);
   } catch (err) {
@@ -187,6 +199,35 @@ export function unlinkTask(workspacePath: string, year: string, date: string, ta
   };
   writeJournalFile(workspacePath, date, { frontmatter, body: existing.body }, origin, `unlink_task ${taskId} from ${date}`);
   return { date, frontmatter, body: existing.body };
+}
+
+/** Rewrites the "Linked tasks" block of every journal entry linking `taskId`
+ * after the task is renamed or deleted, as a single commit. Entries whose
+ * file wouldn't change are left alone. */
+export function refreshLinkedTaskTitles(workspacePath: string, taskId: string, origin = 'api'): void {
+  const changed: string[] = [];
+  for (const date of queryJournalLinksForTask(workspacePath, taskId)) {
+    const filePath = journalFilePath(workspacePath, date);
+    if (!fs.existsSync(filePath)) continue;
+    let parsed: ParsedJournalFile;
+    try {
+      parsed = parseJournalFile(fs.readFileSync(filePath, 'utf8'));
+    } catch (err) {
+      if (!(err instanceof FrontmatterParseError)) throw err;
+      continue;
+    }
+    const next = serializeJournalFile(parsed, linkedTitles(workspacePath, parsed.frontmatter.linkedTasks));
+    if (next === fs.readFileSync(filePath, 'utf8')) continue;
+    fs.writeFileSync(filePath, next, 'utf8');
+    changed.push(journalRelPath(date));
+  }
+  if (changed.length === 0) return;
+  try {
+    reconcileWorkspace(workspacePath);
+  } catch (err) {
+    console.error(`[journal] index reconcile failed for ${workspacePath}:`, (err as Error).message);
+  }
+  commitChange(workspacePath, { origin, message: `refresh_linked_titles ${taskId}`, paths: changed });
 }
 
 /** `GET /api/journal/:year` — the one aggregate view here; reads from the

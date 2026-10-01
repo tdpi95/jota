@@ -95,6 +95,19 @@ CREATE TABLE IF NOT EXISTS task_id_shadows (
   PRIMARY KEY (id, project_slug)
 );
 
+-- Wikilinks (milestone 32): every \`[[target]]\` in a journal body, note body
+-- or task description. \`target\` is stored as written (trimmed) and only
+-- resolved at query time (lib/index/queries.ts / services/links.ts), so a
+-- renamed note title or a note created later never leaves a stale
+-- resolution behind. Rebuilt per source on every reparse.
+CREATE TABLE IF NOT EXISTS wikilinks (
+  source_kind TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  target TEXT NOT NULL,
+  PRIMARY KEY (source_kind, source_id, target)
+);
+CREATE INDEX IF NOT EXISTS idx_wikilinks_target ON wikilinks(target COLLATE NOCASE);
+
 CREATE TABLE IF NOT EXISTS index_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -133,6 +146,8 @@ export function openIndexDb(workspacePath: string): DatabaseSync {
   // `CREATE VIRTUAL TABLE IF NOT EXISTS` below makes that check moot.
   const projectsFtsExisted =
     db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'projects_fts'").get() !== undefined;
+  const wikilinksExisted =
+    db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'wikilinks'").get() !== undefined;
   db.exec(SCHEMA);
   // Lightweight migration for an index created before `checklist` existed —
   // `CREATE TABLE IF NOT EXISTS` above is a no-op against an already-existing
@@ -187,6 +202,13 @@ export function openIndexDb(workspacePath: string): DatabaseSync {
   // "unchanged file needs backfill too" reasoning as journal/note body.
   if (!projectsFtsExisted) {
     db.exec('UPDATE projects SET source_mtime = 0');
+  }
+  // Same backfill for \`wikilinks\` (milestone 32): links already written in
+  // existing, untouched files only reach the table by reparsing them.
+  if (!wikilinksExisted) {
+    db.exec('UPDATE projects SET source_mtime = 0');
+    db.exec('UPDATE journal_entries SET source_mtime = 0');
+    db.exec('UPDATE notes SET source_mtime = 0');
   }
   return db;
 }

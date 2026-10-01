@@ -1,3 +1,5 @@
+import { autocompletion } from '@codemirror/autocomplete';
+import { useQueryClient } from '@tanstack/react-query';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Annotation, Compartment, EditorState, findClusterBreak, RangeSetBuilder, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { Decoration, drawSelection, dropCursor, EditorView, keymap, placeholder as placeholderExt, showTooltip, ViewPlugin, WidgetType } from '@codemirror/view';
@@ -13,6 +15,7 @@ import { findRegions, hasSentinels, openableTokens, REGION_CLOSE, REGION_OPEN, s
 import type { SealedRegion } from '../lib/encryptedRegions';
 import { findEncryptedTokens } from '../lib/encryptionCrypto';
 import { VscodeSearchPanel } from '../lib/vscodeSearchPanel';
+import { wikilinkCompletionSource } from '../lib/wikilinkCompletion';
 
 /**
  * VS Code-style *source* highlighting for markdown — the raw text stays
@@ -555,6 +558,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   { value, onChange, placeholder, disabled, className, onPasteFiles, autoFocus, encryption },
   ref,
 ) {
+  const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -731,6 +735,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
           // than a screenful, exactly where a user reaching for "find" isn't
           // looking.
           search({ top: true, createPanel: (searchView) => new VscodeSearchPanel(searchView) }),
+          // `[[` picker for links to journal days, notes and tasks (milestone
+          // 32). Its own keymap (Enter/Tab accept, arrows, Escape) only
+          // applies while the popup is open.
+          autocompletion({ override: [wikilinkCompletionSource(queryClient)], icons: false }),
           keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
           // No `codeLanguages` — that pulls in a lazy chunk per possible
           // fence info-string language (pug, nginx, verilog, ...) just to

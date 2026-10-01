@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import * as api from '../api/client';
+import Backlinks from '../components/Backlinks';
 import HistoryPanel from '../components/HistoryPanel';
 import NoteBodyEditor, { VIEW_MODE_ICONS } from '../components/NoteBodyEditor';
 import RawFileRepair, { isUnparsableFileError } from '../components/RawFileRepair';
@@ -270,6 +271,7 @@ function NoteDetailPageInner({ slug }: { slug: string }) {
         {saveState === 'saved' && t('noteDetail.saved')}
       </div>
 
+      <Backlinks kind="note" id={slug} />
       <HistoryPanel path={`notes/${slug}.md`} onReverted={invalidateNote} />
     </div>
   );

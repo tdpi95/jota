@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
+import { extractWikilinks } from '../markdown/wikilinks.js';
 import { stripEncryptedTokens } from '../markdown/encrypted.js';
 import { parseJournalFile } from '../markdown/journal.js';
 import { parseNoteFile } from '../markdown/note.js';
@@ -128,6 +129,13 @@ function readDirNames(dir: string): string[] {
  * no longer holds the id. Reading the project files directly still shows
  * every copy; only the index's aggregate views see one.
  */
+/** Replaces everything `sourceId` links to (its wikilinks) in the index. */
+function replaceWikilinks(db: DatabaseSync, kind: 'task' | 'journal' | 'note', sourceId: string, text: string | null): void {
+  db.prepare('DELETE FROM wikilinks WHERE source_kind = ? AND source_id = ?').run(kind, sourceId);
+  const insert = db.prepare('INSERT OR IGNORE INTO wikilinks (source_kind, source_id, target) VALUES (?, ?, ?)');
+  for (const target of extractWikilinks(text)) insert.run(kind, sourceId, target);
+}
+
 function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: number; reparsed: number; removed: number } {
   const projectsDir = path.join(workspacePath, 'projects');
   const files = listFiles(projectsDir);
@@ -145,6 +153,9 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
       source_mtime = excluded.source_mtime, source_hash = excluded.source_hash
   `);
   const deleteTasksForSlug = db.prepare('DELETE FROM tasks WHERE project_slug = ?');
+  const deleteTaskWikilinksForSlug = db.prepare(
+    "DELETE FROM wikilinks WHERE source_kind = 'task' AND source_id IN (SELECT id FROM tasks WHERE project_slug = ?)",
+  );
   const insertTask = db.prepare(`
     INSERT INTO tasks (id, project_slug, text, status, due, created_at, doing_since, spent_minutes, done_at, tags, description, checklist)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -197,6 +208,7 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
       );
       deleteProjectFts.run(slug);
       insertProjectFts.run(slug, parsed.frontmatter.name, parsed.frontmatter.description, '');
+      deleteTaskWikilinksForSlug.run(slug);
       deleteTasksForSlug.run(slug);
       deleteTasksFtsForSlug.run(slug);
       deleteShadowsForSlug.run(slug);
@@ -231,6 +243,7 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
           JSON.stringify(task.checklist),
         );
         insertTaskFts.run(task.id, slug, task.text, task.description ?? '', JSON.stringify(task.tags));
+        replaceWikilinks(db, 'task', task.id, task.description);
       }
       return true;
     });
@@ -254,6 +267,7 @@ function reconcileProjects(workspacePath: string, db: DatabaseSync): { scanned: 
   let removed = 0;
   for (const slug of indexedSlugs) {
     if (seenSlugs.has(slug)) continue;
+    deleteTaskWikilinksForSlug.run(slug);
     deleteTasksForSlug.run(slug);
     deleteTasksFtsForSlug.run(slug);
     deleteProjectFts.run(slug);
@@ -360,6 +374,7 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
         }
         deleteJournalFtsForDate.run(date);
         insertJournalFts.run(date, JSON.stringify(parsed.frontmatter.tags), indexedBody);
+        replaceWikilinks(db, 'journal', date, parsed.body);
         return true;
       });
       if (wrote) reparsed++;
@@ -373,6 +388,7 @@ function reconcileJournal(workspacePath: string, db: DatabaseSync): { scanned: n
     if (seenDates.has(date)) continue;
     deleteLinksForDate.run(date);
     deleteJournalFtsForDate.run(date);
+    replaceWikilinks(db, 'journal', date, null);
     deleteEntry.run(date);
     removed++;
   }
@@ -427,6 +443,7 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
       );
       deleteNotesFtsForSlug.run(slug);
       insertNoteFts.run(slug, parsed.frontmatter.title, JSON.stringify(parsed.frontmatter.tags), indexedBody);
+      replaceWikilinks(db, 'note', slug, parsed.body);
       return true;
     });
     if (wrote) reparsed++;
@@ -438,6 +455,7 @@ function reconcileNotes(workspacePath: string, db: DatabaseSync): { scanned: num
   for (const slug of indexedSlugs) {
     if (seenSlugs.has(slug)) continue;
     deleteNotesFtsForSlug.run(slug);
+    replaceWikilinks(db, 'note', slug, null);
     deleteNote.run(slug);
     removed++;
   }

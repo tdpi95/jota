@@ -31,6 +31,7 @@ import type {
   Workspace,
   WorkspaceSyncConfig,
 } from '../types';
+import type { LinkRef, ResolvedLink } from '../lib/wikilinks';
 import type { AccentPalette, ThemeMode } from '../lib/theme';
 import type { TemperatureUnit, WeatherLocation } from '../lib/weather';
 
@@ -553,6 +554,18 @@ export function search(params: { q: string; from?: string; to?: string; types?: 
   if (params.to) qs.set('to', params.to);
   if (params.types && params.types.length > 0) qs.set('types', params.types.join(','));
   return request(`/search?${qs.toString()}`);
+}
+
+// --- Wikilinks (milestone 32, PLAN.md "Links between journals, notes and tasks") ---
+
+/** What each `[[target]]` points at, or null for a dangling one. */
+export function resolveLinks(targets: string[]): Promise<{ links: ResolvedLink[] }> {
+  return request('/links/resolve', { method: 'POST', body: JSON.stringify({ targets }) });
+}
+
+/** Everything whose text links to the given journal day, note or task. */
+export function getBacklinks(kind: LinkRef['kind'], id: string): Promise<{ backlinks: LinkRef[] }> {
+  return request(`/links/backlinks?kind=${kind}&id=${encodeURIComponent(id)}`);
 }
 
 // --- Attachments (milestone 27, PLAN.md "File attachments") ---

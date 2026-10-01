@@ -19,6 +19,7 @@ import {
 import type { ProjectBodyBlock } from '../lib/markdown/taskLine.js';
 import type { ChecklistItem, Task, TaskStatus } from '../types.js';
 import { getProject, loadProjectFile, saveProjectFile } from './projects.js';
+import { refreshLinkedTaskTitles } from './journal.js';
 
 export class TaskServiceError extends HttpError {
   constructor(message: string, statusCode: number) {
@@ -152,6 +153,7 @@ export function updateTask(
   if (reordered) notes.push('reordered');
   const message = notes.length > 0 ? `update_task ${taskId} ${notes.join(', ')} (${slug})` : `update_task ${taskId} (${slug})`;
   saveProjectFile(workspacePath, slug, parsed, origin, message);
+  if (input.text !== undefined) refreshLinkedTaskTitles(workspacePath, taskId, origin);
   return task;
 }
 
@@ -162,6 +164,7 @@ export function deleteTask(workspacePath: string, slug: string, taskId: string, 
   parsed.blocks.splice(index, 1);
 
   saveProjectFile(workspacePath, slug, parsed, origin, `delete_task ${taskId} (${slug})`);
+  refreshLinkedTaskTitles(workspacePath, taskId, origin);
 }
 
 // --- Aggregate/query reads (PLAN.md "Which reads go where" — these go

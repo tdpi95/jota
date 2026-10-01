@@ -15,6 +15,7 @@ import attachmentsRouter from './routes/attachments.js';
 import calendarRouter from './routes/calendar.js';
 import indexRouter from './routes/index.js';
 import journalRouter from './routes/journal.js';
+import linksRouter from './routes/links.js';
 import notesRouter from './routes/notes.js';
 import preferencesRouter from './routes/preferences.js';
 import projectsRouter from './routes/projects.js';
@@ -53,6 +54,7 @@ export function createApp() {
   app.use('/api/tasks', taskQueriesRouter);
   app.use('/api/journal', journalRouter);
   app.use('/api/notes', notesRouter);
+  app.use('/api/links', linksRouter);
   app.use('/api/calendar', calendarRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/search', searchRouter);

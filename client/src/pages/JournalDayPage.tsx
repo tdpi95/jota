@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import * as api from '../api/client';
 import AttachmentField, { useAttachmentField } from '../components/AttachmentField';
 import { useBodyEncryption } from '../components/BodyEncryption';
+import Backlinks from '../components/Backlinks';
 import HistoryPanel from '../components/HistoryPanel';
 import RawFileRepair, { isUnparsableFileError } from '../components/RawFileRepair';
 import MarkdownEditor, { type MarkdownEditorHandle } from '../components/MarkdownEditor';
@@ -14,7 +15,8 @@ import TagInput from '../components/TagInput';
 import { addDays, formatDateLong, todayStr, yearOf } from '../lib/date';
 import { useFindShortcut } from '../lib/useFindShortcut';
 import { useViewModeShortcuts, VIEW_MODE_SHORTCUT_LABELS } from '../lib/useViewModeShortcuts';
-import type { IndexedTask } from '../types';
+import type { IndexedTask, TaskStatus } from '../types';
+import { StatusIcon } from '../components/TaskStatusButton';
 
 // Every autosave is also a git commit (PLAN.md: every write is committed,
 // that's the undo mechanism) — a short delay fires on almost every normal
@@ -33,6 +35,8 @@ interface LinkedTaskInfo {
   title: string;
   projectColor: string;
   projectSlug: string;
+  projectName: string;
+  status: TaskStatus;
 }
 
 export default function JournalDayPage() {
@@ -225,7 +229,14 @@ function JournalDayPageInner({ date }: { date: string }) {
     const map = new Map<string, LinkedTaskInfo>();
     for (const project of projectsQuery.data?.projects ?? []) {
       for (const task of project.tasks) {
-        map.set(task.id, { id: task.id, title: task.text, projectColor: project.frontmatter.color, projectSlug: project.slug });
+        map.set(task.id, {
+          id: task.id,
+          title: task.text,
+          projectColor: project.frontmatter.color,
+          projectSlug: project.slug,
+          projectName: project.frontmatter.name,
+          status: task.status,
+        });
       }
     }
     return map;
@@ -332,29 +343,45 @@ function JournalDayPageInner({ date }: { date: string }) {
 
       <div className="linked-section">
         <div className="linked-title">{t('journalDay.linkedTasks')}</div>
-        <div className="linked-wrap">
-          {linkedTaskIds.map((taskId) => {
-            const info = tasksById.get(taskId);
-            return (
-              <span className="linked-chip" key={taskId}>
-                <span className="project-dot" style={{ background: info?.projectColor ?? 'var(--hairline)' }} />
-                {info ? (
-                  <button
-                    type="button"
-                    className="linked-chip-title"
-                    onClick={() => navigate(`/projects/${info.projectSlug}`, { state: { highlightTaskId: taskId } })}
-                  >
-                    {info.title}
+        {linkedTaskIds.length > 0 && (
+          <ul className="linked-list">
+            {linkedTaskIds.map((taskId) => {
+              const info = tasksById.get(taskId);
+              return (
+                <li className={`linked-row ${info?.status === 'done' ? 'done' : ''}`} key={taskId}>
+                  {info ? (
+                    <span className={`status-btn st-${info.status} static`} title={t(`taskRow.status.${info.status}`)}>
+                      <StatusIcon status={info.status} />
+                    </span>
+                  ) : (
+                    <span className="status-btn static" />
+                  )}
+                  {info ? (
+                    <button
+                      type="button"
+                      className="linked-row-title"
+                      onClick={() => navigate(`/projects/${info.projectSlug}`, { state: { highlightTaskId: taskId } })}
+                    >
+                      {info.title}
+                    </button>
+                  ) : (
+                    <span className="linked-row-title missing">{taskId}</span>
+                  )}
+                  {info && (
+                    <span className="linked-row-project">
+                      <span className="project-dot" style={{ background: info.projectColor }} />
+                      {info.projectName}
+                    </span>
+                  )}
+                  <button className="linked-remove" onClick={() => unlinkMutation.mutate(taskId)} aria-label={t('journalDay.removeLink')}>
+                    ×
                   </button>
-                ) : (
-                  taskId
-                )}
-                <button className="linked-remove" onClick={() => unlinkMutation.mutate(taskId)} aria-label={t('journalDay.removeLink')}>
-                  ×
-                </button>
-              </span>
-            );
-          })}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="linked-wrap">
           <div className="picker-wrap">
             <button className="add-link-btn" onClick={() => setPickerOpen((v) => !v)}>
               {t('journalDay.addTask')}
@@ -383,6 +410,8 @@ function JournalDayPageInner({ date }: { date: string }) {
 
         </>
       )}
+
+      <Backlinks kind="journal" id={date} />
 
       <HistoryPanel path={`journal/${year}/${date}.md`} onReverted={invalidateEntry} taskTitles={taskTitles} />
     </div>

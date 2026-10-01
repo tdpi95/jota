@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import { HttpError } from '../lib/httpError.js';
 import * as journalService from '../services/journal.js';
+import * as linksService from '../services/links.js';
 import * as noteService from '../services/notes.js';
 import * as projectService from '../services/projects.js';
 import * as searchService from '../services/search.js';
@@ -341,5 +342,18 @@ export function registerTools(server: McpServer, workspacePath: string): void {
     },
     ({ query, dateRange, types }) =>
       wrap(() => searchService.searchEverything(workspacePath, { query, from: dateRange?.from, to: dateRange?.to, types })),
+  );
+
+  server.registerTool(
+    'get_backlinks',
+    {
+      title: 'Get backlinks',
+      description:
+        'Everything whose text links to a journal day, note or task. Links are written inline in a journal body, note ' +
+        'body or task description as [[target]] or [[target|label]], where target is a task id (t_a1b2c3), a journal ' +
+        'date (2026-09-30), or a note slug or title. `id` is the task id, journal date, or note slug.',
+      inputSchema: { kind: z.enum(['task', 'journal', 'note']), id: z.string() },
+    },
+    ({ kind, id }) => wrap(() => linksService.getBacklinks(workspacePath, kind, id)),
   );
 }

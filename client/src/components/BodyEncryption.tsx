@@ -6,6 +6,7 @@ import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { decryptToken, encryptText, ensureUnlocked, lock, useEncryptionSession } from '../lib/encryption';
 import { findEncryptedTokens, fullyEncryptedPayload } from '../lib/encryptionCrypto';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
+import { useWikilinkPreview } from '../lib/useWikilinks';
 import type { EditorEncryption } from './MarkdownEditor';
 
 const LOCK_ICON = (
@@ -144,7 +145,12 @@ export function useBodyEncryption({ body, onChange }: { body: string; onChange: 
     }
   }
 
+  // Links inside decrypted text count too, so they resolve once unlocked.
+  const linkText = useMemo(() => [body, ...[...decrypted.values()].filter((v) => v !== 'error')].join('\n'), [body, decrypted]);
+  const wikilinks = useWikilinkPreview(linkText);
+
   function handlePreviewClick(event: MouseEvent<HTMLElement>) {
+    if (wikilinks.handleClick(event)) return;
     if ((event.target as HTMLElement).closest('[data-enc-unlock]')) {
       if (tokens.length > 0) void unlockFor();
       return;
@@ -179,7 +185,7 @@ export function useBodyEncryption({ body, onChange }: { body: string; onChange: 
     [session.unlocked, decrypted, labels, t],
   );
 
-  const previewHtml = renderMarkdownToHtml(body, { decrypted, labels: { locked: t('encryption.lockedPreview'), error: labels.error } });
+  const previewHtml = renderMarkdownToHtml(body, { decrypted, labels: { locked: t('encryption.lockedPreview'), error: labels.error } }, wikilinks.preview);
 
   const button = (key: string, icon: ReactNode, label: string, title: string, onClick: () => void, extra?: { pressed?: boolean; disabled?: boolean }) => (
     <button

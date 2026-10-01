@@ -115,7 +115,7 @@ linkedTasks: [t_a1b2c3, t_9f0e21]
 Freeform markdown body, unparsed.
 ```
 
-`linkedTasks` is a plain array of task ids, insertion-ordered, deduped on add. Year folder created on demand. The body (journal and note alike) may contain `` `jota-enc:...` `` encrypted inline tokens — see "Encryption" (milestone 31).
+`linkedTasks` is a plain array of task ids, insertion-ordered, deduped on add. So the file reads sensibly in other markdown viewers, the journal service also writes a generated, titles-only block at the end of the body (`<!-- jota:linked-tasks -->` … `<!-- /jota:linked-tasks -->`, a bullet list of task titles). It's derived from `linkedTasks`: stripped on parse (never part of `body`, never counts toward `hasBody`), regenerated on every journal write and on task rename/delete, and never read back — a hand edit to it is overwritten. It deliberately carries no status, which would go stale on any task change made outside the app; a rename made outside the app also leaves it stale until the next in-app write. Year folder created on demand. The body (journal and note alike) may contain `` `jota-enc:...` `` encrypted inline tokens — see "Encryption" (milestone 31).
 
 ### Note file — one per note, `<workspace>/notes/<slug>.md`
 
@@ -344,6 +344,15 @@ Requested by the user ("encrypt parts or the whole journal and note"). The metho
 - **Server side** (`server/src/lib/markdown/encrypted.ts`): the index stores journal/note bodies with every token stripped (`reindex.ts`), so encrypted content is unsearchable and never appears as a snippet. `hasBody` still sees the raw body, so an all-encrypted entry isn't "empty" to the reminder or calendar.
 - **MCP**: agents see tokens as opaque ciphertext. `putJournalEntry`/`updateNote` reject (409) any write with an `mcp:*` origin whose new body drops or alters an existing token byte-for-byte. The app UI (origin `api`) can still decrypt or remove them. The `body` parameter descriptions of `upsert_journal_entry`/`update_note` tell agents to preserve tokens verbatim.
 - Out of scope: task descriptions, project files, attachments (files under `attachments/` are never encrypted), a "remember on this device" OS-keychain option, and changing a workspace's passphrase (re-encrypting existing tokens).
+
+## Links between journals, notes and tasks — milestone 32
+
+Requested by the user ("find a way to link between journals, notes and tasks"). Three forks were confirmed first: inline wikilinks over relative markdown links or frontmatter arrays, any→any with backlinks over adding only the missing directions, and all three UI pieces (a `[[` picker, rendered links in Preview, a Linked-from panel).
+
+- **Syntax**: `[[target]]` or `[[target|label]]`, written inline in a journal body, a note body or a task description. `target` is a task id (`t_a1b2c3`), a journal date (`2026-09-30`), or a note's slug, falling back to its title (case-insensitive). The slug is the stable address (the filename); a title link breaks if the note is retitled. The picker inserts `id|title`, e.g. `[[reading-list|Reading list]]`, so the file reads sensibly in Obsidian and other viewers. Links inside inline code or fenced blocks are literal text (which also keeps encrypted `jota-enc:` tokens out of it).
+- **Markdown is the only source of truth.** The index's `wikilinks(source_kind, source_id, target)` table is a derived cache, rebuilt per source on every reparse. `target` is stored as written and resolved only at query time, so a created, renamed or deleted note never leaves a stale resolution behind. The frontmatter `linkedTasks` mechanism is unchanged and separate: it is the journal's explicit task list, while wikilinks are inline references.
+- **Service**: `services/links.ts` has `resolveLinks` (target → what it names, or `null` for a dangling link; journal dates always resolve) and `getBacklinks(kind, id)` (everything whose text links to that journal day, note or task, excluding itself). Routes: `POST /api/links/resolve` and `GET /api/links/backlinks?kind=&id=`; MCP: `get_backlinks`. Agents create links simply by writing `[[...]]` into a body or description.
+- **UI**: `MarkdownEditor` has a CodeMirror `[[` picker (today/yesterday/an exact date, matching notes, matching tasks with open ones first). Preview renders a link as a chip: a task shows its live status dot and is struck through when done, a missing target shows a red marker. A bare `[[t_id]]` shows the task's live title; an explicit `|label` wins. `Backlinks` ("Linked from") sits on the journal day page, the note page and the task detail view, and renders nothing when there are none.
 
 ## Frontend (Vite + React + TypeScript + TanStack Query, React Router)
 

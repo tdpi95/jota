@@ -4,7 +4,9 @@ import type { UpdateTaskInput } from '../api/client';
 import { handleRenderedAttachmentClick } from '../lib/attachments';
 import { formatTimestamp } from '../lib/date';
 import { renderMarkdownToHtml } from '../lib/renderMarkdown';
+import { useWikilinkPreview } from '../lib/useWikilinks';
 import type { Task, TaskStatus } from '../types';
+import Backlinks from './Backlinks';
 import DueDateBadge from './DueDateBadge';
 import TaskStatusButton from './TaskStatusButton';
 import TimeSpentBadge from './TimeSpentBadge';
@@ -40,6 +42,7 @@ export default function TaskDetailView({
   pending?: boolean;
 }) {
   const { t } = useTranslation();
+  const wikilinks = useWikilinkPreview(task.description ?? '');
   const hasChecklist = task.checklist.length > 0;
   const checklistDoneCount = task.checklist.filter((item) => item.done).length;
 
@@ -86,10 +89,13 @@ export default function TaskDetailView({
       {task.description && (
         <div
           className="task-desc note-preview"
-          onClick={handleRenderedAttachmentClick}
-          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(task.description) }}
+          onClick={(event) => {
+            if (!wikilinks.handleClick(event)) handleRenderedAttachmentClick(event);
+          }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(task.description, undefined, wikilinks.preview) }}
         />
       )}
+      <Backlinks kind="task" id={task.id} />
       <div className="form-actions task-detail-actions">
         <button type="button" className="btn-primary" onClick={onEdit}>
           {t('common.edit')}

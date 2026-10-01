@@ -61,6 +61,7 @@ test('the tool list matches PLAN.md\'s MCP tool set', async () => {
       'create_task',
       'delete_note',
       'delete_task',
+      'get_backlinks',
       'get_journal_entry',
       'get_note',
       'get_project',
